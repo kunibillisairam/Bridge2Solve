@@ -4,11 +4,9 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { PortalAccessModal } from "@/components/ui/PortalAccessModal";
 
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const navigationLinks = [
     { label: "Explore Problems", href: "#" },
@@ -79,9 +77,11 @@ export function Header() {
 
           {/* Header Action Button */}
           <div className="hidden md:flex items-center">
-            <Button variant="outline" size="sm" onClick={() => setIsModalOpen(true)}>
-              Access Portal
-            </Button>
+            <Link href="/login">
+              <Button variant="outline" size="sm">
+                Access Portal
+              </Button>
+            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -116,18 +116,14 @@ export function Header() {
             </Link>
           ))}
           <div className="pt-4 border-t border-brandgray-border mt-3 px-3">
-            <Button variant="outline" size="md" className="w-full" onClick={() => {
-              setIsMobileMenuOpen(false);
-              setIsModalOpen(true);
-            }}>
-              Access Portal
-            </Button>
+            <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+              <Button variant="outline" size="md" className="w-full">
+                Access Portal
+              </Button>
+            </Link>
           </div>
         </div>
       )}
-
-      {/* Portal Access Modal */}
-      <PortalAccessModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </header>
   );
 }

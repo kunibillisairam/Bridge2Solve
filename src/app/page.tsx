@@ -1,14 +1,10 @@
-"use client";
-
-import React, { useState } from "react";
+import React from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { ShieldCheck, GraduationCap, Building2, Users } from "lucide-react";
-import { PortalAccessModal } from "@/components/ui/PortalAccessModal";
 
 export default function Home() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
   const roles = [
     {
       title: "Citizens",
@@ -54,12 +50,16 @@ export default function Home() {
 
           {/* Call-to-action */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button variant="primary" size="lg" className="w-full sm:w-auto" onClick={() => setIsModalOpen(true)}>
-              Get Started
-            </Button>
-            <Button variant="outline" size="lg" className="w-full sm:w-auto" onClick={() => setIsModalOpen(true)}>
-              Explore Projects
-            </Button>
+            <Link href="/login" className="w-full sm:w-auto">
+              <Button variant="primary" size="lg" className="w-full">
+                Get Started
+              </Button>
+            </Link>
+            <Link href="/login" className="w-full sm:w-auto">
+              <Button variant="outline" size="lg" className="w-full">
+                Explore Projects
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
@@ -118,8 +118,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Portal Access Modal */}
-      <PortalAccessModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }
