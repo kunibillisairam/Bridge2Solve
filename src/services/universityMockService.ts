@@ -54,6 +54,21 @@ export interface ActivityLog {
 }
 
 // ----------------------------------------------------
+// Problem Interest State Model
+// ----------------------------------------------------
+export type InterestStatus = "INTERESTED" | "WITHDRAWN" | "ASSIGNED" | "COMPLETED";
+
+export interface ProblemInterest {
+  id: string;
+  problemId: string;
+  universityId: string;
+  universityName: string;
+  status: InterestStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ----------------------------------------------------
 // Project Stage State Model (Source of Truth)
 // ----------------------------------------------------
 export type ProjectStage = 
@@ -305,7 +320,7 @@ const INITIAL_PROBLEMS: CommunityProblem[] = [
     affectedPopulation: "3,200 students",
     priority: "High",
     matchScore: 95,
-    status: "Active Project",
+    status: "Interested",
     departments: ["Electrical Engineering", "Renewable Energy Systems"],
     researchAreas: ["Solar Photovoltaics", "Battery Storage Systems", "Microgrids"],
     requiredExpertise: ["Solar panel sizing", "Inverter load calculation", "LiFePO4 battery configuration"],
@@ -325,7 +340,7 @@ const INITIAL_PROBLEMS: CommunityProblem[] = [
     matchScore: 84,
     status: "Active Project",
     departments: ["Social Work", "Psychology", "Education"],
-    researchAreas: ["Vernacular Pedagogy", "Community Learning Hub hubs", "E-learning Accessibility"],
+    researchAreas: ["Vernacular Pedagogy", "Community Learning Hubs", "E-learning Accessibility"],
     requiredExpertise: ["Curriculum design", "Tribal dialect translation", "Offline learning tablets"],
     disciplines: ["Education", "Social Work", "Development Studies"],
     submissionDate: "2025-08-10",
@@ -367,9 +382,9 @@ const INITIAL_TEAMS: UniversityTeam[] = [
     facultyMentor: "Prof. Anjali Devi (Electrical Engineering)",
     studentMembers: ["Rahul Mehta (BTech)", "Sneha Roy (BTech)"],
     requiredSkills: ["Solar microgrid design", "Battery management", "Load analysis"],
-    assignedProblemId: "prob-4",
-    assignedProblemTitle: "Intermittent Electricity in Primary Schools",
-    status: "Active",
+    assignedProblemId: null, // Available for problem assignment
+    assignedProblemTitle: null,
+    status: "Available",
   },
   {
     id: "team-3",
@@ -377,9 +392,9 @@ const INITIAL_TEAMS: UniversityTeam[] = [
     facultyMentor: "Dr. Sanjay Dutt (Biotechnology)",
     studentMembers: ["Nikhil Gupta (MSc)", "Kriti Sen (BTech)"],
     requiredSkills: ["Bio-remediation", "Soil chemical analysis", "Microbial culture"],
-    assignedProblemId: null,
-    assignedProblemTitle: null,
-    status: "Available",
+    assignedProblemId: "prob-2",
+    assignedProblemTitle: "Crop Yield Reduction due to Soil Salinity",
+    status: "Active",
   },
   {
     id: "team-4",
@@ -390,6 +405,45 @@ const INITIAL_TEAMS: UniversityTeam[] = [
     assignedProblemId: "prob-5",
     assignedProblemTitle: "High School Dropout Rates in Tribal Districts",
     status: "Active",
+  },
+];
+
+const INITIAL_INTERESTS: ProblemInterest[] = [
+  {
+    id: "int-1",
+    problemId: "prob-1",
+    universityId: "univ-1",
+    universityName: "Indian Institute of Science",
+    status: "ASSIGNED",
+    createdAt: "2026-08-01",
+    updatedAt: "2026-08-12",
+  },
+  {
+    id: "int-2",
+    problemId: "prob-2",
+    universityId: "univ-1",
+    universityName: "Indian Institute of Science",
+    status: "ASSIGNED",
+    createdAt: "2026-08-05",
+    updatedAt: "2026-08-20",
+  },
+  {
+    id: "int-4",
+    problemId: "prob-4", // Intermittent Electricity in Primary Schools
+    universityId: "univ-1",
+    universityName: "Indian Institute of Science",
+    status: "INTERESTED",
+    createdAt: "2026-08-20",
+    updatedAt: "2026-08-20",
+  },
+  {
+    id: "int-5",
+    problemId: "prob-5",
+    universityId: "univ-1",
+    universityName: "Indian Institute of Science",
+    status: "ASSIGNED",
+    createdAt: "2025-08-10",
+    updatedAt: "2025-09-05",
   },
 ];
 
@@ -404,7 +458,7 @@ const INITIAL_PROPOSALS: SolutionProposal[] = [
     problemUnderstanding: "Primary schools in Gaya suffer from 6-8 hours of daily power outages, disrupting educational activities and preventing the use of computers.",
     proposedSolution: "Install 3kW rooftop solar PV systems with lithium-iron-phosphate battery backup to ensure uninterruptible power for classrooms and labs.",
     technologyApproach: "Monocrystalline solar panels, MPPT charge controllers, LiFePO4 batteries.",
-    expectedImpact: "Uninterrupted education for over 3,00,000 students, enabling digital classrooms.",
+    expectedImpact: "Uninterrupted education for over 3,200 students, enabling digital classrooms.",
     requiredResources: "Solar panels, inverter, battery bank, mounting structures, electrical installation team.",
     timeline: "3 months",
     status: "SUBMITTED",
@@ -506,7 +560,7 @@ const INITIAL_PROJECTS: UniversityProject[] = [
     id: "PB-2026-002",
     title: "Solar Powering Rural Primary Schools",
     problemId: "prob-4",
-    teamId: "team-2",
+    teamId: null,
     stage: "PROPOSAL_SUBMITTED",
     startDate: "20 August 2026",
     expectedCompletionDate: "15 January 2027",
@@ -535,7 +589,7 @@ const INITIAL_PROJECTS: UniversityProject[] = [
     id: "PB-2026-003",
     title: "Soil Salinity Bioremediation",
     problemId: "prob-2",
-    teamId: null,
+    teamId: "team-3",
     stage: "UNIVERSITY_MATCHED",
     startDate: "25 August 2026",
     expectedCompletionDate: "30 March 2027",
@@ -547,7 +601,7 @@ const INITIAL_PROJECTS: UniversityProject[] = [
       agreementType: "Joint Agri-Research MoU",
       startDate: "Pending MoU",
       endDate: "Pending MoU",
-      funding: "₹12,0,000 (Target)",
+      funding: "₹12,00,000 (Target)",
       coordinator: "Dr. Sanjay Dutt",
     },
     documents: [
@@ -633,7 +687,7 @@ export function getProjectMilestones(stage: ProjectStage, projectStartDate: stri
       name: "Team Formation",
       stageLimit: 3, // TEAM_FORMED
       date: stageIndex >= 3 ? "15 Aug 2026" : undefined,
-      dueDate: stageIndex < 3 ? "2026-08-23" : undefined, // PB-2026-003 Team Formation will show as overdue
+      dueDate: stageIndex < 3 ? "2026-08-23" : undefined,
       description: "Research team registered and assigned to the project.",
     },
     {
@@ -686,7 +740,6 @@ export function getProjectMilestones(stage: ProjectStage, projectStartDate: stri
     if (stageIndex >= m.stageLimit) {
       status = "Completed";
     } else {
-      // Find the first uncompleted milestone and mark it as Current
       const firstUncompletedIndex = milestonesList.findIndex(ml => stageIndex < ml.stageLimit);
       if (milestonesList[firstUncompletedIndex]?.name === m.name) {
         status = "Current";
@@ -706,7 +759,7 @@ export function getProjectMilestones(stage: ProjectStage, projectStartDate: stri
 // Deadline calculation utility
 export function getDaysRemainingText(dueDateString?: string): { text: string; isOverdue: boolean } | null {
   if (!dueDateString) return null;
-  const current = new Date("2026-08-26"); // static date anchor for demo
+  const current = new Date("2026-08-26");
   const due = new Date(dueDateString);
   
   const diffTime = due.getTime() - current.getTime();
@@ -732,18 +785,76 @@ export const universityMockService = {
     return this.getProblems().find((p) => p.id === id);
   },
 
-  expressInterest(id: string): void {
-    const problems = this.getProblems();
-    const index = problems.findIndex((p) => p.id === id);
-    if (index !== -1) {
-      if (problems[index].status === "Unassigned") {
-        problems[index].status = "Interested";
-        setStoredData("uni_problems", problems);
+  // Problem Interest API
+  getInterests(): ProblemInterest[] {
+    return getStoredData<ProblemInterest[]>("uni_interests", INITIAL_INTERESTS);
+  },
 
-        // Add activity log
-        this.addActivity(`Expressed interest in problem: "${problems[index].title}"`);
-      }
+  getInterestForProblem(problemId: string, universityId = "univ-1"): ProblemInterest | undefined {
+    return this.getInterests().find(
+      (i) => i.problemId === problemId && i.universityId === universityId
+    );
+  },
+
+  expressInterest(problemId: string, universityId = "univ-1", universityName = "Indian Institute of Science"): ProblemInterest {
+    const interests = this.getInterests();
+    const existing = interests.find(
+      (i) => i.problemId === problemId && i.universityId === universityId
+    );
+
+    if (existing) {
+      return existing; // Prevent duplicate interest records
     }
+
+    const today = new Date().toISOString().split("T")[0];
+    const newInterest: ProblemInterest = {
+      id: `int-${Date.now()}`,
+      problemId,
+      universityId,
+      universityName,
+      status: "INTERESTED",
+      createdAt: today,
+      updatedAt: today,
+    };
+
+    interests.push(newInterest);
+    setStoredData("uni_interests", interests);
+
+    // Update Problem status to Interested
+    const problems = this.getProblems();
+    const probIdx = problems.findIndex((p) => p.id === problemId);
+    if (probIdx !== -1) {
+      if (problems[probIdx].status === "Unassigned") {
+        problems[probIdx].status = "Interested";
+        setStoredData("uni_problems", problems);
+      }
+      this.addActivity(`Expressed interest in problem: "${problems[probIdx].title}"`);
+    }
+
+    return newInterest;
+  },
+
+  // Query problems where university expressed interest and is available for team creation
+  getInterestedProblemsForTeams(universityId = "univ-1"): CommunityProblem[] {
+    const interests = this.getInterests().filter(
+      (i) => i.universityId === universityId && (i.status === "INTERESTED" || i.status === "ASSIGNED")
+    );
+    const interestedProblemIds = interests.map((i) => i.problemId);
+    
+    const problems = this.getProblems();
+    const teams = this.getTeams();
+
+    return problems.filter((p) => {
+      // Must have expressed interest
+      if (!interestedProblemIds.includes(p.id)) return false;
+      // If already assigned to a team, only include if unassigned or available
+      const assignedTeam = teams.find((t) => t.assignedProblemId === p.id);
+      return !assignedTeam;
+    });
+  },
+
+  getAssignedTeamForProblem(problemId: string): UniversityTeam | undefined {
+    return this.getTeams().find((t) => t.assignedProblemId === problemId);
   },
 
   // Teams API
@@ -777,7 +888,7 @@ export const universityMockService = {
     }
   },
 
-  assignProblemToTeam(teamId: string, problemId: string): void {
+  assignProblemToTeam(teamId: string, problemId: string, universityId = "univ-1"): void {
     const teams = this.getTeams();
     const teamIndex = teams.findIndex((t) => t.id === teamId);
     
@@ -785,6 +896,30 @@ export const universityMockService = {
     const probIndex = problems.findIndex((p) => p.id === problemId);
 
     if (teamIndex !== -1 && probIndex !== -1) {
+      // Security check: verify university has expressed interest in this problem
+      const interests = this.getInterests();
+      const interestIdx = interests.findIndex(
+        (i) => i.problemId === problemId && i.universityId === universityId
+      );
+
+      if (interestIdx === -1) {
+        // Auto-create interest if not yet created
+        const today = new Date().toISOString().split("T")[0];
+        interests.push({
+          id: `int-${Date.now()}`,
+          problemId,
+          universityId,
+          universityName: "Indian Institute of Science",
+          status: "ASSIGNED",
+          createdAt: today,
+          updatedAt: today,
+        });
+      } else {
+        interests[interestIdx].status = "ASSIGNED";
+        interests[interestIdx].updatedAt = new Date().toISOString().split("T")[0];
+      }
+      setStoredData("uni_interests", interests);
+
       teams[teamIndex].assignedProblemId = problemId;
       teams[teamIndex].assignedProblemTitle = problems[probIndex].title;
       teams[teamIndex].status = "Active";
@@ -817,7 +952,6 @@ export const universityMockService = {
     if (newProposal.status === "SUBMITTED") {
       this.addActivity(`Proposal "${newProposal.title}" submitted for review.`);
       
-      // Update problem status if not already active
       const problems = this.getProblems();
       const probIndex = problems.findIndex((p) => p.id === newProposal.problemId);
       if (probIndex !== -1 && problems[probIndex].status !== "Active Project") {
@@ -843,7 +977,6 @@ export const universityMockService = {
       text,
       timestamp: "Just now",
     };
-    // Keep only last 10 activities
     activities.unshift(newActivity);
     setStoredData("uni_activities", activities.slice(0, 10));
   },

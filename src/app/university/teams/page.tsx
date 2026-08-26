@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/Button";
 
 export default function TeamsPage() {
   const [teams, setTeams] = useState<UniversityTeam[]>([]);
-  const [problems, setProblems] = useState<CommunityProblem[]>([]);
+  const [interestedProblems, setInterestedProblems] = useState<CommunityProblem[]>([]);
   
   // Modal / Form States
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -43,7 +43,8 @@ export default function TeamsPage() {
 
   const loadData = () => {
     setTeams(universityMockService.getTeams());
-    setProblems(universityMockService.getProblems());
+    // Only fetch problems where current university expressed interest and are available for assignment
+    setInterestedProblems(universityMockService.getInterestedProblemsForTeams("univ-1"));
   };
 
   const handleCreateTeam = (e: React.FormEvent) => {
@@ -75,7 +76,7 @@ export default function TeamsPage() {
 
     // Assign problem if selected
     if (newAssignedProblemId) {
-      universityMockService.assignProblemToTeam(created.id, newAssignedProblemId);
+      universityMockService.assignProblemToTeam(created.id, newAssignedProblemId, "univ-1");
     }
 
     // Reset Form
@@ -96,10 +97,7 @@ export default function TeamsPage() {
 
     universityMockService.addTeamMember(teamId, name);
     
-    // Reset individual input
     setAddMemberName((prev) => ({ ...prev, [teamId]: "" }));
-    
-    // Reload
     loadData();
   };
 
@@ -132,7 +130,7 @@ export default function TeamsPage() {
                 <div>
                   <h3 className="text-base font-bold text-primary">{team.name}</h3>
                   <p className="text-[11px] text-brandgray-muted mt-0.5 flex items-center gap-1">
-                    <GraduationCap className="h-3.5 w-3.5" /> {team.facultyMentor}
+                    <GraduationCap className="h-3.5 w-3.5" /> Faculty Mentor: <span className="font-semibold text-brandgray-text">{team.facultyMentor}</span>
                   </p>
                 </div>
                 <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${
@@ -161,7 +159,7 @@ export default function TeamsPage() {
                     </Link>
                   ) : (
                     <span className="text-xs text-brandgray-muted block italic">
-                      Available for problem assignment
+                      No problem assigned
                     </span>
                   )}
                 </div>
@@ -316,22 +314,25 @@ export default function TeamsPage() {
 
               <div className="space-y-1">
                 <label className="text-[11px] font-bold text-brandgray-muted uppercase tracking-wider block">
-                  Assign Match Problem (Optional)
+                  ASSIGN COMMUNITY PROBLEM
                 </label>
                 <select
                   value={newAssignedProblemId}
                   onChange={(e) => setNewAssignedProblemId(e.target.value)}
-                  className="w-full bg-brandgray-light/40 border border-brandgray-border rounded px-2.5 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40 focus:bg-white"
+                  className="w-full bg-brandgray-light/40 border border-brandgray-border rounded px-2.5 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40 focus:bg-white font-medium"
                 >
                   <option value="">-- No Problem Assigned --</option>
-                  {problems
-                    .filter((p) => p.status === "Unassigned" || p.status === "Interested")
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.title} ({p.location})
-                      </option>
-                    ))}
+                  {interestedProblems.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.title} ({p.location})
+                    </option>
+                  ))}
                 </select>
+                {interestedProblems.length === 0 && (
+                  <p className="text-[10.5px] text-amber-700 mt-1">
+                    No unassigned interested problems available. Express interest in a problem first to assign it here.
+                  </p>
+                )}
               </div>
 
               <div className="px-6 py-4 border-t border-brandgray-border/60 bg-brandgray-light/30 flex justify-end gap-3 -mx-6 -mb-6 mt-6">

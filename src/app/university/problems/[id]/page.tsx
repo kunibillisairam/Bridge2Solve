@@ -13,11 +13,16 @@ import {
   CheckCircle,
   Clock,
   BookOpen,
-  ArrowRight
+  ArrowRight,
+  GraduationCap,
+  PlusCircle,
+  Building
 } from "lucide-react";
 import { 
   universityMockService, 
-  CommunityProblem 
+  CommunityProblem,
+  ProblemInterest,
+  UniversityTeam
 } from "@/services/universityMockService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -39,24 +44,38 @@ export default function ProblemDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [problem, setProblem] = useState<CommunityProblem | null>(null);
+  const [interest, setInterest] = useState<ProblemInterest | null>(null);
+  const [assignedTeam, setAssignedTeam] = useState<UniversityTeam | null>(null);
   const [loading, setLoading] = useState(true);
   const [interestSuccess, setInterestSuccess] = useState(false);
 
   useEffect(() => {
     if (id) {
-      const data = universityMockService.getProblemById(id);
-      if (data) {
-        setProblem(data);
-      }
-      setLoading(false);
+      loadProblemDetails(id);
     }
   }, [id]);
 
+  const loadProblemDetails = (problemId: string) => {
+    const probData = universityMockService.getProblemById(problemId);
+    if (probData) {
+      setProblem(probData);
+      
+      // Fetch interest and assigned team relationships
+      const interestData = universityMockService.getInterestForProblem(problemId);
+      setInterest(interestData || null);
+
+      const teamData = universityMockService.getAssignedTeamForProblem(problemId);
+      setAssignedTeam(teamData || null);
+    }
+    setLoading(false);
+  };
+
   const handleExpressInterest = () => {
     if (!problem) return;
-    universityMockService.expressInterest(problem.id);
+    const newInterest = universityMockService.expressInterest(problem.id);
     
     // Refresh local state
+    setInterest(newInterest);
     const updated = universityMockService.getProblemById(problem.id);
     if (updated) {
       setProblem(updated);
@@ -86,6 +105,8 @@ export default function ProblemDetailsPage() {
       </div>
     );
   }
+
+  const isInterestedOrAssigned = !!interest || problem.status !== "Unassigned";
 
   return (
     <div className="space-y-6">
@@ -127,7 +148,7 @@ export default function ProblemDetailsPage() {
       {interestSuccess && (
         <div className="p-4 bg-success-light text-success border border-success/15 rounded text-xs font-semibold flex items-center gap-2">
           <CheckCircle className="h-4.5 w-4.5 shrink-0" />
-          <span>{"Interest expressed successfully! This problem status is now updated to \"Interested\"."}</span>
+          <span>{"Interest expressed successfully! Your university interest relationship has been recorded."}</span>
         </div>
       )}
 
@@ -247,7 +268,7 @@ export default function ProblemDetailsPage() {
         {/* Right Column - Action sidebar */}
         <div className="space-y-6">
           
-          {/* Action Card */}
+          {/* Portal Actions Card */}
           <Card className="border-brandgray-border shadow-subtle bg-white">
             <CardHeader className="p-5 border-b border-brandgray-border/60">
               <CardTitle className="text-sm font-bold text-primary uppercase tracking-wider">
@@ -269,7 +290,7 @@ export default function ProblemDetailsPage() {
                 </div>
               </div>
 
-              {problem.status === "Unassigned" ? (
+              {!isInterestedOrAssigned ? (
                 <Button 
                   variant="primary" 
                   className="w-full h-10 text-xs font-semibold"
@@ -277,42 +298,84 @@ export default function ProblemDetailsPage() {
                 >
                   Express Interest
                 </Button>
-              ) : problem.status === "Interested" ? (
-                <div className="p-3 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded text-center text-xs font-medium space-y-1">
-                  <div className="flex items-center justify-center gap-1">
-                    <Clock className="h-4 w-4" />
+              ) : (
+                <div className="p-3.5 bg-yellow-50/80 text-yellow-900 border border-yellow-200 rounded text-xs space-y-2">
+                  <div className="flex items-center gap-1.5 font-bold text-yellow-800 uppercase tracking-wider text-[11px]">
+                    <Clock className="h-4 w-4 shrink-0 text-yellow-600" />
                     <span>Interest Registered</span>
                   </div>
-                  <span className="text-[10px] text-yellow-700 block">
-                    Your interest has been logged for evaluation.
-                  </span>
-                </div>
-              ) : problem.status === "Under Review" ? (
-                <div className="p-3 bg-indigo-50 text-indigo-800 border border-indigo-200 rounded text-center text-xs font-medium">
-                  Proposal Under Evaluation
-                </div>
-              ) : (
-                <div className="p-3 bg-success-light text-success border border-success/15 rounded text-center text-xs font-medium flex items-center justify-center gap-1.5">
-                  <CheckCircle className="h-4 w-4" /> Active Project
+                  <div className="space-y-1 text-[11px] border-t border-yellow-200/60 pt-2 text-yellow-950">
+                    <div className="flex justify-between">
+                      <span className="text-yellow-700">University:</span>
+                      <span className="font-bold">{interest ? interest.universityName : "Indian Institute of Science"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-yellow-700">Interest Status:</span>
+                      <span className="font-semibold capitalize">{interest ? interest.status.toLowerCase() : "Interested"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-yellow-700">Date:</span>
+                      <span className="font-medium">{interest ? interest.createdAt : problem.submissionDate}</span>
+                    </div>
+                  </div>
                 </div>
               )}
 
               <p className="text-[10.5px] text-brandgray-muted leading-relaxed">
-                By expressing interest, your university registers a preliminary intent to work on the problem. This notifies administrators and lets you choose this problem when creating proposals.
+                Expressing interest connects this problem with your university workspace. It enables team creation and proposal submissions.
               </p>
-
-              {problem.status === "Interested" && (
-                <div className="pt-3 border-t border-brandgray-border/40">
-                  <Link href="/university/proposals">
-                    <Button variant="outline" size="sm" className="w-full text-xs font-semibold flex items-center justify-center gap-1">
-                      Draft Solution Proposal <ArrowRight className="h-3.5 w-3.5" />
-                    </Button>
-                  </Link>
-                </div>
-              )}
 
             </CardContent>
           </Card>
+
+          {/* Research Team Assignment Block */}
+          {isInterestedOrAssigned && (
+            <Card className="border-brandgray-border shadow-subtle bg-white">
+              <CardHeader className="p-5 border-b border-brandgray-border/60">
+                <CardTitle className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
+                  <Users className="h-4 w-4 text-brandgray-muted" /> Research Team Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-5 space-y-4">
+                {assignedTeam ? (
+                  <div className="space-y-3">
+                    <span className="text-[10px] font-bold text-success uppercase tracking-wider block bg-success-light border border-success/15 px-2 py-0.5 rounded w-max">
+                      ASSIGNED RESEARCH TEAM
+                    </span>
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-primary">{assignedTeam.name}</h4>
+                      <p className="text-xs text-brandgray-muted flex items-center gap-1">
+                        <GraduationCap className="h-3.5 w-3.5 shrink-0" /> {assignedTeam.facultyMentor}
+                      </p>
+                    </div>
+                    <div className="pt-2">
+                      <Link href="/university/teams">
+                        <Button variant="outline" size="sm" className="w-full h-8 font-semibold text-xs flex items-center justify-center gap-1">
+                          View Team <ArrowRight className="h-3.5 w-3.5" />
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block bg-amber-50 border border-amber-200 px-2 py-0.5 rounded w-max">
+                      TEAM FORMATION PENDING
+                    </span>
+                    <p className="text-xs text-brandgray-muted leading-relaxed">
+                      Interest is registered, but no university research team has been formed/assigned to this challenge yet.
+                    </p>
+                    <div className="pt-1">
+                      <Link href="/university/teams">
+                        <Button variant="primary" size="sm" className="w-full h-9 font-semibold text-xs flex items-center justify-center gap-1.5">
+                          <PlusCircle className="h-4 w-4" /> Create Team
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
         </div>
 

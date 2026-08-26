@@ -51,9 +51,10 @@ export default function DashboardPage() {
     setActivities(universityMockService.getActivities());
   }, []);
 
-  // Quick stats calculations
-  const totalMatched = problems.length;
-  const underReviewCount = problems.filter((p) => p.status === "Under Review" || p.status === "Interested").length;
+  // Quick stats calculations based on actual relationships
+  const interests = universityMockService.getInterests();
+  const matchedProblemsCount = interests.length;
+  const underReviewCount = proposals.filter((p) => p.status === "SUBMITTED" || p.status === "UNDER_REVIEW").length;
   const totalTeams = teams.length;
   const totalProposals = proposals.filter((p) => p.status === "SUBMITTED" || p.status === "ACCEPTED").length;
 
@@ -72,8 +73,8 @@ export default function DashboardPage() {
         {[
           { 
             label: "Matched Problems", 
-            value: totalMatched, 
-            description: "Suggested for your expertise",
+            value: matchedProblemsCount, 
+            description: "Interest registered by university",
             icon: Layers, 
             color: "text-primary bg-primary-light border-primary/10" 
           },
