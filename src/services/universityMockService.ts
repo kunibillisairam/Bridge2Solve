@@ -17,7 +17,7 @@ export interface CommunityProblem {
   affectedPopulation: string;
   priority: "High" | "Medium" | "Low";
   matchScore: number;
-  status: "Unassigned" | "Interested" | "Under Review" | "Active Project";
+  status: "Unassigned" | "Interested" | "Under Review" | "Active Project" | "Rejected";
   departments: string[];
   researchAreas: string[];
   requiredExpertise: string[];
@@ -1547,5 +1547,20 @@ export const universityMockService = {
       actionHref: config.actionHref,
       milestones,
     };
+  },
+
+  updateProblemStatus(problemId: string, status: "Unassigned" | "Interested" | "Under Review" | "Active Project" | "Rejected", userRole = "ADMIN"): CommunityProblem {
+    if (userRole !== "ADMIN") {
+      throw new Error("Unauthorized: Only platform administrators can validate or update problem status.");
+    }
+    const problems = this.getProblems();
+    const idx = problems.findIndex((p) => p.id === problemId);
+    if (idx === -1) {
+      throw new Error("Problem not found.");
+    }
+    problems[idx].status = status as any;
+    setStoredData("uni_problems", problems);
+    this.addActivity(`Admin updated problem "${problems[idx].title}" status to "${status}".`);
+    return problems[idx];
   }
 };

@@ -41,6 +41,7 @@ const STATUS_BADGES = {
   Interested: "bg-yellow-50 text-yellow-700 border-yellow-250",
   "Under Review": "bg-indigo-50 text-indigo-700 border-indigo-200",
   "Active Project": "bg-success-light text-success border-success/15",
+  Rejected: "bg-red-50 text-red-700 border-red-200",
 };
 
 export default function ProblemDetailsPage() {

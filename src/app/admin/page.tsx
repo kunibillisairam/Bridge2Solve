@@ -1,713 +1,447 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
-import { ShieldCheck, Clock, CheckCircle, XCircle, AlertTriangle, RefreshCw, ChevronRight, Users } from 'lucide-react';
-import { universityMockService } from '@/services/universityMockService';
-import { findSimilarProblems } from '@/services/duplicateDetectionService';
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { 
+  ShieldCheck, 
+  Layers, 
+  FileText, 
+  FolderKanban, 
+  Building2, 
+  Clock, 
+  CheckCircle2, 
+  AlertTriangle, 
+  ArrowRight, 
+  Sparkles, 
+  Activity, 
+  Users,
+  Copy,
+  Check,
+  Eye,
+  ChevronRight,
+  Filter,
+  Search
+} from "lucide-react";
+import { 
+  universityMockService, 
+  CommunityProblem, 
+  ActivityLog, 
+  SolutionProposal, 
+  UniversityProject 
+} from "@/services/universityMockService";
+import { industryService, IndustrySupportRequest } from "@/services/industryService";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 
-interface Problem {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  district: string;
-  state: string;
-  affectedPopulation: number;
-  status: string;
-  priority: string;
-  createdAt: string;
-  submittedBy: { name: string; email: string };
-  aiAnalysis?: {
-    category: string;
-    priority: string;
-    priorityScore: number;
-    requiredExpertise: string;
-    matchedInstitutions: string;
-    matchedIndustries: string;
-    reviewStatus: string;
-  } | null;
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  SUBMITTED: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
-  UNDER_REVIEW: 'bg-amber-100 text-amber-800 border border-amber-200',
-  ANALYZED: 'bg-purple-100 text-purple-800 border border-purple-200',
-  MATCHED: 'bg-indigo-100 text-indigo-800 border border-indigo-200',
-  IN_PROGRESS: 'bg-green-100 text-green-800 border border-green-200',
-  RESOLVED: 'bg-gray-100 text-gray-700 border border-gray-200',
-  REJECTED: 'bg-red-100 text-red-800 border border-red-200',
+const PRIORITY_BADGES = {
+  High: "bg-red-50 text-red-700 border-red-200",
+  Medium: "bg-amber-50 text-amber-700 border-amber-200",
+  Low: "bg-slate-50 text-slate-700 border-slate-200",
 };
 
-const PRIORITY_COLORS: Record<string, string> = {
-  CRITICAL: 'bg-red-500 text-white',
-  HIGH: 'bg-orange-500 text-white',
-  MEDIUM: 'bg-yellow-500 text-white',
-  LOW: 'bg-green-500 text-white',
+const STATUS_BADGES: Record<string, string> = {
+  Unassigned: "bg-blue-50 text-blue-700 border-blue-150",
+  Interested: "bg-yellow-50 text-yellow-700 border-yellow-250",
+  "Under Review": "bg-indigo-50 text-indigo-700 border-indigo-200",
+  "Active Project": "bg-emerald-50 text-emerald-800 border-emerald-300",
+  Rejected: "bg-red-50 text-red-700 border-red-200",
 };
 
-export default function AdminDashboard() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  const [problems, setProblems] = useState<Problem[]>([]);
-  const [fetching, setFetching] = useState(true);
-  const [selected, setSelected] = useState<Problem | null>(null);
-  const [actionLoading, setActionLoading] = useState(false);
-  const [msg, setMsg] = useState('');
+export default function AdminControlCenterPage() {
+  const [problems, setProblems] = useState<CommunityProblem[]>([]);
+  const [proposals, setProposals] = useState<SolutionProposal[]>([]);
+  const [projects, setProjects] = useState<UniversityProject[]>([]);
+  const [industryRequests, setIndustryRequests] = useState<IndustrySupportRequest[]>([]);
+  const [activities, setActivities] = useState<ActivityLog[]>([]);
 
-  const fetchProblems = useCallback(async () => {
-    setFetching(true);
-    try {
-      const res = await fetch('/api/problems?role=ADMIN');
-      const data = await res.json();
-      setProblems(data.problems || []);
-    } catch {
-      setMsg('Failed to load problems.');
-    } finally {
-      setFetching(false);
-    }
-  }, []);
+  // Validation Queue Tab state
+  const [activeTab, setActiveTab] = useState<"all" | "pending" | "analyzed" | "duplicates" | "approved" | "rejected">("all");
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'ADMIN')) {
-      router.push('/login');
-      return;
-    }
-    if (!loading && user) fetchProblems();
-  }, [loading, user]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleValidate = async (problemId: string, action: 'approve' | 'reject') => {
-    setActionLoading(true);
-    setMsg('');
-    try {
-      const res = await fetch(`/api/problems/${problemId}/validate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setMsg(data.error || 'Action failed'); return; }
-      setMsg(`Problem ${action === 'approve' ? 'approved & AI analysis triggered' : 'rejected'} successfully.`);
-      setSelected(null);
-      fetchProblems();
-    } catch {
-      setMsg('Network error.');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleCreateProject = async (problemId: string, universityId: string, industryId?: string) => {
-    setActionLoading(true);
-    setMsg('');
-    try {
-      const res = await fetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ problemId, universityId, industryId }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setMsg(data.error || 'Failed to match project');
-        return;
-      }
-      setMsg('Project successfully matched and assigned to University!');
-      setSelected(null);
-      fetchProblems();
-    } catch {
-      setMsg('Network error.');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const [proposalMetrics, setProposalMetrics] = useState({ pendingCount: 0, acceptedCount: 0, rejectedCount: 0, projectsCreatedCount: 0 });
-
-  useEffect(() => {
-    setProposalMetrics(universityMockService.getAdminProposalMetrics());
+    loadData();
   }, []);
 
-  const pending = problems.filter(p => p.status === 'SUBMITTED' || p.status === 'UNDER_REVIEW');
-  const analyzed = problems.filter(p => p.status === 'ANALYZED' || p.status === 'MATCHED');
-  const rest = problems.filter(p => !['SUBMITTED', 'UNDER_REVIEW', 'ANALYZED', 'MATCHED'].includes(p.status));
+  const loadData = () => {
+    setProblems(universityMockService.getProblems());
+    setProposals(universityMockService.getAllProposalsForAdmin());
+    setProjects(universityMockService.getProjects());
+    setIndustryRequests(industryService.getAllSupportRequests());
+    setActivities(universityMockService.getActivities());
+  };
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-brandgray-muted">Loading...</div></div>;
+  // Top-Level Dynamic Platform Statistics
+  const totalProblemsCount = problems.length;
+  const pendingValidationCount = problems.filter((p) => p.status === "Unassigned").length;
+  const aiAnalyzedCount = problems.filter((p) => p.status !== "Unassigned").length;
+  const potentialDuplicatesCount = problems.filter((p) => p.matchScore >= 85).length;
+  const universityRegistrationsCount = universityMockService.getInterests().length;
+  const pendingProposalsCount = proposals.filter((pr) => pr.status === "SUBMITTED" || pr.status === "UNDER_REVIEW").length;
+  const activeProjectsCount = projects.filter((pj) => pj.stage !== "COMPLETED").length;
+  const pendingIndustryRequestsCount = industryRequests.filter((r) => r.status === "PENDING" || r.status === "UNDER_REVIEW").length;
+  const completedProjectsCount = projects.filter((pj) => pj.stage === "COMPLETED").length;
+
+  // Filtered Validation Queue problems
+  let queueProblems = problems;
+  if (activeTab === "pending") {
+    queueProblems = problems.filter((p) => p.status === "Unassigned");
+  } else if (activeTab === "analyzed") {
+    queueProblems = problems.filter((p) => p.status === "Interested" || p.status === "Under Review");
+  } else if (activeTab === "duplicates") {
+    queueProblems = problems.filter((p) => p.matchScore >= 85);
+  } else if (activeTab === "approved") {
+    queueProblems = problems.filter((p) => p.status === "Active Project");
+  } else if (activeTab === "rejected") {
+    queueProblems = problems.filter((p) => p.status === "Rejected");
+  }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+    <div className="space-y-8">
+      {/* Title Banner */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-brandgray-border/60 pb-5">
         <div>
-          <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
-            <ShieldCheck className="h-6 w-6" /> Admin Validation Dashboard
+          <h1 className="text-2xl font-extrabold text-primary uppercase tracking-wide flex items-center gap-2.5">
+            <ShieldCheck className="h-7 w-7 text-amber-500" /> ADMINISTRATION CONTROL CENTER
           </h1>
-          <p className="text-sm text-brandgray-muted mt-1">Review citizen submissions, trigger AI analysis, and manage problem & proposal lifecycle.</p>
+          <p className="text-xs text-brandgray-muted mt-1 font-medium">
+            Monitor, validate, approve, and coordinate the complete ProblemBridge lifecycle.
+          </p>
         </div>
-        <button onClick={fetchProblems} className="flex items-center gap-1.5 text-sm text-primary border border-primary/20 px-3 py-1.5 rounded hover:bg-primary-light transition-colors">
-          <RefreshCw className="h-3.5 w-3.5" /> Refresh
-        </button>
       </div>
 
-      {/* University Proposal Review Quick Access Banner */}
-      <Link href="/admin/proposals" className="block mb-4">
-        <div className="bg-white rounded-lg border border-purple-200 p-4 flex items-center justify-between shadow-subtle hover:border-purple-400 transition-colors">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-purple-100 text-purple-800 border border-purple-200">
-              <ShieldCheck className="h-5 w-5 text-purple-800" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-primary">University Proposal Review Portal</h3>
-              <p className="text-xs text-brandgray-muted">Evaluate submitted academic research proposals and approve project creation.</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold bg-amber-50 text-amber-800 border border-amber-250 px-2.5 py-1 rounded">
-              {proposalMetrics.pendingCount} Pending Review
-            </span>
-            <ChevronRight className="h-4 w-4 text-brandgray-muted" />
-          </div>
-        </div>
-      </Link>
-
-      {/* Industry CSR Support Requests Quick Access Banner */}
-      <Link href="/admin/industry-support" className="block mb-6">
-        <div className="bg-white rounded-lg border border-indigo-200 p-4 flex items-center justify-between shadow-subtle hover:border-indigo-400 transition-colors">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200">
-              <ShieldCheck className="h-5 w-5 text-indigo-800" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-primary">Industry / CSR Support Requests</h3>
-              <p className="text-xs text-brandgray-muted">Review and approve industry participation, CSR funding, and technical mentorship for active projects.</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded">
-              Review Support Requests
-            </span>
-            <ChevronRight className="h-4 w-4 text-brandgray-muted" />
-          </div>
-        </div>
-      </Link>
-
-      {msg && (
-        <div className={`mb-4 px-4 py-3 rounded text-sm border ${msg.includes('success') ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-          {msg}
-        </div>
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+      {/* TOP-LEVEL PLATFORM STATISTICS GRID (9 Dynamic Responsive Cards) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
         {[
-          { label: 'Pending Review', count: pending.length, icon: Clock, color: 'text-yellow-600 bg-yellow-50' },
-          { label: 'AI Analyzed', count: analyzed.length, icon: RefreshCw, color: 'text-purple-600 bg-purple-50' },
-          { label: 'Total Problems', count: problems.length, icon: Users, color: 'text-blue-600 bg-blue-50' },
-          { label: 'Resolved', count: rest.filter(p => p.status === 'RESOLVED').length, icon: CheckCircle, color: 'text-green-600 bg-green-50' },
-        ].map(({ label, count, icon: Icon, color }) => (
-          <div key={label} className="bg-white rounded-lg border border-brandgray-border p-4 flex items-center gap-3 shadow-subtle">
-            <div className={`p-2 rounded-lg ${color}`}><Icon className="h-4 w-4" /></div>
-            <div>
-              <div className="text-xl font-bold text-brandgray-text">{count}</div>
-              <div className="text-xs text-brandgray-muted">{label}</div>
-            </div>
-          </div>
-        ))}
+          { label: "Total Problems", value: totalProblemsCount, href: "/admin/problems", icon: Layers, color: "bg-blue-50 text-blue-700 border-blue-200" },
+          { label: "Pending Validation", value: pendingValidationCount, href: "/admin/problems?status=Unassigned", icon: Clock, color: "bg-amber-50 text-amber-800 border-amber-250" },
+          { label: "AI Analyzed", value: aiAnalyzedCount, href: "/admin/problems?status=Analyzed", icon: Sparkles, color: "bg-purple-50 text-purple-800 border-purple-200" },
+          { label: "Potential Duplicates", value: potentialDuplicatesCount, href: "/admin/problems?duplicates=true", icon: Copy, color: "bg-rose-50 text-rose-800 border-rose-200" },
+          { label: "Univ Registrations", value: universityRegistrationsCount, href: "/admin/problems", icon: Users, color: "bg-emerald-50 text-emerald-800 border-emerald-250" },
+          { label: "Pending Proposals", value: pendingProposalsCount, href: "/admin/proposals", icon: FileText, color: "bg-indigo-50 text-indigo-800 border-indigo-200" },
+          { label: "Active Projects", value: activeProjectsCount, href: "/admin/projects", icon: FolderKanban, color: "bg-primary-light text-primary border-primary/20" },
+          { label: "Industry Requests", value: pendingIndustryRequestsCount, href: "/admin/industry-support", icon: Building2, color: "bg-amber-50 text-amber-900 border-amber-300" },
+          { label: "Completed Projects", value: completedProjectsCount, href: "/admin/projects?stage=COMPLETED", icon: CheckCircle2, color: "bg-slate-100 text-slate-800 border-slate-300" },
+        ].map((stat, i) => {
+          const Icon = stat.icon;
+          return (
+            <Link key={i} href={stat.href} className="block group">
+              <Card className={`border shadow-subtle hover:border-primary transition-all bg-white flex flex-col justify-between h-full`}>
+                <CardContent className="p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className={`h-7 w-7 rounded flex items-center justify-center border text-xs ${stat.color}`}>
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <ChevronRight className="h-3.5 w-3.5 text-brandgray-muted group-hover:text-primary transition-colors" />
+                  </div>
+                  <div>
+                    <span className="text-2xl font-extrabold text-primary block leading-none">
+                      {stat.value}
+                    </span>
+                    <span className="text-[11px] font-bold text-brandgray-text mt-1 block truncate">
+                      {stat.label}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Problem List */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Pending */}
-          {pending.length > 0 && (
-            <div>
-              <h2 className="text-sm font-semibold text-brandgray-muted uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                <AlertTriangle className="h-3.5 w-3.5 text-yellow-500" /> Awaiting Validation ({pending.length})
-              </h2>
-              {pending.map(p => (
-                <ProblemCard key={p.id} problem={p} selected={selected?.id === p.id} onClick={() => setSelected(p)} />
-              ))}
-            </div>
-          )}
-
-          {/* Analyzed */}
-          {analyzed.length > 0 && (
-            <div>
-              <h2 className="text-sm font-semibold text-brandgray-muted uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                <CheckCircle className="h-3.5 w-3.5 text-purple-500" /> AI Analyzed / Matched ({analyzed.length})
-              </h2>
-              {analyzed.map(p => (
-                <ProblemCard key={p.id} problem={p} selected={selected?.id === p.id} onClick={() => setSelected(p)} />
-              ))}
-            </div>
-          )}
-
-          {/* Others */}
-          {rest.length > 0 && (
-            <div>
-              <h2 className="text-sm font-semibold text-brandgray-muted uppercase tracking-wide mb-3">Others ({rest.length})</h2>
-              {rest.map(p => (
-                <ProblemCard key={p.id} problem={p} selected={selected?.id === p.id} onClick={() => setSelected(p)} />
-              ))}
-            </div>
-          )}
-
-          {!fetching && problems.length === 0 && (
-            <div className="text-center py-12 bg-white rounded-lg border border-brandgray-border text-brandgray-muted">
-              No problems submitted yet.
-            </div>
-          )}
-        </div>
-
-        {/* Detail Panel */}
-        <div className="lg:col-span-1">
-          {selected ? (
-            <div className="bg-white border border-brandgray-border rounded-lg p-5 shadow-subtle sticky top-24">
-              <h3 className="font-semibold text-primary text-sm mb-1">{selected.title}</h3>
-              <p className="text-xs text-brandgray-muted mb-3">Submitted by {selected.submittedBy?.name || 'Citizen'} · {selected.district}, {selected.state}</p>
-              <p className="text-sm text-brandgray-text mb-4">{selected.description}</p>
-
-              <div className="space-y-2 mb-4">
-                <div className="flex justify-between text-xs"><span className="text-brandgray-muted">Category</span><span className="font-medium">{selected.category}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-brandgray-muted">Affected</span><span className="font-medium">{selected.affectedPopulation} people</span></div>
-                <div className="flex justify-between text-xs"><span className="text-brandgray-muted">Status</span>
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[selected.status] || ''}`}>{selected.status.replace(/_/g, ' ')}</span>
+      {/* ACTION REQUIRED QUEUE (High Priority Section) */}
+      <Card className="border-amber-300 bg-amber-50/40 shadow-subtle">
+        <CardHeader className="p-4 border-b border-amber-200/80 bg-amber-100/40 flex flex-row items-center justify-between">
+          <CardTitle className="text-xs font-bold text-amber-950 uppercase tracking-wider flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600" /> Action Required Queue
+          </CardTitle>
+          <span className="text-[11px] font-bold text-amber-900 bg-amber-200/60 px-2.5 py-0.5 rounded">
+            Immediate Admin Tasks
+          </span>
+        </CardHeader>
+        <CardContent className="p-4 space-y-2.5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+            {[
+              {
+                title: "Validation Needed",
+                desc: `${pendingValidationCount} problem reports awaiting initial validation`,
+                count: pendingValidationCount,
+                href: "/admin/problems?status=Unassigned",
+                badge: "HIGH PRIORITY",
+                badgeColor: "bg-red-100 text-red-800 border-red-300",
+              },
+              {
+                title: "Potential Duplicates",
+                desc: `${potentialDuplicatesCount} reports with >85% match similarity`,
+                count: potentialDuplicatesCount,
+                href: "/admin/problems?duplicates=true",
+                badge: "REVIEW NEEDED",
+                badgeColor: "bg-amber-100 text-amber-800 border-amber-300",
+              },
+              {
+                title: "Proposals Pending",
+                desc: `${pendingProposalsCount} academic research proposals awaiting decision`,
+                count: pendingProposalsCount,
+                href: "/admin/proposals",
+                badge: "DECISION NEEDED",
+                badgeColor: "bg-indigo-100 text-indigo-800 border-indigo-300",
+              },
+              {
+                title: "Industry CSR Requests",
+                desc: `${pendingIndustryRequestsCount} support requests awaiting approval`,
+                count: pendingIndustryRequestsCount,
+                href: "/admin/industry-support",
+                badge: "APPROVAL NEEDED",
+                badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-300",
+              },
+            ].map((item, idx) => (
+              <div key={idx} className="bg-white p-3.5 rounded border border-amber-200/80 space-y-2.5 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className={`text-[9.5px] font-extrabold px-2 py-0.5 border rounded uppercase ${item.badgeColor}`}>
+                      {item.badge}
+                    </span>
+                    <span className="text-base font-extrabold text-primary">{item.count}</span>
+                  </div>
+                  <h4 className="text-xs font-bold text-primary">{item.title}</h4>
+                  <p className="text-[11px] text-brandgray-muted leading-tight">{item.desc}</p>
                 </div>
+                <Link href={item.href}>
+                  <Button variant="primary" size="sm" className="w-full h-7 text-[11px] font-bold">
+                    Review Queue
+                  </Button>
+                </Link>
               </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-              {(() => {
-                const analysis = universityMockService.getProblemAnalysis(selected.id);
-                if (!analysis) return null;
+      {/* PROBLEM VALIDATION QUEUE SECTION */}
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between border-b border-brandgray-border/60 pb-3 gap-2">
+          <h3 className="text-sm font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+            <Layers className="h-4 w-4 text-primary" /> Problem Validation Queue
+          </h3>
+          <Link href="/admin/problems" className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+            View All Problems <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
 
-                return (
-                  <div className="bg-purple-50 rounded-lg p-4 mb-4 border border-purple-200 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
-                        🤖 AI-Assisted Analysis
-                      </span>
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase ${
-                        analysis.reviewStatus === "ACCEPTED" 
-                          ? "bg-green-100 text-green-800 border-green-200" 
-                          : analysis.reviewStatus === "MODIFIED" 
-                          ? "bg-blue-100 text-blue-800 border-blue-200" 
-                          : "bg-yellow-100 text-yellow-800 border-yellow-200"
-                      }`}>
-                        {analysis.reviewStatus || "PENDING REVIEW"}
-                      </span>
-                    </div>
+        {/* Validation Filter Tabs */}
+        <div className="flex flex-wrap gap-1 border-b border-brandgray-border text-xs">
+          {[
+            { key: "all", label: `All (${problems.length})` },
+            { key: "pending", label: `Pending Validation (${pendingValidationCount})` },
+            { key: "analyzed", label: `AI Analyzed (${aiAnalyzedCount})` },
+            { key: "duplicates", label: `Potential Duplicates (${potentialDuplicatesCount})` },
+            { key: "approved", label: `Approved Projects (${projects.length})` },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key as any)}
+              className={`py-2 px-3 font-bold border-b-2 transition-all text-xs ${
+                activeTab === t.key
+                  ? "border-primary text-primary bg-white"
+                  : "border-transparent text-brandgray-muted hover:text-brandgray-text"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-                    <div className="space-y-1.5 text-xs text-purple-950">
-                      <div><span className="text-brandgray-muted block text-[10px] uppercase font-bold">Category & Subcategory</span><span className="font-semibold">{analysis.category} / {analysis.subcategory}</span></div>
-                      <div><span className="text-brandgray-muted block text-[10px] uppercase font-bold">Problem Summary</span><p className="bg-white/80 p-2 rounded border border-purple-100 text-brandgray-text mt-0.5">{analysis.summary}</p></div>
-                      <div className="grid grid-cols-2 gap-2 pt-1">
-                        <div><span className="text-brandgray-muted block text-[10px] uppercase font-bold">Severity</span><span className="font-bold text-red-700">{analysis.severity}</span></div>
-                        <div><span className="text-brandgray-muted block text-[10px] uppercase font-bold">Impact Level</span><span className="font-bold text-purple-900">{analysis.impactLevel}</span></div>
-                      </div>
-                      <div>
-                        <span className="text-brandgray-muted block text-[10px] uppercase font-bold mt-1">Required Expertise</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {analysis.requiredExpertise.map((exp, i) => (
-                            <span key={i} className="text-[10px] bg-white text-purple-900 border border-purple-200 px-1.5 py-0.5 rounded font-medium">{exp}</span>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-brandgray-muted block text-[10px] uppercase font-bold mt-1">Suggested Domains</span>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {analysis.suggestedDomains.map((domain, i) => (
-                            <span key={i} className="text-[10px] bg-purple-100 text-purple-900 border border-purple-200 px-1.5 py-0.5 rounded font-medium">{domain}</span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 pt-2 border-t border-purple-200/60">
-                      <button
-                        onClick={() => {
-                          universityMockService.acceptProblemAnalysis(selected.id);
-                          fetchProblems();
-                        }}
-                        className="flex-1 bg-purple-700 hover:bg-purple-800 text-white text-[11px] font-semibold py-1.5 rounded transition-colors"
-                      >
-                        Accept Analysis
-                      </button>
-                      <button
-                        onClick={() => {
-                          const updated = prompt("Enter updated Category & Subcategory (e.g. Water & Sanitation / Water Quality):", `${analysis.category} / ${analysis.subcategory}`);
-                          if (updated) {
-                            const parts = updated.split("/");
-                            universityMockService.updateProblemAnalysis(selected.id, {
-                              category: parts[0]?.trim() || analysis.category,
-                              subcategory: parts[1]?.trim() || analysis.subcategory,
-                            });
-                            fetchProblems();
-                          }
-                        }}
-                        className="flex-1 bg-white hover:bg-purple-100 text-purple-900 border border-purple-300 text-[11px] font-semibold py-1.5 rounded transition-colors"
-                      >
-                        Edit Analysis
-                      </button>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* AI-Assisted Duplicate Detection & Clustering Section */}
-              {(() => {
-                const allProbs = universityMockService.getProblems();
-                const candidates = findSimilarProblems(
-                  {
-                    id: selected.id,
-                    title: selected.title,
-                    description: selected.description,
-                    category: selected.category,
-                    location: `${selected.district}, ${selected.state}`,
-                    state: selected.state,
-                    district: selected.district,
-                    affectedPopulation: `${selected.affectedPopulation} people`,
-                    priority: selected.priority === "CRITICAL" ? "High" : "Medium",
-                    matchScore: 85,
-                    status: "Unassigned",
-                    departments: [],
-                    researchAreas: [],
-                    requiredExpertise: [],
-                    disciplines: [],
-                    submissionDate: selected.createdAt,
-                  },
-                  allProbs,
-                  universityMockService.getProblemAnalysis
-                ).filter((c) => !universityMockService.isMarkedIndependent(selected.id, c.candidateId));
-
-                const activeCluster = universityMockService.getClusterForProblem(selected.id);
-
-                return (
-                  <div className="bg-indigo-50/70 rounded-lg p-4 mb-4 border border-indigo-200 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
-                        🔍 AI Duplicate & Cluster Detection
-                      </span>
-                      {activeCluster && (
-                        <span className="text-[9px] font-bold bg-indigo-200 text-indigo-900 px-2 py-0.5 rounded border border-indigo-300 uppercase">
-                          Clustered
+        {/* Queue Cards */}
+        {queueProblems.length === 0 ? (
+          <Card className="border-brandgray-border bg-white">
+            <CardContent className="p-8 text-center text-xs text-brandgray-muted">
+              No problems found in this queue tab.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {queueProblems.slice(0, 4).map((problem) => (
+              <Card key={problem.id} className="border-brandgray-border shadow-subtle bg-white hover:border-primary/30 transition-all flex flex-col justify-between">
+                <CardContent className="p-5 space-y-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-extrabold text-primary uppercase bg-primary-light border border-primary/10 px-2 py-0.5 rounded">
+                          {problem.id}
                         </span>
-                      )}
-                    </div>
-
-                    {activeCluster && (
-                      <div className="p-2.5 bg-white rounded border border-indigo-200 text-xs space-y-1">
-                        <span className="text-[10px] font-bold text-indigo-800 uppercase block">Active Problem Cluster</span>
-                        <p className="font-semibold text-primary">{activeCluster.primaryTitle}</p>
-                        <p className="text-[10.5px] text-brandgray-muted">Cluster Members: {activeCluster.memberProblemIds.length} reports</p>
-                      </div>
-                    )}
-
-                    {candidates.length === 0 ? (
-                      <p className="text-xs text-indigo-900/80 italic">No potential duplicate candidates detected for this problem.</p>
-                    ) : (
-                      <div className="space-y-2.5">
-                        <span className="text-[10px] font-bold text-indigo-800 uppercase block">
-                          Potential Duplicates Detected ({candidates.length})
+                        <span className="text-[10px] font-bold text-brandgray-muted uppercase">
+                          {problem.category}
                         </span>
-                        {candidates.map((c) => (
-                          <div key={c.candidateId} className="bg-white p-3 rounded border border-indigo-150 space-y-2 text-xs">
-                            <div className="flex justify-between items-start gap-1">
-                              <span className="font-bold text-primary text-xs leading-tight">{c.candidateTitle}</span>
-                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded border shrink-0 ${
-                                c.confidenceLevel === "HIGH" 
-                                  ? "bg-red-50 text-red-700 border-red-200" 
-                                  : "bg-amber-50 text-amber-800 border-amber-200"
-                              }`}>
-                                {c.similarityScore}% Match ({c.confidenceLevel})
-                              </span>
-                            </div>
-
-                            <p className="text-[10.5px] text-brandgray-muted">Location: {c.candidateLocation}</p>
-                            
-                            <div className="text-[10px] text-brandgray-text bg-slate-50 p-2 rounded space-y-0.5 border border-slate-100">
-                              <span className="font-bold block text-brandgray-muted">Match Reasons:</span>
-                              <ul className="list-disc pl-3.5 space-y-0.5">
-                                {c.matchReasons.map((r, i) => (
-                                  <li key={i}>{r}</li>
-                                ))}
-                              </ul>
-                            </div>
-
-                            <div className="flex gap-1.5 pt-1">
-                              <button
-                                onClick={() => {
-                                  if (activeCluster) {
-                                    universityMockService.addProblemToCluster(activeCluster.id, c.candidateId);
-                                  } else {
-                                    universityMockService.createCluster(selected.id, c.candidateId);
-                                  }
-                                  fetchProblems();
-                                }}
-                                className="flex-1 bg-indigo-700 hover:bg-indigo-800 text-white text-[10px] font-semibold py-1 rounded transition-colors"
-                              >
-                                Cluster Reports
-                              </button>
-                              <button
-                                onClick={() => {
-                                  universityMockService.markIndependent(selected.id, c.candidateId);
-                                  fetchProblems();
-                                }}
-                                className="flex-1 bg-white hover:bg-slate-100 text-brandgray-text border border-brandgray-border text-[10px] font-semibold py-1 rounded transition-colors"
-                              >
-                                Independent
-                              </button>
-                            </div>
-                          </div>
-                        ))}
                       </div>
-                    )}
+                      <h4 className="text-sm font-bold text-primary">{problem.title}</h4>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase ${STATUS_BADGES[problem.status] || "bg-slate-100 text-slate-700"}`}>
+                      {problem.status}
+                    </span>
                   </div>
-                );
-              })()}
 
-              {/* SMART MATCHING RECOMMENDATIONS SECTION */}
-              {(() => {
-                const matchResult = universityMockService.getProblemMatches(selected.id);
-                if (!matchResult) return null;
+                  <p className="text-xs text-brandgray-text line-clamp-2 leading-relaxed">{problem.description}</p>
 
-                return (
-                  <div className="bg-emerald-50/70 rounded-lg p-4 mb-4 border border-emerald-200 space-y-4">
-                    <div className="flex items-center justify-between border-b border-emerald-200/80 pb-2">
-                      <span className="text-xs font-bold text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
-                        ⚡ SMART MATCHING RECOMMENDATIONS
-                      </span>
-                      <span className="text-[9px] font-bold bg-white text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded uppercase">
-                        Explainable Scoring
+                  <div className="grid grid-cols-3 gap-2 text-[11px] bg-slate-50 p-2.5 rounded border border-slate-150">
+                    <div>
+                      <span className="text-[9.5px] font-bold text-brandgray-muted uppercase block">AI Score</span>
+                      <span className="font-extrabold text-indigo-700">{problem.matchScore}% Match</span>
+                    </div>
+                    <div>
+                      <span className="text-[9.5px] font-bold text-brandgray-muted uppercase block">AI Priority</span>
+                      <span className="font-bold text-red-700">{problem.priority}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9.5px] font-bold text-brandgray-muted uppercase block">Duplicate Risk</span>
+                      <span className={`font-bold ${problem.matchScore >= 85 ? "text-amber-700" : "text-emerald-700"}`}>
+                        {problem.matchScore >= 85 ? "MEDIUM/HIGH" : "LOW"}
                       </span>
                     </div>
-
-                    <p className="text-[10.5px] text-emerald-900/90 leading-relaxed font-medium">
-                      Recommendations are generated based on category alignment, faculty expertise, previous project track records, and geographic relevance. <strong className="font-bold text-emerald-950">No automatic assignment occurs.</strong>
-                    </p>
-
-                    {/* Top Universities */}
-                    <div className="space-y-2">
-                      <span className="text-[10px] font-extrabold text-emerald-900 uppercase tracking-wider block">
-                        Top Recommended Universities
-                      </span>
-                      {matchResult.universities.slice(0, 2).map((u) => {
-                        const status = universityMockService.getMatchRecommendationAction(selected.id, u.entityId);
-                        return (
-                          <div key={u.entityId} className="bg-white p-3 rounded border border-emerald-200 space-y-2 text-xs">
-                            <div className="flex justify-between items-start gap-1">
-                              <span className="font-bold text-primary text-xs leading-tight">{u.entityName}</span>
-                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded border shrink-0 ${
-                                u.matchLevel === "HIGH" 
-                                  ? "bg-emerald-100 text-emerald-800 border-emerald-300" 
-                                  : "bg-amber-50 text-amber-800 border-amber-200"
-                              }`}>
-                                {u.matchScore}% Match ({u.matchLevel})
-                              </span>
-                            </div>
-
-                            <div className="space-y-1 text-[10.5px]">
-                              <span className="font-bold text-emerald-900 block text-[10px] uppercase">Why this match?</span>
-                              <ul className="space-y-0.5 text-brandgray-text">
-                                {u.reasons.map((r, i) => (
-                                  <li key={i} className="flex items-start gap-1 text-[10.5px]">
-                                    <span className="text-emerald-600 font-bold">✓</span> {r}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-
-                            {u.missingCapabilities.length > 0 && (
-                              <div className="pt-1 border-t border-brandgray-light/60">
-                                <span className="font-bold text-amber-800 block text-[9.5px] uppercase">Potential Gaps:</span>
-                                <ul className="space-y-0.5 text-brandgray-muted">
-                                  {u.missingCapabilities.map((g, i) => (
-                                    <li key={i} className="flex items-start gap-1 text-[10px]">
-                                      <span className="text-amber-600 font-bold">•</span> {g}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-
-                            <div className="pt-1 flex items-center justify-between">
-                              <button
-                                onClick={() => {
-                                  universityMockService.saveMatchRecommendationAction(selected.id, u.entityId, "RECOMMENDED");
-                                  fetchProblems();
-                                }}
-                                className={`w-full text-center text-[10px] font-semibold py-1 rounded transition-colors ${
-                                  status === "RECOMMENDED"
-                                    ? "bg-emerald-800 text-white cursor-default"
-                                    : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                                }`}
-                              >
-                                {status === "RECOMMENDED" ? "✓ Recommended for Collaboration" : "Recommend for Collaboration"}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Top Industry Partners */}
-                    <div className="space-y-2 pt-1 border-t border-emerald-200/60">
-                      <span className="text-[10px] font-extrabold text-emerald-900 uppercase tracking-wider block">
-                        Top Recommended Industry Partners
-                      </span>
-                      {matchResult.industries.slice(0, 2).map((ind) => {
-                        const status = universityMockService.getMatchRecommendationAction(selected.id, ind.entityId);
-                        return (
-                          <div key={ind.entityId} className="bg-white p-3 rounded border border-emerald-200 space-y-2 text-xs">
-                            <div className="flex justify-between items-start gap-1">
-                              <span className="font-bold text-primary text-xs leading-tight">{ind.entityName}</span>
-                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded border shrink-0 ${
-                                ind.matchLevel === "HIGH" 
-                                  ? "bg-emerald-100 text-emerald-800 border-emerald-300" 
-                                  : "bg-amber-50 text-amber-800 border-amber-200"
-                              }`}>
-                                {ind.matchScore}% Match ({ind.matchLevel})
-                              </span>
-                            </div>
-
-                            <div className="space-y-1 text-[10.5px]">
-                              <span className="font-bold text-emerald-900 block text-[10px] uppercase">Why this match?</span>
-                              <ul className="space-y-0.5 text-brandgray-text">
-                                {ind.reasons.map((r, i) => (
-                                  <li key={i} className="flex items-start gap-1 text-[10.5px]">
-                                    <span className="text-emerald-600 font-bold">✓</span> {r}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-
-                            {ind.missingCapabilities.length > 0 && (
-                              <div className="pt-1 border-t border-brandgray-light/60">
-                                <span className="font-bold text-amber-800 block text-[9.5px] uppercase">Potential Gaps:</span>
-                                <ul className="space-y-0.5 text-brandgray-muted">
-                                  {ind.missingCapabilities.map((g, i) => (
-                                    <li key={i} className="flex items-start gap-1 text-[10px]">
-                                      <span className="text-amber-600 font-bold">•</span> {g}
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-
-                            <div className="pt-1">
-                              <button
-                                onClick={() => {
-                                  universityMockService.saveMatchRecommendationAction(selected.id, ind.entityId, "RECOMMENDED");
-                                  fetchProblems();
-                                }}
-                                className={`w-full text-center text-[10px] font-semibold py-1 rounded transition-colors ${
-                                  status === "RECOMMENDED"
-                                    ? "bg-emerald-800 text-white cursor-default"
-                                    : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                                }`}
-                              >
-                                {status === "RECOMMENDED" ? "✓ Recommended for Collaboration" : "Recommend for Collaboration"}
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
                   </div>
-                );
-              })()}
 
-              {(selected.status === 'SUBMITTED' || selected.status === 'UNDER_REVIEW') && (
-                <div className="flex gap-2 mt-2">
-                  <button
-                    onClick={() => handleValidate(selected.id, 'approve')}
-                    disabled={actionLoading}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-success hover:bg-success-hover text-white text-xs font-semibold py-2 rounded transition-colors disabled:opacity-60"
-                  >
-                    <CheckCircle className="h-3.5 w-3.5" /> Approve & Analyze
-                  </button>
-                  <button
-                    onClick={() => handleValidate(selected.id, 'reject')}
-                    disabled={actionLoading}
-                    className="flex-1 flex items-center justify-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold py-2 rounded transition-colors disabled:opacity-60"
-                  >
-                    <XCircle className="h-3.5 w-3.5" /> Reject
-                  </button>
-                </div>
-              )}
-
-              {selected.status === 'ANALYZED' && selected.aiAnalysis && (
-                <div className="mt-4 pt-4 border-t border-brandgray-border">
-                  <p className="text-xs font-bold text-brandgray-text uppercase tracking-wider mb-2">
-                    Assign Match to University
-                  </p>
-                  <p className="text-[11px] text-brandgray-muted mb-3">
-                    Select a recommended institution to create a collaborative solution project.
-                  </p>
-                  <div className="space-y-2">
-                    {(() => {
-                      try {
-                        const institutions = JSON.parse(selected.aiAnalysis.matchedInstitutions);
-                        const industries = JSON.parse(selected.aiAnalysis.matchedIndustries);
-                        const topIndustryId = industries.length > 0 ? industries[0].id : undefined;
-
-                        return institutions.map((inst: { id: string; name: string; score: number }) => (
-                          <div key={inst.id} className="p-3 border border-brandgray-border rounded bg-gray-50 flex flex-col gap-2">
-                            <div className="flex justify-between items-start gap-1">
-                              <div>
-                                <p className="text-xs font-semibold text-brandgray-text leading-tight">{inst.name}</p>
-                                <p className="text-[10px] text-purple-600 font-medium mt-1">Match Recommendation: {inst.score}%</p>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => handleCreateProject(selected.id, inst.id, topIndustryId)}
-                              disabled={actionLoading}
-                              className="w-full text-center bg-primary hover:bg-primary-hover text-white text-xs font-semibold py-1.5 rounded transition-colors disabled:opacity-60"
-                            >
-                              Confirm Match & Create Project
-                            </button>
-                          </div>
-                        ));
-                      } catch (e) {
-                        return <p className="text-xs text-red-500">No matched institutions found in AI record.</p>;
-                      }
-                    })()}
+                  <div className="flex items-center justify-between pt-2 border-t border-brandgray-border/40 text-xs">
+                    <span className="text-brandgray-muted text-[11px]">{problem.location}</span>
+                    <Link href={`/admin/problems/${problem.id}`}>
+                      <Button variant="primary" size="sm" className="h-8 text-xs font-bold">
+                        Review Problem
+                      </Button>
+                    </Link>
                   </div>
-                </div>
-              )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* THREE INTEGRATED LIFECYCLE PIPELINES */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        {/* 1. UNIVERSITY PROPOSAL PIPELINE SUMMARY */}
+        <Card className="border-purple-200 bg-white shadow-subtle">
+          <CardHeader className="p-4 border-b border-purple-100 bg-purple-50/50 flex flex-row items-center justify-between">
+            <CardTitle className="text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
+              <FileText className="h-4 w-4 text-purple-700" /> Proposal Pipeline
+            </CardTitle>
+            <Link href="/admin/proposals">
+              <span className="text-[10px] font-bold text-purple-800 hover:underline">View All →</span>
+            </Link>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3 text-xs">
+            <div className="space-y-2">
+              <div className="flex justify-between p-2 bg-purple-50/40 rounded border border-purple-100">
+                <span className="font-medium text-brandgray-text">Pending Reviews</span>
+                <span className="font-bold text-purple-900">{pendingProposalsCount}</span>
+              </div>
+              <div className="flex justify-between p-2 bg-emerald-50/40 rounded border border-emerald-100">
+                <span className="font-medium text-brandgray-text">Accepted Proposals</span>
+                <span className="font-bold text-emerald-900">{proposals.filter((p) => p.status === "ACCEPTED").length}</span>
+              </div>
+              <div className="flex justify-between p-2 bg-slate-50 rounded border border-slate-150">
+                <span className="font-medium text-brandgray-text">Projects Created</span>
+                <span className="font-bold text-primary">{projects.length}</span>
+              </div>
             </div>
+            <Link href="/admin/proposals" className="block pt-1">
+              <Button variant="outline" size="sm" className="w-full h-8 text-xs font-bold border-purple-200 text-purple-900 hover:bg-purple-50">
+                Open Proposal Review
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* 2. INDUSTRY / CSR PARTNERSHIP PIPELINE SUMMARY */}
+        <Card className="border-indigo-200 bg-white shadow-subtle">
+          <CardHeader className="p-4 border-b border-indigo-100 bg-indigo-50/50 flex flex-row items-center justify-between">
+            <CardTitle className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+              <Building2 className="h-4 w-4 text-indigo-700" /> Industry CSR Pipeline
+            </CardTitle>
+            <Link href="/admin/industry-support">
+              <span className="text-[10px] font-bold text-indigo-800 hover:underline">View All →</span>
+            </Link>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3 text-xs">
+            <div className="space-y-2">
+              <div className="flex justify-between p-2 bg-amber-50/40 rounded border border-amber-100">
+                <span className="font-medium text-brandgray-text">Pending Support Requests</span>
+                <span className="font-bold text-amber-900">{pendingIndustryRequestsCount}</span>
+              </div>
+              <div className="flex justify-between p-2 bg-emerald-50/40 rounded border border-emerald-100">
+                <span className="font-medium text-brandgray-text">Accepted CSR Partnerships</span>
+                <span className="font-bold text-emerald-900">{industryRequests.filter((r) => r.status === "ACCEPTED").length}</span>
+              </div>
+              <div className="flex justify-between p-2 bg-indigo-50/40 rounded border border-indigo-100">
+                <span className="font-medium text-brandgray-text">Total Requests Received</span>
+                <span className="font-bold text-indigo-900">{industryRequests.length}</span>
+              </div>
+            </div>
+            <Link href="/admin/industry-support" className="block pt-1">
+              <Button variant="outline" size="sm" className="w-full h-8 text-xs font-bold border-indigo-200 text-indigo-900 hover:bg-indigo-50">
+                Review Support Requests
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* 3. PROJECT MONITORING SUMMARY */}
+        <Card className="border-emerald-200 bg-white shadow-subtle">
+          <CardHeader className="p-4 border-b border-emerald-100 bg-emerald-50/50 flex flex-row items-center justify-between">
+            <CardTitle className="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+              <FolderKanban className="h-4 w-4 text-emerald-700" /> Project Execution
+            </CardTitle>
+            <Link href="/admin/projects">
+              <span className="text-[10px] font-bold text-emerald-800 hover:underline">View All →</span>
+            </Link>
+          </CardHeader>
+          <CardContent className="p-4 space-y-3 text-xs">
+            <div className="space-y-2">
+              <div className="flex justify-between p-2 bg-emerald-50/40 rounded border border-emerald-100">
+                <span className="font-medium text-brandgray-text">Active Implementation</span>
+                <span className="font-bold text-emerald-900">{activeProjectsCount}</span>
+              </div>
+              <div className="flex justify-between p-2 bg-slate-50 rounded border border-slate-150">
+                <span className="font-medium text-brandgray-text">Completed Projects</span>
+                <span className="font-bold text-slate-800">{completedProjectsCount}</span>
+              </div>
+              <div className="flex justify-between p-2 bg-primary-light/40 rounded border border-primary/10">
+                <span className="font-medium text-brandgray-text">Total Projects Managed</span>
+                <span className="font-bold text-primary">{projects.length}</span>
+              </div>
+            </div>
+            <Link href="/admin/projects" className="block pt-1">
+              <Button variant="outline" size="sm" className="w-full h-8 text-xs font-bold border-emerald-200 text-emerald-900 hover:bg-emerald-50">
+                Open Projects Control
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+      </div>
+
+      {/* RECENT PLATFORM ACTIVITY STREAM */}
+      <Card className="border-brandgray-border bg-white shadow-subtle">
+        <CardHeader className="p-4 border-b border-brandgray-border/60 flex items-center justify-between">
+          <CardTitle className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+            <Activity className="h-4 w-4 text-primary" /> Recent Platform Activity Stream
+          </CardTitle>
+          <span className="text-[10px] text-brandgray-muted font-medium">Real-time system events</span>
+        </CardHeader>
+        <CardContent className="p-4 space-y-3">
+          {activities.length === 0 ? (
+            <div className="text-center py-6 text-xs text-brandgray-muted">No activity events recorded yet.</div>
           ) : (
-            <div className="bg-white border border-brandgray-border rounded-lg p-8 text-center text-brandgray-muted text-sm">
-              <ChevronRight className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              Select a problem to review details and take action.
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {activities.map((act) => (
+                <div key={act.id} className="flex items-start gap-3 p-2.5 rounded bg-slate-50 border border-slate-150 text-xs">
+                  <div className="h-2 w-2 rounded-full bg-primary mt-1.5 shrink-0" />
+                  <div className="flex-1 space-y-0.5">
+                    <p className="text-brandgray-text font-medium">{act.text}</p>
+                    <span className="text-[10px] text-brandgray-muted block">{act.timestamp}</span>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ProblemCard({ problem, selected, onClick }: { problem: Problem; selected: boolean; onClick: () => void }) {
-  return (
-    <div
-      onClick={onClick}
-      className={`bg-white border rounded-lg p-4 mb-2 cursor-pointer transition-all shadow-subtle hover:shadow-standard ${selected ? 'border-primary ring-1 ring-primary/20' : 'border-brandgray-border'}`}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-brandgray-text truncate">{problem.title}</p>
-          <p className="text-xs text-brandgray-muted mt-0.5">{problem.district}, {problem.state} · {problem.submittedBy?.name || 'Citizen'}</p>
-        </div>
-        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${STATUS_COLORS[problem.status] || 'bg-gray-100 text-gray-700'}`}>
-          {problem.status.replace(/_/g, ' ')}
-        </span>
-      </div>
-      {problem.aiAnalysis && (
-        <div className="mt-2 flex items-center gap-1.5 text-[10px] text-purple-600 font-medium">
-          <span className="bg-purple-100 px-1.5 py-0.5 rounded">AI: {problem.aiAnalysis.priority} priority · Score {problem.aiAnalysis.priorityScore}/100</span>
-        </div>
-      )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
