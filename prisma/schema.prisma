@@ -1,0 +1,109 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  CITIZEN
+  UNIVERSITY
+  INDUSTRY
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+}
+
+model User {
+  id           String     @id @default(uuid())
+  name         String
+  email        String     @unique
+  passwordHash String
+  role         UserRole
+  phone        String?
+  status       UserStatus
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  citizenProfile    CitizenProfile?
+  universityProfile UniversityProfile?
+  industryProfile   IndustryProfile?
+  adminProfile      AdminProfile?
+}
+
+model CitizenProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  district  String?
+  state     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model University {
+  id                 String              @id @default(uuid())
+  name               String
+  description        String?
+  location           String?
+  website            String?
+  verificationStatus String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  profiles           UniversityProfile[]
+}
+
+model UniversityProfile {
+  id           String     @id @default(uuid())
+  userId       String     @unique
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  universityId String
+  university   University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+  department   String?
+  designation  String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Industry {
+  id                 String            @id @default(uuid())
+  name               String
+  organizationType   String?
+  description        String?
+  location           String?
+  website            String?
+  verificationStatus String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  profiles           IndustryProfile[]
+}
+
+model IndustryProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  industryId  String
+  industry    Industry @relation(fields: [industryId], references: [id], onDelete: Cascade)
+  designation String?
+  department  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AdminProfile {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  designation String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

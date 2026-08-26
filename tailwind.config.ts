@@ -8,11 +8,33 @@ const config: Config = {
   ],
   theme: {
     extend: {
-      backgroundImage: {
-        "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "gradient-conic":
-          "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
+      colors: {
+        primary: {
+          DEFAULT: "#0F2942", // deep professional blue
+          hover: "#1E3D5C",   // lighter professional blue for hover states
+          light: "#F0F4F8",   // very soft blue background accent
+        },
+        success: {
+          DEFAULT: "#059669", // professional muted emerald green
+          hover: "#047857",
+          light: "#ECFDF5",
+        },
+        warning: {
+          DEFAULT: "#D97706", // amber warning color
+          hover: "#B45309",
+          light: "#FEF3C7",
+        },
+        brandgray: {
+          light: "#F9FAFB",   // standard light gray background
+          border: "#E5E7EB",  // standard border gray
+          text: "#1F2937",    // dark gray for readable body text
+          muted: "#6B7280",   // muted text gray
+        }
       },
+      boxShadow: {
+        subtle: "0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03)",
+        standard: "0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)",
+      }
     },
   },
   plugins: [],
