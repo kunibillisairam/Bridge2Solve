@@ -29,14 +29,21 @@ const ROLE_REDIRECT: Record<UserRole, string> = {
   ADMIN: '/admin',
 };
 
-const AuthContext = createContext<AuthContextValue | null>(null);
+const defaultContext: AuthContextValue = {
+  user: null,
+  loading: true,
+  login: async () => ({ success: false, error: 'Not initialized' }),
+  logout: async () => {},
+  switchRole: async () => {},
+};
+
+const AuthContext = createContext<AuthContextValue>(defaultContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Fetch current session on mount
   useEffect(() => {
     fetch('/api/auth/session')
       .then((r) => r.json())
@@ -83,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.push(ROLE_REDIRECT[role]);
       }
     } catch {
-      // silently fail for dev tool
+      // silently fail in dev mode
     }
   }, [router]);
 
@@ -95,7 +102,5 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
-  return ctx;
+  return useContext(AuthContext);
 }
