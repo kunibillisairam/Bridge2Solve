@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Building2, RefreshCw, Layers, IndianRupee, CheckCircle, ChevronRight, MessageCircle } from 'lucide-react';
+import { universityMockService } from '@/services/universityMockService';
 
 interface Project {
   id: string;
@@ -144,6 +145,47 @@ export default function IndustryDashboard() {
               </div>
             ))
           }
+
+          {/* Recommended Community Problems (Smart Match Engine) */}
+          <div className="mt-8 pt-6 border-t border-brandgray-border space-y-3">
+            <h2 className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
+              ⚡ Recommended Community Problems (Smart AI Match)
+            </h2>
+            <div className="space-y-3">
+              {(() => {
+                const problems = universityMockService.getProblems();
+                const matchedList = problems.map((prob) => {
+                  const match = universityMockService.getProblemMatches(prob.id);
+                  const indRec = match?.industries.find((i) => i.entityId === "ind-1") || match?.industries[0];
+                  return { prob, indRec };
+                }).filter((item) => item.indRec !== undefined)
+                  .sort((a, b) => (b.indRec?.matchScore || 0) - (a.indRec?.matchScore || 0))
+                  .slice(0, 3);
+
+                return matchedList.map(({ prob, indRec }) => (
+                  <div key={prob.id} className="bg-white border border-emerald-200 rounded-lg p-3.5 space-y-2 shadow-subtle">
+                    <div className="flex justify-between items-start gap-1">
+                      <span className="font-bold text-xs text-primary leading-tight">{prob.title}</span>
+                      <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded shrink-0">
+                        {indRec?.matchScore}% Match
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-brandgray-muted line-clamp-2">{prob.description}</p>
+                    <div className="text-[10px] space-y-1 bg-emerald-50/50 p-2 rounded border border-emerald-150">
+                      <span className="font-bold text-emerald-900 block uppercase">CSR Relevance & Why Matched:</span>
+                      <ul className="space-y-0.5 text-brandgray-text">
+                        {indRec?.reasons.map((r, i) => (
+                          <li key={i} className="flex items-center gap-1">
+                            <span className="text-emerald-600 font-bold">✓</span> {r}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+          </div>
         </div>
 
         {/* Detail Panel */}

@@ -2,8 +2,9 @@
 
 import { ProblemAnalysis } from "./aiService";
 import { ProblemCluster, DuplicateMatchCandidate } from "./duplicateDetectionService";
+import { matchProblem, ProblemMatchResult, EntityRecommendation } from "./smartMatchingService";
 
-export type { ProblemAnalysis, ProblemCluster, DuplicateMatchCandidate };
+export type { ProblemAnalysis, ProblemCluster, DuplicateMatchCandidate, ProblemMatchResult, EntityRecommendation };
 
 export interface CommunityProblem {
   id: string;
@@ -841,6 +842,32 @@ export const universityMockService = {
     problems.unshift(created);
     setStoredData("uni_problems", problems);
     return created;
+  },
+
+  // ----------------------------------------------------
+  // Smart Matching Recommendations API
+  // ----------------------------------------------------
+  getProblemMatches(problemId: string): ProblemMatchResult | undefined {
+    const problem = this.getProblemById(problemId);
+    if (!problem) return undefined;
+
+    const analysis = this.getProblemAnalysis(problemId);
+    return matchProblem(problem, analysis);
+  },
+
+  saveMatchRecommendationAction(
+    problemId: string,
+    entityId: string,
+    status: "RECOMMENDED" | "INTERESTED" | "ACCEPTED" | "DECLINED"
+  ): void {
+    const key = `match_rec_${problemId}_${entityId}`;
+    setStoredData(key, { status, updatedAt: new Date().toISOString().split("T")[0] });
+    this.addActivity(`Registered recommendation status "${status}" for problem "${problemId}" and organization "${entityId}".`);
+  },
+
+  getMatchRecommendationAction(problemId: string, entityId: string): "RECOMMENDED" | "INTERESTED" | "ACCEPTED" | "DECLINED" | null {
+    const data = getStoredData<{ status: "RECOMMENDED" | "INTERESTED" | "ACCEPTED" | "DECLINED" } | null>(`match_rec_${problemId}_${entityId}`, null);
+    return data ? data.status : null;
   },
 
   // ----------------------------------------------------

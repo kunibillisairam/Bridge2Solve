@@ -268,46 +268,84 @@ export default function ProblemDetailsPage() {
             </Card>
           )}
 
-          {/* Academic Relevance Match */}
-          <Card className="border-brandgray-border shadow-subtle bg-white">
-            <CardHeader className="p-5 border-b border-brandgray-border/60 flex flex-row items-center gap-2">
-              <Sparkles className="h-4.5 w-4.5 text-primary" />
-              <CardTitle className="text-sm font-bold text-primary uppercase tracking-wider">
-                Academic Match Breakdown
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-5 space-y-5">
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
-                  <h4 className="text-xs font-bold text-brandgray-text uppercase tracking-wider flex items-center gap-1.5">
-                    <Award className="h-3.5 w-3.5 text-brandgray-muted" /> Match Departments
-                  </h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {problem.departments.map((dept) => (
-                      <span key={dept} className="text-xs bg-brandgray-light text-brandgray-text border border-brandgray-border px-2 py-0.5 rounded font-medium">
-                        {dept}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+          {/* Why this problem matches our university (Smart Match Engine) */}
+          {(() => {
+            const matchResult = universityMockService.getProblemMatches(problem.id);
+            const uniRec = matchResult?.universities.find((u) => u.entityId === "univ-1") || matchResult?.universities[0];
+            const topTeam = matchResult?.teams[0];
 
-                <div className="space-y-1.5">
-                  <h4 className="text-xs font-bold text-brandgray-text uppercase tracking-wider flex items-center gap-1.5">
-                    <BookOpen className="h-3.5 w-3.5 text-brandgray-muted" /> Suggested Disciplines
-                  </h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {problem.disciplines.map((disc) => (
-                      <span key={disc} className="text-xs bg-brandgray-light text-brandgray-text border border-brandgray-border px-2 py-0.5 rounded font-medium">
-                        {disc}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
+            if (!uniRec) return null;
 
-            </CardContent>
-          </Card>
+            return (
+              <Card className="border-emerald-200 shadow-subtle bg-emerald-50/20">
+                <CardHeader className="p-5 border-b border-emerald-200/60 flex flex-row items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-emerald-700" />
+                    <CardTitle className="text-sm font-bold text-emerald-950 uppercase tracking-wider">
+                      Why this problem matches our university
+                    </CardTitle>
+                  </div>
+                  <span className="text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-1 rounded">
+                    {uniRec.matchScore}% MATCH ({uniRec.matchLevel})
+                  </span>
+                </CardHeader>
+                <CardContent className="p-5 space-y-4">
+                  
+                  <div className="space-y-1.5">
+                    <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                      Strong Academic Overlap:
+                    </h4>
+                    <ul className="space-y-1">
+                      {uniRec.reasons.map((r, i) => (
+                        <li key={i} className="text-xs text-brandgray-text flex items-start gap-1.5 font-medium">
+                          <span className="text-emerald-600 font-bold">✓</span> {r}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {uniRec.matchedExpertise.length > 0 && (
+                    <div className="space-y-1.5 pt-2 border-t border-emerald-200/50">
+                      <h4 className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider">
+                        Matched Department Expertise
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {uniRec.matchedExpertise.map((e, i) => (
+                          <span key={i} className="text-[11px] bg-white text-emerald-900 border border-emerald-200 px-2 py-0.5 rounded font-medium">
+                            {e}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {topTeam && (
+                    <div className="p-3 bg-white rounded border border-emerald-200 text-xs space-y-1">
+                      <span className="text-[10px] font-bold text-emerald-800 uppercase block">Recommended Research Team Match</span>
+                      <p className="font-bold text-primary">{topTeam.entityName}</p>
+                      <p className="text-[11px] text-brandgray-muted">Match Alignment: {topTeam.matchScore}% match score</p>
+                    </div>
+                  )}
+
+                  {uniRec.missingCapabilities.length > 0 && (
+                    <div className="space-y-1 pt-2 border-t border-emerald-200/50">
+                      <h4 className="text-[10px] font-bold text-amber-800 uppercase tracking-wider">
+                        Potential Gaps & Resource Requirements
+                      </h4>
+                      <ul className="space-y-0.5 text-brandgray-muted">
+                        {uniRec.missingCapabilities.map((g, i) => (
+                          <li key={i} className="text-[11px] flex items-center gap-1">
+                            <span className="text-amber-600 font-bold">•</span> {g}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                </CardContent>
+              </Card>
+            );
+          })()}
 
         </div>
 

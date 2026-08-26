@@ -444,6 +444,158 @@ export default function AdminDashboard() {
                 );
               })()}
 
+              {/* SMART MATCHING RECOMMENDATIONS SECTION */}
+              {(() => {
+                const matchResult = universityMockService.getProblemMatches(selected.id);
+                if (!matchResult) return null;
+
+                return (
+                  <div className="bg-emerald-50/70 rounded-lg p-4 mb-4 border border-emerald-200 space-y-4">
+                    <div className="flex items-center justify-between border-b border-emerald-200/80 pb-2">
+                      <span className="text-xs font-bold text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                        ⚡ SMART MATCHING RECOMMENDATIONS
+                      </span>
+                      <span className="text-[9px] font-bold bg-white text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded uppercase">
+                        Explainable Scoring
+                      </span>
+                    </div>
+
+                    <p className="text-[10.5px] text-emerald-900/90 leading-relaxed font-medium">
+                      Recommendations are generated based on category alignment, faculty expertise, previous project track records, and geographic relevance. <strong className="font-bold text-emerald-950">No automatic assignment occurs.</strong>
+                    </p>
+
+                    {/* Top Universities */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-extrabold text-emerald-900 uppercase tracking-wider block">
+                        Top Recommended Universities
+                      </span>
+                      {matchResult.universities.slice(0, 2).map((u) => {
+                        const status = universityMockService.getMatchRecommendationAction(selected.id, u.entityId);
+                        return (
+                          <div key={u.entityId} className="bg-white p-3 rounded border border-emerald-200 space-y-2 text-xs">
+                            <div className="flex justify-between items-start gap-1">
+                              <span className="font-bold text-primary text-xs leading-tight">{u.entityName}</span>
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded border shrink-0 ${
+                                u.matchLevel === "HIGH" 
+                                  ? "bg-emerald-100 text-emerald-800 border-emerald-300" 
+                                  : "bg-amber-50 text-amber-800 border-amber-200"
+                              }`}>
+                                {u.matchScore}% Match ({u.matchLevel})
+                              </span>
+                            </div>
+
+                            <div className="space-y-1 text-[10.5px]">
+                              <span className="font-bold text-emerald-900 block text-[10px] uppercase">Why this match?</span>
+                              <ul className="space-y-0.5 text-brandgray-text">
+                                {u.reasons.map((r, i) => (
+                                  <li key={i} className="flex items-start gap-1 text-[10.5px]">
+                                    <span className="text-emerald-600 font-bold">✓</span> {r}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            {u.missingCapabilities.length > 0 && (
+                              <div className="pt-1 border-t border-brandgray-light/60">
+                                <span className="font-bold text-amber-800 block text-[9.5px] uppercase">Potential Gaps:</span>
+                                <ul className="space-y-0.5 text-brandgray-muted">
+                                  {u.missingCapabilities.map((g, i) => (
+                                    <li key={i} className="flex items-start gap-1 text-[10px]">
+                                      <span className="text-amber-600 font-bold">•</span> {g}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            <div className="pt-1 flex items-center justify-between">
+                              <button
+                                onClick={() => {
+                                  universityMockService.saveMatchRecommendationAction(selected.id, u.entityId, "RECOMMENDED");
+                                  fetchProblems();
+                                }}
+                                className={`w-full text-center text-[10px] font-semibold py-1 rounded transition-colors ${
+                                  status === "RECOMMENDED"
+                                    ? "bg-emerald-800 text-white cursor-default"
+                                    : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                }`}
+                              >
+                                {status === "RECOMMENDED" ? "✓ Recommended for Collaboration" : "Recommend for Collaboration"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Top Industry Partners */}
+                    <div className="space-y-2 pt-1 border-t border-emerald-200/60">
+                      <span className="text-[10px] font-extrabold text-emerald-900 uppercase tracking-wider block">
+                        Top Recommended Industry Partners
+                      </span>
+                      {matchResult.industries.slice(0, 2).map((ind) => {
+                        const status = universityMockService.getMatchRecommendationAction(selected.id, ind.entityId);
+                        return (
+                          <div key={ind.entityId} className="bg-white p-3 rounded border border-emerald-200 space-y-2 text-xs">
+                            <div className="flex justify-between items-start gap-1">
+                              <span className="font-bold text-primary text-xs leading-tight">{ind.entityName}</span>
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded border shrink-0 ${
+                                ind.matchLevel === "HIGH" 
+                                  ? "bg-emerald-100 text-emerald-800 border-emerald-300" 
+                                  : "bg-amber-50 text-amber-800 border-amber-200"
+                              }`}>
+                                {ind.matchScore}% Match ({ind.matchLevel})
+                              </span>
+                            </div>
+
+                            <div className="space-y-1 text-[10.5px]">
+                              <span className="font-bold text-emerald-900 block text-[10px] uppercase">Why this match?</span>
+                              <ul className="space-y-0.5 text-brandgray-text">
+                                {ind.reasons.map((r, i) => (
+                                  <li key={i} className="flex items-start gap-1 text-[10.5px]">
+                                    <span className="text-emerald-600 font-bold">✓</span> {r}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            {ind.missingCapabilities.length > 0 && (
+                              <div className="pt-1 border-t border-brandgray-light/60">
+                                <span className="font-bold text-amber-800 block text-[9.5px] uppercase">Potential Gaps:</span>
+                                <ul className="space-y-0.5 text-brandgray-muted">
+                                  {ind.missingCapabilities.map((g, i) => (
+                                    <li key={i} className="flex items-start gap-1 text-[10px]">
+                                      <span className="text-amber-600 font-bold">•</span> {g}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            <div className="pt-1">
+                              <button
+                                onClick={() => {
+                                  universityMockService.saveMatchRecommendationAction(selected.id, ind.entityId, "RECOMMENDED");
+                                  fetchProblems();
+                                }}
+                                className={`w-full text-center text-[10px] font-semibold py-1 rounded transition-colors ${
+                                  status === "RECOMMENDED"
+                                    ? "bg-emerald-800 text-white cursor-default"
+                                    : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                }`}
+                              >
+                                {status === "RECOMMENDED" ? "✓ Recommended for Collaboration" : "Recommend for Collaboration"}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                  </div>
+                );
+              })()}
+
               {(selected.status === 'SUBMITTED' || selected.status === 'UNDER_REVIEW') && (
                 <div className="flex gap-2 mt-2">
                   <button
