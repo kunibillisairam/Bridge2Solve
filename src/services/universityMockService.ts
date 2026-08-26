@@ -53,11 +53,26 @@ export interface ActivityLog {
   timestamp: string;
 }
 
+// ----------------------------------------------------
+// Project Stage State Model (Source of Truth)
+// ----------------------------------------------------
+export type ProjectStage = 
+  | "PROBLEM_REPORTED"
+  | "VALIDATED"
+  | "UNIVERSITY_MATCHED"
+  | "TEAM_FORMED"
+  | "PROPOSAL_SUBMITTED"
+  | "PROPOSAL_APPROVED"
+  | "IMPLEMENTATION"
+  | "IMPACT_ASSESSMENT"
+  | "COMPLETED";
+
 export interface ProjectMilestone {
   name: string;
-  status: "Completed" | "Current" | "Pending";
+  status: "Completed" | "Current" | "Upcoming";
   date?: string;
   description: string;
+  dueDate?: string;
 }
 
 export interface ProjectCollaboration {
@@ -77,17 +92,34 @@ export interface ProjectDocument {
   type: string;
   status: string;
   size?: string;
+  uploadedDate: string;
 }
 
 export interface ProjectActivityLog {
-  date: string;
   text: string;
+  performedBy: string;
+  date: string;
+  time: string;
   type: string;
 }
 
+// Stored Project Structure (Normalized Database-style)
 export interface UniversityProject {
   id: string;
   title: string;
+  problemId: string;
+  teamId: string | null;
+  stage: ProjectStage;
+  customProgress?: number;
+  startDate: string;
+  expectedCompletionDate: string;
+  collaboration: ProjectCollaboration;
+  documents: ProjectDocument[];
+  activities: ProjectActivityLog[];
+}
+
+// Resolved project for UI display
+export interface ResolvedProject extends UniversityProject {
   originalProblem: {
     title: string;
     description: string;
@@ -106,18 +138,105 @@ export interface UniversityProject {
     members: Array<{ name: string; degree: string }>;
     departments: string[];
     skills: string[];
-  };
+  } | null;
   facultyMentor: string;
   status: "UNDER_REVIEW" | "ACTIVE" | "COMPLETED" | "PENDING_ACTION";
   progress: number;
-  startDate: string;
-  expectedCompletionDate: string;
-  lifecycleStage: string;
+  nextAction: string;
+  actionText: string;
+  actionHref?: string;
   milestones: ProjectMilestone[];
-  collaboration: ProjectCollaboration;
-  documents: ProjectDocument[];
-  activities: ProjectActivityLog[];
 }
+
+// Timeline Stages list
+export const LIFECYCLE_STAGES: ProjectStage[] = [
+  "PROBLEM_REPORTED",
+  "VALIDATED",
+  "UNIVERSITY_MATCHED",
+  "TEAM_FORMED",
+  "PROPOSAL_SUBMITTED",
+  "PROPOSAL_APPROVED",
+  "IMPLEMENTATION",
+  "IMPACT_ASSESSMENT",
+  "COMPLETED"
+];
+
+// Stage Config Mapping (Source of Truth)
+export const STAGE_CONFIG: Record<ProjectStage, {
+  label: string;
+  defaultProgress: number;
+  status: "UNDER_REVIEW" | "ACTIVE" | "COMPLETED" | "PENDING_ACTION";
+  nextAction: string;
+  actionText: string;
+  actionHref?: string;
+}> = {
+  PROBLEM_REPORTED: {
+    label: "Problem Reported",
+    defaultProgress: 10,
+    status: "PENDING_ACTION",
+    nextAction: "Await validation by field coordinators",
+    actionText: "View Problem Source",
+  },
+  VALIDATED: {
+    label: "Validated",
+    defaultProgress: 20,
+    status: "PENDING_ACTION",
+    nextAction: "Match with university departments",
+    actionText: "View Problem Source",
+  },
+  UNIVERSITY_MATCHED: {
+    label: "University Matched",
+    defaultProgress: 30,
+    status: "PENDING_ACTION",
+    nextAction: "Form and register research team",
+    actionText: "Manage Team",
+    actionHref: "/university/teams",
+  },
+  TEAM_FORMED: {
+    label: "Team Formed",
+    defaultProgress: 40,
+    status: "PENDING_ACTION",
+    nextAction: "Prepare and submit solution proposal",
+    actionText: "Submit Proposal",
+    actionHref: "/university/proposals",
+  },
+  PROPOSAL_SUBMITTED: {
+    label: "Proposal Submitted",
+    defaultProgress: 50,
+    status: "UNDER_REVIEW",
+    nextAction: "Await proposal review and approval",
+    actionText: "View Proposal",
+    actionHref: "/university/proposals",
+  },
+  PROPOSAL_APPROVED: {
+    label: "Proposal Approved",
+    defaultProgress: 60,
+    status: "ACTIVE",
+    nextAction: "Finalize tripartite agreements and begin pilot",
+    actionText: "View Agreement Details",
+  },
+  IMPLEMENTATION: {
+    label: "Implementation",
+    defaultProgress: 75,
+    status: "ACTIVE",
+    nextAction: "Deploy prototype and update milestone progress",
+    actionText: "Update Progress",
+  },
+  IMPACT_ASSESSMENT: {
+    label: "Impact Assessment",
+    defaultProgress: 90,
+    status: "ACTIVE",
+    nextAction: "Conduct community survey and upload impact report",
+    actionText: "Submit Impact Report",
+  },
+  COMPLETED: {
+    label: "Completed",
+    defaultProgress: 100,
+    status: "COMPLETED",
+    nextAction: "Project finalized and closed by administration",
+    actionText: "View Final Report",
+  },
+};
 
 // Initial Demo Data
 const INITIAL_PROBLEMS: CommunityProblem[] = [
@@ -132,7 +251,7 @@ const INITIAL_PROBLEMS: CommunityProblem[] = [
     affectedPopulation: "4,500 people",
     priority: "High",
     matchScore: 92,
-    status: "Unassigned",
+    status: "Active Project",
     departments: ["Environmental Science", "Civil Engineering"],
     researchAreas: ["Rainwater Harvesting", "Slow Sand Filtration", "Hydrogeology"],
     requiredExpertise: ["Groundwater mapping", "Gravity filtration", "Community water management"],
@@ -150,7 +269,7 @@ const INITIAL_PROBLEMS: CommunityProblem[] = [
     affectedPopulation: "12,000 farmers",
     priority: "High",
     matchScore: 88,
-    status: "Unassigned",
+    status: "Active Project",
     departments: ["Agricultural Science", "Biotechnology"],
     researchAreas: ["Soil Bioremediation", "Salt-Tolerant Crops", "Organic Inputs"],
     requiredExpertise: ["Soil chemistry analysis", "Halophilic microbes", "Sustainable farming outreach"],
@@ -186,7 +305,7 @@ const INITIAL_PROBLEMS: CommunityProblem[] = [
     affectedPopulation: "3,200 students",
     priority: "High",
     matchScore: 95,
-    status: "Interested",
+    status: "Active Project",
     departments: ["Electrical Engineering", "Renewable Energy Systems"],
     researchAreas: ["Solar Photovoltaics", "Battery Storage Systems", "Microgrids"],
     requiredExpertise: ["Solar panel sizing", "Inverter load calculation", "LiFePO4 battery configuration"],
@@ -206,10 +325,10 @@ const INITIAL_PROBLEMS: CommunityProblem[] = [
     matchScore: 84,
     status: "Active Project",
     departments: ["Social Work", "Psychology", "Education"],
-    researchAreas: ["Vernacular Pedagogy", "Community Learning Hubs", "E-learning Accessibility"],
+    researchAreas: ["Vernacular Pedagogy", "Community Learning Hub hubs", "E-learning Accessibility"],
     requiredExpertise: ["Curriculum design", "Tribal dialect translation", "Offline learning tablets"],
     disciplines: ["Education", "Social Work", "Development Studies"],
-    submissionDate: "2026-08-10",
+    submissionDate: "2025-08-10",
   },
   {
     id: "prob-6",
@@ -262,6 +381,16 @@ const INITIAL_TEAMS: UniversityTeam[] = [
     assignedProblemTitle: null,
     status: "Available",
   },
+  {
+    id: "team-4",
+    name: "Tribal Education Hub",
+    facultyMentor: "Dr. Priyadarshini Mohanty (Social Work)",
+    studentMembers: ["Rashmi Naik (MA)", "Alok Das (PhD)"],
+    requiredSkills: ["Vernacular Pedagogy", "Community Outreach", "Tablet Config"],
+    assignedProblemId: "prob-5",
+    assignedProblemTitle: "High School Dropout Rates in Tribal Districts",
+    status: "Active",
+  },
 ];
 
 const INITIAL_PROPOSALS: SolutionProposal[] = [
@@ -275,7 +404,7 @@ const INITIAL_PROPOSALS: SolutionProposal[] = [
     problemUnderstanding: "Primary schools in Gaya suffer from 6-8 hours of daily power outages, disrupting educational activities and preventing the use of computers.",
     proposedSolution: "Install 3kW rooftop solar PV systems with lithium-iron-phosphate battery backup to ensure uninterruptible power for classrooms and labs.",
     technologyApproach: "Monocrystalline solar panels, MPPT charge controllers, LiFePO4 batteries.",
-    expectedImpact: "Uninterrupted education for over 3,000 students, enabling digital classrooms.",
+    expectedImpact: "Uninterrupted education for over 3,00,000 students, enabling digital classrooms.",
     requiredResources: "Solar panels, inverter, battery bank, mounting structures, electrical installation team.",
     timeline: "3 months",
     status: "SUBMITTED",
@@ -342,50 +471,17 @@ const INITIAL_PROJECTS: UniversityProject[] = [
   {
     id: "PB-2026-001",
     title: "Water Scarcity in Rural Communities",
-    originalProblem: {
-      title: "Water Scarcity in Rural Communities",
-      description: "During the dry season, ground water levels drop severely in Ranchi rural blocks. Local residents, mostly women and children, walk over 3km daily to fetch drinking water. Contamination in secondary wells is also a major health risk.",
-      category: "Water & Sanitation",
-      district: "Ranchi",
-      state: "Jharkhand",
-      dateReported: "2026-08-01",
-      reporter: "Suresh Mahto (Citizen)",
-      affectedPopulation: "4,500 people",
-      severity: "Critical",
-      validationStatus: "VERIFIED",
-    },
-    assignedTeam: {
-      name: "Team Jal-Dhara",
-      facultyMentor: "Dr. Ramesh Kumar",
-      members: [
-        { name: "Amit Sharma", degree: "M.Tech" },
-        { name: "Pooja Patel", degree: "B.Tech" },
-        { name: "Vikram Singh", degree: "PhD" },
-      ],
-      departments: ["Environmental Science", "Civil Engineering"],
-      skills: ["Groundwater Hydrology", "Water Filtration", "Piping Design", "Environmental Engineering"],
-    },
-    facultyMentor: "Dr. Ramesh Kumar",
-    status: "ACTIVE",
-    progress: 72,
+    problemId: "prob-1",
+    teamId: "team-1",
+    stage: "IMPLEMENTATION",
+    customProgress: 72,
     startDate: "12 August 2026",
     expectedCompletionDate: "30 November 2026",
-    lifecycleStage: "Implementation",
-    milestones: [
-      { name: "Problem Validation", status: "Completed", date: "12 Aug 2026", description: "Problem validated by administrative field surveyor." },
-      { name: "Team Formation", status: "Completed", date: "15 Aug 2026", description: "Team Jal-Dhara registered and assigned to the project." },
-      { name: "Proposal", status: "Completed", date: "18 Aug 2026", description: "Technical and budget proposal approved by CSR sponsor." },
-      { name: "Prototype Design", status: "Completed", date: "25 Aug 2026", description: "Gravity-fed sand filtration unit prototype verified in lab." },
-      { name: "Field Testing", status: "Current", date: "26 Aug 2026", description: "Excavation and filtration bed placement active at rural site." },
-      { name: "Pilot Deployment", status: "Pending", description: "Installation of public filtration nodes and clean-water taps." },
-      { name: "Impact Assessment", status: "Pending", description: "Measurement of water safety indicators and public health tracking." },
-      { name: "Final Completion", status: "Pending", description: "Formal project sign-off and transfer of operations to local panchayat." },
-    ],
     collaboration: {
       university: "Ranchi Technical Institute",
       industryPartner: "Tata Steel CSR Division",
       governmentAuthority: "Jharkhand Water Supply & Sanitation Dept",
-      agreementStatus: "Signed & Active",
+      agreementStatus: "Active",
       agreementType: "Tripartite MoU",
       startDate: "12 August 2026",
       endDate: "30 November 2026",
@@ -393,66 +489,32 @@ const INITIAL_PROJECTS: UniversityProject[] = [
       coordinator: "Prof. S. K. Mahapatra",
     },
     documents: [
-      { name: "Collaboration Agreement", type: "PDF", status: "Approved", size: "2.4 MB" },
-      { name: "Project Proposal", type: "PDF", status: "Approved", size: "1.8 MB" },
-      { name: "Funding Approval", type: "PDF", status: "Processed", size: "1.1 MB" },
-      { name: "Technical Specification", type: "DOCX", status: "Signed", size: "4.5 MB" },
-      { name: "Testing Report", type: "PDF", status: "Draft", size: "850 KB" },
+      { name: "Collaboration Agreement", type: "PDF", status: "Active", size: "2.4 MB", uploadedDate: "12 Aug 2026" },
+      { name: "Project Proposal", type: "PDF", status: "Completed", size: "1.8 MB", uploadedDate: "10 Aug 2026" },
+      { name: "Funding Approval", type: "PDF", status: "Active", size: "1.1 MB", uploadedDate: "14 Aug 2026" },
+      { name: "Technical Specification", type: "DOCX", status: "Active", size: "4.5 MB", uploadedDate: "15 Aug 2026" },
     ],
     activities: [
-      { date: "26 Aug 2026", text: "Field testing started at Ranchi rural site", type: "milestone" },
-      { date: "25 Aug 2026", text: "Lab prototype of sand filter successfully verified", type: "testing" },
-      { date: "18 Aug 2026", text: "Project proposal formally approved by CSR division", type: "proposal" },
-      { date: "15 Aug 2026", text: "Team Jal-Dhara formally assigned to target challenge", type: "team" },
-      { date: "12 Aug 2026", text: "Tripartite MoU signed with Tata CSR and Jharkhand Water Dept", type: "agreement" },
+      { text: "Field testing started at Ranchi rural site", performedBy: "Team Jal-Dhara", date: "26 Aug 2026", time: "14:20", type: "milestone" },
+      { text: "Lab prototype of sand filter successfully verified", performedBy: "Dr. Ramesh Kumar", date: "25 Aug 2026", time: "11:30", type: "testing" },
+      { text: "Project proposal formally approved by CSR division", performedBy: "Tata CSR Board", date: "18 Aug 2026", time: "16:10", type: "proposal" },
+      { text: "Team Jal-Dhara formally assigned to target challenge", performedBy: "Ranchi Tech Admin", date: "15 Aug 2026", time: "10:00", type: "team" },
+      { text: "Tripartite MoU signed with Tata CSR and Jharkhand Water Dept", performedBy: "Coordination Office", date: "12 Aug 2026", time: "14:00", type: "agreement" },
     ],
   },
   {
     id: "PB-2026-002",
     title: "Solar Powering Rural Primary Schools",
-    originalProblem: {
-      title: "Intermittent Electricity in Primary Schools",
-      description: "Over 20 schools in rural Gaya experience frequent power cuts lasting 6-8 hours daily. This renders modern e-learning facilities, smart screens, and computer labs unusable, impacting basic educational delivery.",
-      category: "Renewable Energy",
-      district: "Gaya",
-      state: "Bihar",
-      dateReported: "2026-07-28",
-      reporter: "Sunita Kumari (School Principal)",
-      affectedPopulation: "3,200 students",
-      severity: "High",
-      validationStatus: "VERIFIED",
-    },
-    assignedTeam: {
-      name: "SolarEdu Scholars",
-      facultyMentor: "Prof. Anjali Devi",
-      members: [
-        { name: "Rahul Mehta", degree: "B.Tech" },
-        { name: "Sneha Roy", degree: "B.Tech" },
-      ],
-      departments: ["Electrical Engineering", "Renewable Energy Systems"],
-      skills: ["Solar microgrid design", "Battery management", "Load analysis"],
-    },
-    facultyMentor: "Prof. Anjali Devi",
-    status: "UNDER_REVIEW",
-    progress: 35,
+    problemId: "prob-4",
+    teamId: "team-2",
+    stage: "PROPOSAL_SUBMITTED",
     startDate: "20 August 2026",
     expectedCompletionDate: "15 January 2027",
-    lifecycleStage: "Proposal Submitted",
-    milestones: [
-      { name: "Problem Validation", status: "Completed", date: "20 Aug 2026", description: "Problem validated by block education officer." },
-      { name: "Team Formation", status: "Completed", date: "22 Aug 2026", description: "SolarEdu Scholars team registered and assigned." },
-      { name: "Proposal", status: "Current", date: "24 Aug 2026", description: "Technical proposal for solar PV mini-grids submitted for review." },
-      { name: "Prototype Design", status: "Pending", description: "Circuit modeling and solar layout blueprints." },
-      { name: "Field Testing", status: "Pending", description: "Rooftop structure load assessments and sun tracking trials." },
-      { name: "Pilot Deployment", status: "Pending", description: "Installation of solar array, battery bank, and smart metering." },
-      { name: "Impact Assessment", status: "Pending", description: "Monitoring uninterrupted classroom hours and tech device uptime." },
-      { name: "Final Completion", status: "Pending", description: "Project sign-off and handing grid controls to school administration." },
-    ],
     collaboration: {
       university: "Gaya Technical Academy",
       industryPartner: "ReNew Power Ltd",
       governmentAuthority: "Bihar Education Department",
-      agreementStatus: "Under Draft Review",
+      agreementStatus: "Under Review",
       agreementType: "Research Collaboration Agreement",
       startDate: "Pending Approval",
       endDate: "Pending Approval",
@@ -460,121 +522,55 @@ const INITIAL_PROJECTS: UniversityProject[] = [
       coordinator: "Prof. Anjali Devi",
     },
     documents: [
-      { name: "Project Proposal", type: "PDF", status: "Under Review", size: "3.2 MB" },
-      { name: "Technical Specification", type: "PDF", status: "Draft", size: "2.1 MB" },
+      { name: "Project Proposal", type: "PDF", status: "Under Review", size: "3.2 MB", uploadedDate: "20 Aug 2026" },
+      { name: "Technical Specification", type: "PDF", status: "Draft", size: "2.1 MB", uploadedDate: "18 Aug 2026" },
     ],
     activities: [
-      { date: "24 Aug 2026", text: "Technical proposal uploaded for review", type: "proposal" },
-      { date: "23 Aug 2026", text: "Rooftop load and solar exposure survey completed", type: "survey" },
-      { date: "22 Aug 2026", text: "SolarEdu Scholars team formed and assigned to school project", type: "team" },
+      { text: "Technical proposal uploaded for review", performedBy: "Prof. Anjali Devi", date: "24 Aug 2026", time: "12:15", type: "proposal" },
+      { text: "Rooftop load and solar exposure survey completed", performedBy: "SolarEdu Scholars", date: "23 Aug 2026", time: "10:30", type: "survey" },
+      { text: "SolarEdu Scholars team formed and assigned to school project", performedBy: "Gaya Tech Registry", date: "22 Aug 2026", time: "09:00", type: "team" },
     ],
   },
   {
     id: "PB-2026-003",
     title: "Soil Salinity Bioremediation",
-    originalProblem: {
-      title: "Crop Yield Reduction due to Soil Salinity",
-      description: "Excessive chemical fertilizer usage and poor irrigation drainage have led to critical soil salinity in the Sangrur district. Crop productivity has dropped by 40% over the last three seasons, impacting farmer livelihoods.",
-      category: "Agriculture & Food Tech",
-      district: "Sangrur",
-      state: "Punjab",
-      dateReported: "2026-08-05",
-      reporter: "Harpreet Singh (Farmer)",
-      affectedPopulation: "12,000 farmers",
-      severity: "Critical",
-      validationStatus: "VERIFIED",
-    },
-    assignedTeam: {
-      name: "Soil Remediation Taskforce",
-      facultyMentor: "Dr. Sanjay Dutt",
-      members: [
-        { name: "Nikhil Gupta", degree: "M.Sc" },
-        { name: "Kriti Sen", degree: "B.Tech" },
-      ],
-      departments: ["Agricultural Science", "Biotechnology"],
-      skills: ["Bio-remediation", "Soil chemical analysis", "Microbial culture"],
-    },
-    facultyMentor: "Dr. Sanjay Dutt",
-    status: "PENDING_ACTION",
-    progress: 15,
+    problemId: "prob-2",
+    teamId: null,
+    stage: "UNIVERSITY_MATCHED",
     startDate: "25 August 2026",
     expectedCompletionDate: "30 March 2027",
-    lifecycleStage: "University Matched",
-    milestones: [
-      { name: "Problem Validation", status: "Completed", date: "25 Aug 2026", description: "Soil salinity verified by block agricultural officer." },
-      { name: "Team Formation", status: "Current", date: "26 Aug 2026", description: "Finalizing research assistant appointments." },
-      { name: "Proposal", status: "Pending", description: "Drafting bio-fertilizer field testing protocol." },
-      { name: "Prototype Design", status: "Pending", description: "Inoculating halophilic microbial culture in lab." },
-      { name: "Field Testing", status: "Pending", description: "First-round soil treatment testing on local plot." },
-      { name: "Pilot Deployment", status: "Pending", description: "Distributing bio-fertilizers to cooperative farms." },
-      { name: "Impact Assessment", status: "Pending", description: "Comparing crop growth yields against chemical controls." },
-      { name: "Final Completion", status: "Pending", description: "Project sign-off and soil health report publication." },
-    ],
     collaboration: {
       university: "Punjab Agri University",
       industryPartner: "IFFCO CSR",
       governmentAuthority: "Punjab Soil Conservation Department",
-      agreementStatus: "Initial Dialogue",
+      agreementStatus: "Draft",
       agreementType: "Joint Agri-Research MoU",
       startDate: "Pending MoU",
       endDate: "Pending MoU",
-      funding: "₹12,00,000 (Target)",
+      funding: "₹12,0,000 (Target)",
       coordinator: "Dr. Sanjay Dutt",
     },
     documents: [
-      { name: "Initial Research Brief", type: "PDF", status: "Draft", size: "1.2 MB" },
+      { name: "Initial Research Brief", type: "PDF", status: "Draft", size: "1.2 MB", uploadedDate: "25 Aug 2026" },
     ],
     activities: [
-      { date: "26 Aug 2026", text: "Initial meeting with Punjab Soil Dept representatives", type: "meeting" },
-      { date: "25 Aug 2026", text: "University match registered for Sangrur district salinity challenge", type: "match" },
+      { text: "Initial meeting with Punjab Soil Dept representatives", performedBy: "Dr. Sanjay Dutt", date: "26 Aug 2026", time: "15:30", type: "meeting" },
+      { text: "University match registered for Sangrur district salinity challenge", performedBy: "PAU Admin", date: "25 Aug 2026", time: "10:15", type: "match" },
     ],
   },
   {
     id: "PB-2026-004",
     title: "Vernacular E-Learning Kits",
-    originalProblem: {
-      title: "High School Dropout Rates in Tribal Districts",
-      description: "Language barriers and economic constraints lead to an elevated school dropout rate after grade 8 in tribal villages of Mayurbhanj. Innovative digital learning kits and localized vernacular educational content are needed.",
-      category: "Education & Social Impact",
-      district: "Mayurbhanj",
-      state: "Odisha",
-      dateReported: "2025-08-10",
-      reporter: "Local NGO Director",
-      affectedPopulation: "1,800 youth annually",
-      severity: "High",
-      validationStatus: "VERIFIED",
-    },
-    assignedTeam: {
-      name: "Tribal Education Hub",
-      facultyMentor: "Dr. Priyadarshini Mohanty",
-      members: [
-        { name: "Rashmi Naik", degree: "M.A" },
-        { name: "Alok Das", degree: "PhD" },
-      ],
-      departments: ["Social Work", "Education"],
-      skills: ["Vernacular Pedagogy", "Community Outreach", "E-learning tablet configuration"],
-    },
-    facultyMentor: "Dr. Priyadarshini Mohanty",
-    status: "COMPLETED",
-    progress: 100,
+    problemId: "prob-5",
+    teamId: "team-4",
+    stage: "COMPLETED",
     startDate: "01 September 2025",
     expectedCompletionDate: "30 June 2026",
-    lifecycleStage: "Completed",
-    milestones: [
-      { name: "Problem Validation", status: "Completed", date: "01 Sep 2025", description: "Problem validated by Mayurbhanj district educational officers." },
-      { name: "Team Formation", status: "Completed", date: "05 Sep 2025", description: "Team Tribal Education Hub registered." },
-      { name: "Proposal", status: "Completed", date: "15 Sep 2025", description: "Funding proposal for 150 offline learning tablets approved." },
-      { name: "Prototype Design", status: "Completed", date: "30 Nov 2025", description: "Vernacular content and offline system design finalized." },
-      { name: "Field Testing", status: "Completed", date: "28 Feb 2026", description: "Tested kits in three pilot schools with positive feedback." },
-      { name: "Pilot Deployment", status: "Completed", date: "30 Apr 2026", description: "Distributed 150 learning tablets to tribal blocks." },
-      { name: "Impact Assessment", status: "Completed", date: "15 Jun 2026", description: "Assessed student engagement and noted 25% drop in dropout rates." },
-      { name: "Final Completion", status: "Completed", date: "30 Jun 2026", description: "Official project handover completed successfully." },
-    ],
     collaboration: {
       university: "Odisha State University",
       industryPartner: "Vedanta Foundation CSR",
       governmentAuthority: "Mayurbhanj District Education Office",
-      agreementStatus: "Completed & Closed",
+      agreementStatus: "Completed",
       agreementType: "Corporate-Academic Partnership",
       startDate: "01 September 2025",
       endDate: "30 June 2026",
@@ -582,16 +578,16 @@ const INITIAL_PROJECTS: UniversityProject[] = [
       coordinator: "Dr. Priyadarshini Mohanty",
     },
     documents: [
-      { name: "MOU Agreement", type: "PDF", status: "Signed", size: "2.8 MB" },
-      { name: "Project Proposal", type: "PDF", status: "Approved", size: "1.9 MB" },
-      { name: "Final Impact Report", type: "PDF", status: "Submitted", size: "5.2 MB" },
-      { name: "Completion Certificate", type: "PDF", status: "Issued", size: "850 KB" },
+      { name: "MOU Agreement", type: "PDF", status: "Completed", size: "2.8 MB", uploadedDate: "01 Sep 2025" },
+      { name: "Project Proposal", type: "PDF", status: "Completed", size: "1.9 MB", uploadedDate: "05 Sep 2025" },
+      { name: "Final Impact Report", type: "PDF", status: "Completed", size: "5.2 MB", uploadedDate: "15 Jun 2026" },
+      { name: "Completion Certificate", type: "PDF", status: "Completed", size: "850 KB", uploadedDate: "30 Jun 2026" },
     ],
     activities: [
-      { date: "30 Jun 2026", text: "Final completion certificate issued by District Collector Office", type: "completion" },
-      { date: "15 Jun 2026", text: "End-line impact assessment survey completed and compiled", type: "survey" },
-      { date: "30 Apr 2026", text: "150 offline learning tablets deployed in Mayurbhanj schools", type: "deployment" },
-      { date: "28 Feb 2026", text: "First field testing report uploaded with positive feedback", type: "testing" },
+      { text: "Final completion certificate issued by District Collector Office", performedBy: "District Collector", date: "30 Jun 2026", time: "17:00", type: "completion" },
+      { text: "End-line impact assessment survey completed and compiled", performedBy: "Dr. Priyadarshini Mohanty", date: "15 Jun 2026", time: "14:30", type: "survey" },
+      { text: "150 offline learning tablets deployed in Mayurbhanj schools", performedBy: "Tribal Education Hub", date: "30 Apr 2026", time: "11:00", type: "deployment" },
+      { text: "First field testing report uploaded with positive feedback", performedBy: "Alok Das", date: "28 Feb 2026", time: "10:15", type: "testing" },
     ],
   },
 ];
@@ -617,6 +613,112 @@ function setStoredData<T>(key: string, value: T): void {
     localStorage.setItem(key, JSON.stringify(value));
   } catch (error) {
     console.error(`Error writing key ${key} to localStorage:`, error);
+  }
+}
+
+// ----------------------------------------------------
+// Milestone Generator (Source of Truth)
+// ----------------------------------------------------
+export function getProjectMilestones(stage: ProjectStage, projectStartDate: string): ProjectMilestone[] {
+  const stageIndex = LIFECYCLE_STAGES.indexOf(stage);
+
+  const milestonesList = [
+    {
+      name: "Problem Validation",
+      stageLimit: 1, // VALIDATED
+      date: "12 Aug 2026",
+      description: "Problem validated by administrative field surveyor.",
+    },
+    {
+      name: "Team Formation",
+      stageLimit: 3, // TEAM_FORMED
+      date: stageIndex >= 3 ? "15 Aug 2026" : undefined,
+      dueDate: stageIndex < 3 ? "2026-08-23" : undefined, // PB-2026-003 Team Formation will show as overdue
+      description: "Research team registered and assigned to the project.",
+    },
+    {
+      name: "Proposal",
+      stageLimit: 4, // PROPOSAL_SUBMITTED
+      date: stageIndex >= 4 ? "18 Aug 2026" : undefined,
+      dueDate: stageIndex < 4 ? "2026-09-05" : undefined,
+      description: "Technical and budget proposal submitted and evaluated.",
+    },
+    {
+      name: "Prototype Design",
+      stageLimit: 5, // PROPOSAL_APPROVED
+      date: stageIndex >= 5 ? "25 Aug 2026" : undefined,
+      dueDate: stageIndex < 5 ? "2026-09-15" : undefined,
+      description: "Gravity-fed sand filtration unit prototype verified in lab.",
+    },
+    {
+      name: "Field Testing",
+      stageLimit: 6, // IMPLEMENTATION
+      date: stageIndex >= 7 ? "26 Aug 2026" : undefined,
+      dueDate: stageIndex === 6 ? "2026-09-22" : stageIndex < 6 ? "2026-09-30" : undefined,
+      description: "Excavation and filtration bed placement active at rural site.",
+    },
+    {
+      name: "Pilot Deployment",
+      stageLimit: 7, // IMPACT_ASSESSMENT
+      date: stageIndex >= 8 ? "30 Apr 2026" : undefined,
+      dueDate: stageIndex < 7 ? "2026-10-15" : undefined,
+      description: "Installation of public filtration nodes and clean-water taps.",
+    },
+    {
+      name: "Impact Assessment",
+      stageLimit: 8, // COMPLETED
+      date: stageIndex >= 8 ? "15 Jun 2026" : undefined,
+      dueDate: stageIndex === 7 ? "2026-09-10" : stageIndex < 7 ? "2026-11-10" : undefined,
+      description: "Measurement of water safety indicators and public health tracking.",
+    },
+    {
+      name: "Final Completion",
+      stageLimit: 8, // COMPLETED
+      date: stageIndex >= 8 ? "30 Jun 2026" : undefined,
+      dueDate: stageIndex < 8 ? "2026-11-30" : undefined,
+      description: "Formal project sign-off and transfer of operations to local panchayat.",
+    },
+  ];
+
+  return milestonesList.map((m) => {
+    let status: "Completed" | "Current" | "Upcoming" = "Upcoming";
+    
+    if (stageIndex >= m.stageLimit) {
+      status = "Completed";
+    } else {
+      // Find the first uncompleted milestone and mark it as Current
+      const firstUncompletedIndex = milestonesList.findIndex(ml => stageIndex < ml.stageLimit);
+      if (milestonesList[firstUncompletedIndex]?.name === m.name) {
+        status = "Current";
+      }
+    }
+
+    return {
+      name: m.name,
+      status,
+      date: m.date,
+      description: m.description,
+      dueDate: m.dueDate,
+    };
+  });
+}
+
+// Deadline calculation utility
+export function getDaysRemainingText(dueDateString?: string): { text: string; isOverdue: boolean } | null {
+  if (!dueDateString) return null;
+  const current = new Date("2026-08-26"); // static date anchor for demo
+  const due = new Date(dueDateString);
+  
+  const diffTime = due.getTime() - current.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays > 0) {
+    return { text: `Due in ${diffDays} day${diffDays > 1 ? "s" : ""}`, isOverdue: false };
+  } else if (diffDays === 0) {
+    return { text: "Due today", isOverdue: false };
+  } else {
+    const overdueDays = Math.abs(diffDays);
+    return { text: `Overdue by ${overdueDays} day${overdueDays > 1 ? "s" : ""}`, isOverdue: true };
   }
 }
 
@@ -754,4 +856,51 @@ export const universityMockService = {
   getProjectById(id: string): UniversityProject | undefined {
     return this.getProjects().find((p) => p.id === id);
   },
+
+  resolveProject(project: UniversityProject): ResolvedProject | undefined {
+    const problems = this.getProblems();
+    const teams = this.getTeams();
+    
+    const problem = problems.find((p) => p.id === project.problemId);
+    if (!problem) return undefined;
+
+    const team = project.teamId ? teams.find((t) => t.id === project.teamId) || null : null;
+    
+    const config = STAGE_CONFIG[project.stage];
+    const progress = project.customProgress ?? config.defaultProgress;
+    const milestones = getProjectMilestones(project.stage, project.startDate);
+
+    return {
+      ...project,
+      originalProblem: {
+        title: problem.title,
+        description: problem.description,
+        category: problem.category,
+        district: problem.district,
+        state: problem.state,
+        dateReported: problem.submissionDate,
+        reporter: project.id === "PB-2026-004" ? "Local NGO Director" : "Suresh Mahto (Citizen)", 
+        affectedPopulation: problem.affectedPopulation,
+        severity: problem.priority === "High" ? "Critical" : "High",
+        validationStatus: "VERIFIED",
+      },
+      assignedTeam: team ? {
+        name: team.name,
+        facultyMentor: team.facultyMentor.split(" (")[0],
+        members: team.studentMembers.map((m) => {
+          const parts = m.split(" (");
+          return { name: parts[0], degree: parts[1]?.replace(")", "") || "Student" };
+        }),
+        departments: [team.facultyMentor.split(" (")[1]?.replace(")", "") || "Engineering"],
+        skills: team.requiredSkills,
+      } : null,
+      facultyMentor: team ? team.facultyMentor.split(" (")[0] : "Coordinator Pending",
+      status: config.status,
+      progress,
+      nextAction: config.nextAction,
+      actionText: config.actionText,
+      actionHref: config.actionHref,
+      milestones,
+    };
+  }
 };

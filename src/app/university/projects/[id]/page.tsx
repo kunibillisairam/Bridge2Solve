@@ -13,17 +13,21 @@ import {
   AlertCircle,
   Briefcase,
   FileText,
-  FileSpreadsheet,
   Building,
-  ShieldAlert,
-  ArrowRight,
   Download,
   Activity,
-  Award
+  Award,
+  BookOpen,
+  Check,
+  ExternalLink
 } from "lucide-react";
 import { 
   universityMockService, 
-  UniversityProject 
+  ResolvedProject,
+  LIFECYCLE_STAGES,
+  STAGE_CONFIG,
+  getDaysRemainingText,
+  ProjectStage
 } from "@/services/universityMockService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -35,29 +39,28 @@ const STATUS_BADGES = {
   PENDING_ACTION: "bg-red-50 text-red-700 border-red-200",
 };
 
-const LIFECYCLE_STAGES = [
-  "Problem Reported",
-  "Validated",
-  "University Matched",
-  "Team Formed",
-  "Proposal Submitted",
-  "Proposal Approved",
-  "Implementation",
-  "Impact Assessment",
-  "Completed"
-];
+const AGREEMENT_STATUS_BADGES = {
+  Draft: "bg-brandgray-light text-brandgray-muted border-brandgray-border",
+  "Under Review": "bg-amber-50 text-amber-700 border-amber-250",
+  Active: "bg-success-light text-success border-success/15",
+  Expired: "bg-red-50 text-red-700 border-red-200",
+  Completed: "bg-blue-50 text-blue-700 border-blue-150",
+};
 
 export default function ProjectDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const [project, setProject] = useState<UniversityProject | null>(null);
+  const [project, setProject] = useState<ResolvedProject | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (id) {
-      const data = universityMockService.getProjectById(id);
-      if (data) {
-        setProject(data);
+      const raw = universityMockService.getProjectById(id);
+      if (raw) {
+        const resolved = universityMockService.resolveProject(raw);
+        if (resolved) {
+          setProject(resolved);
+        }
       }
       setLoading(false);
     }
@@ -84,8 +87,8 @@ export default function ProjectDetailsPage() {
     );
   }
 
-  // Find index of current stage in lifecycle
-  const currentStageIndex = LIFECYCLE_STAGES.indexOf(project.lifecycleStage);
+  const currentStageIndex = LIFECYCLE_STAGES.indexOf(project.stage);
+  const stageConfig = STAGE_CONFIG[project.stage];
 
   return (
     <div className="space-y-6">
@@ -100,73 +103,120 @@ export default function ProjectDetailsPage() {
         </Link>
       </div>
 
-      {/* Project Header Card */}
-      <Card className="border-brandgray-border shadow-subtle bg-white">
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            
-            <div className="space-y-2 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider">
-                  Project ID: {project.id}
-                </span>
-                <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${STATUS_BADGES[project.status]}`}>
-                  {project.status.replace(/_/g, " ")}
-                </span>
+      {/* Project Details Header Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Main Title & Progress Block */}
+        <div className="lg:col-span-2">
+          <Card className="border-brandgray-border shadow-subtle bg-white h-full flex flex-col justify-between">
+            <CardContent className="p-6 flex flex-col justify-between h-full space-y-4">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider">
+                    Project ID: {project.id}
+                  </span>
+                  <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${STATUS_BADGES[project.status]}`}>
+                    {project.status.replace(/_/g, " ")}
+                  </span>
+                </div>
+                <h2 className="text-xl font-bold text-primary">{project.title}</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs text-brandgray-muted">
+                  <div>
+                    Research Team: <span className="font-semibold text-brandgray-text">{project.assignedTeam ? project.assignedTeam.name : "Formation Pending"}</span>
+                  </div>
+                  <div>
+                    Faculty Mentor: <span className="font-semibold text-brandgray-text">{project.facultyMentor}</span>
+                  </div>
+                </div>
               </div>
-              <h2 className="text-xl font-bold text-primary">{project.title}</h2>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-brandgray-muted">
-                <span>
-                  Team: <span className="font-semibold text-brandgray-text">{project.assignedTeam.name}</span>
-                </span>
-                <span>
-                  Mentor: <span className="font-semibold text-brandgray-text">{project.facultyMentor}</span>
-                </span>
-              </div>
-            </div>
 
-            {/* Progress circle/bar */}
-            <div className="w-full md:w-64 space-y-1.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-brandgray-muted font-medium">Implementation Status</span>
-                <span className="font-bold text-primary">{project.progress}% Complete</span>
+              {/* Progress Slider */}
+              <div className="space-y-1.5 pt-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-brandgray-muted font-medium">Overall Progress (Stage-Based)</span>
+                  <span className="font-bold text-primary">{project.progress}% Complete</span>
+                </div>
+                <div className="w-full bg-brandgray-light border border-brandgray-border/50 h-2.5 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary transition-all duration-300" 
+                    style={{ width: `${project.progress}%` }}
+                  />
+                </div>
               </div>
-              <div className="w-full bg-brandgray-light border border-brandgray-border/50 h-2 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full bg-primary`} 
-                  style={{ width: `${project.progress}%` }}
-                />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Compact Next Action Box */}
+        <div>
+          <Card className="border-primary/20 shadow-subtle bg-slate-50/50 h-full flex flex-col justify-between">
+            <CardHeader className="p-5 pb-2">
+              <span className="text-[9px] font-bold text-primary uppercase tracking-wider block leading-none">
+                Current Stage
+              </span>
+              <span className="text-sm font-bold text-brandgray-text mt-1.5 block">
+                {stageConfig.label}
+              </span>
+            </CardHeader>
+            <CardContent className="p-5 pt-0 space-y-4 flex-1 flex flex-col justify-between">
+              <div className="space-y-1 mt-2">
+                <span className="text-[9px] font-bold text-brandgray-muted uppercase block leading-none">
+                  Next Action
+                </span>
+                <p className="text-xs text-brandgray-text/90 font-medium leading-relaxed mt-1">
+                  {project.nextAction}
+                </p>
               </div>
-            </div>
 
-          </div>
-        </CardContent>
-      </Card>
+              <div className="pt-2">
+                {project.actionHref ? (
+                  <Link href={project.actionHref} className="block w-full">
+                    <Button variant="primary" size="sm" className="w-full h-9 font-semibold text-xs">
+                      {project.actionText}
+                    </Button>
+                  </Link>
+                ) : (
+                  <Button 
+                    variant="primary" 
+                    size="sm" 
+                    className="w-full h-9 font-semibold text-xs"
+                    onClick={() => {
+                      alert(`Action triggered: "${project.actionText}" is currently operating in demo status. Updates are registered in the local state.`);
+                    }}
+                  >
+                    {project.actionText}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Project Lifecycle Timeline */}
+      </div>
+
+      {/* Project Lifecycle Visual Timeline */}
       <Card className="border-brandgray-border shadow-subtle bg-white overflow-hidden">
         <CardHeader className="p-5 border-b border-brandgray-border/60">
           <CardTitle className="text-xs font-bold text-primary uppercase tracking-wider">
-            Project Lifecycle & Execution Stages
+            Project Lifecycle Stages
           </CardTitle>
         </CardHeader>
         <CardContent className="p-5">
-          {/* Horizontal timeline on Desktop, vertical on Mobile */}
+          {/* Horizontal timeline on Large screens */}
           <div className="hidden lg:flex items-center justify-between w-full relative">
-            
-            {/* Connecting line */}
-            <div className="absolute left-6 right-6 top-4.5 h-0.5 bg-brandgray-border z-0" />
+            <div className="absolute left-10 right-10 top-4.5 h-0.5 bg-brandgray-border z-0" />
             <div 
-              className="absolute left-6 top-4.5 h-0.5 bg-primary z-0 transition-all duration-300"
-              style={{ width: `${(Math.max(0, currentStageIndex) / (LIFECYCLE_STAGES.length - 1)) * 92}%` }}
+              className="absolute left-10 top-4.5 h-0.5 bg-primary z-0 transition-all duration-300"
+              style={{ width: `${(Math.max(0, currentStageIndex) / (LIFECYCLE_STAGES.length - 1)) * 90}%` }}
             />
 
-            {LIFECYCLE_STAGES.map((stage, index) => {
-              const isCompleted = index < currentStageIndex;
-              const isCurrent = index === currentStageIndex;
+            {LIFECYCLE_STAGES.map((stageName, idx) => {
+              const isCompleted = idx < currentStageIndex;
+              const isCurrent = idx === currentStageIndex;
+              const config = STAGE_CONFIG[stageName];
+
               return (
-                <div key={stage} className="flex flex-col items-center text-center relative z-10 w-24">
-                  {/* Circle indicator */}
+                <div key={stageName} className="flex flex-col items-center text-center relative z-10 w-24">
                   <div className={`h-9 w-9 rounded-full flex items-center justify-center border-2 transition-all ${
                     isCompleted 
                       ? "bg-success border-success text-white" 
@@ -175,28 +225,35 @@ export default function ProjectDetailsPage() {
                         : "bg-white border-brandgray-border text-brandgray-muted"
                   }`}>
                     {isCompleted ? (
-                      <CheckCircle2 className="h-4.5 w-4.5" />
+                      <Check className="h-4.5 w-4.5" />
                     ) : (
-                      <span className="text-xs">{index + 1}</span>
+                      <span className="text-xs">{idx + 1}</span>
                     )}
                   </div>
-                  <span className={`text-[10px] mt-2.5 leading-tight font-medium ${
+                  <span className={`text-[9.5px] mt-2 leading-tight font-semibold block ${
                     isCurrent ? "text-primary font-bold" : "text-brandgray-muted"
                   }`}>
-                    {stage}
+                    {config.label}
                   </span>
+                  {isCurrent && (
+                    <span className="text-[8px] font-bold text-primary bg-primary-light border border-primary/20 px-1 py-0.2 rounded mt-1 uppercase tracking-wider leading-none scale-90">
+                      Current
+                    </span>
+                  )}
                 </div>
               );
             })}
           </div>
 
           {/* Vertical timeline for Mobile/Tablet */}
-          <div className="lg:hidden space-y-4">
-            {LIFECYCLE_STAGES.map((stage, index) => {
-              const isCompleted = index < currentStageIndex;
-              const isCurrent = index === currentStageIndex;
+          <div className="lg:hidden space-y-4 relative pl-3 border-l-2 border-brandgray-border">
+            {LIFECYCLE_STAGES.map((stageName, idx) => {
+              const isCompleted = idx < currentStageIndex;
+              const isCurrent = idx === currentStageIndex;
+              const config = STAGE_CONFIG[stageName];
+
               return (
-                <div key={stage} className="flex items-start gap-3">
+                <div key={stageName} className="flex items-start gap-3 relative -left-6.5">
                   <div className={`h-7 w-7 shrink-0 rounded-full flex items-center justify-center border-2 ${
                     isCompleted 
                       ? "bg-success border-success text-white" 
@@ -205,19 +262,26 @@ export default function ProjectDetailsPage() {
                         : "bg-white border-brandgray-border text-brandgray-muted"
                   }`}>
                     {isCompleted ? (
-                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <Check className="h-3.5 w-3.5" />
                     ) : (
-                      <span className="text-[10px]">{index + 1}</span>
+                      <span className="text-[10px]">{idx + 1}</span>
                     )}
                   </div>
                   <div className="space-y-0.5">
-                    <span className={`text-xs font-semibold block ${
-                      isCurrent ? "text-primary font-bold" : "text-brandgray-text"
-                    }`}>
-                      {stage}
-                    </span>
-                    <span className="text-[10px] text-brandgray-muted block leading-none">
-                      {isCompleted ? "Completed" : isCurrent ? "Active Stage" : "Pending"}
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-bold ${
+                        isCurrent ? "text-primary" : "text-brandgray-text"
+                      }`}>
+                        {config.label}
+                      </span>
+                      {isCurrent && (
+                        <span className="text-[8px] font-bold text-primary bg-primary-light border border-primary/20 px-1.5 rounded uppercase tracking-wider leading-none">
+                          Current
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-brandgray-muted block">
+                      {isCompleted ? "Completed stage" : isCurrent ? "Active Focus" : "Upcoming phase"}
                     </span>
                   </div>
                 </div>
@@ -230,21 +294,21 @@ export default function ProjectDetailsPage() {
       {/* Grid Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Left Column (Original Problem, Collaboration/Documents) */}
+        {/* Left Column */}
         <div className="lg:col-span-2 space-y-6">
           
           {/* Original Problem */}
           <Card className="border-brandgray-border shadow-subtle bg-white">
             <CardHeader className="p-5 border-b border-brandgray-border/60">
-              <span className="text-[9px] font-bold text-success uppercase tracking-wider block bg-success-light border border-success/15 px-2 py-0.5 rounded w-max mb-1.5">
-                Target Problem Source
+              <span className="text-[9px] font-bold text-brandgray-muted uppercase tracking-wider block">
+                PROJECT SOURCE
               </span>
-              <CardTitle className="text-sm font-bold text-primary uppercase tracking-wider block">
+              <CardTitle className="text-sm font-bold text-primary uppercase tracking-wider block mt-1">
                 Original Community Problem
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 space-y-4">
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <h4 className="text-sm font-bold text-primary">
                   {project.originalProblem.title}
                 </h4>
@@ -255,12 +319,24 @@ export default function ProjectDetailsPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-brandgray-border/40 text-xs">
                 <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Reporter</span>
-                  <span className="font-semibold text-brandgray-text mt-1.5 block">{project.originalProblem.reporter}</span>
+                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Problem ID</span>
+                  <span className="font-semibold text-brandgray-text mt-1.5 block">{project.problemId}</span>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Date Reported</span>
-                  <span className="font-semibold text-brandgray-text mt-1.5 block">{project.originalProblem.dateReported}</span>
+                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Category</span>
+                  <span className="font-semibold text-brandgray-text mt-1.5 block">{project.originalProblem.category}</span>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Reported Date & By</span>
+                  <span className="font-semibold text-brandgray-text mt-1.5 block">
+                    {project.originalProblem.dateReported} by {project.originalProblem.reporter}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Impact Size & Severity</span>
+                  <span className="font-semibold text-brandgray-text mt-1.5 block">
+                    {project.originalProblem.affectedPopulation} ({project.originalProblem.severity} Severity)
+                  </span>
                 </div>
                 <div className="space-y-1">
                   <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Validation Status</span>
@@ -269,15 +345,19 @@ export default function ProjectDetailsPage() {
                   </span>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Impact Size / Severity</span>
-                  <span className="font-semibold text-brandgray-text mt-1.5 block">
-                    {project.originalProblem.affectedPopulation} ({project.originalProblem.severity} Severity)
+                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Location Details</span>
+                  <span className="font-semibold text-brandgray-text mt-1.5 block flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5 text-brandgray-muted shrink-0" /> {project.originalProblem.district}, {project.originalProblem.state}
                   </span>
                 </div>
               </div>
 
-              <div className="p-3 bg-brandgray-light/45 border border-brandgray-border rounded text-[11px] text-brandgray-muted leading-relaxed">
-                <strong>Source Notice:</strong> This project was matched, approved, and initiated in direct response to the community-driven challenge submitted at {project.originalProblem.district}, {project.originalProblem.state}.
+              <div className="pt-2 flex justify-end">
+                <Link href={`/university/problems/${project.problemId}`}>
+                  <Button variant="outline" size="sm" className="h-8 font-semibold text-xs flex items-center gap-1 bg-white">
+                    View Original Problem <ExternalLink className="h-3 w-3" />
+                  </Button>
+                </Link>
               </div>
             </CardContent>
           </Card>
@@ -291,13 +371,13 @@ export default function ProjectDetailsPage() {
             </CardHeader>
             <CardContent className="p-5 space-y-5">
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-xs">
                 <div className="space-y-1">
                   <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">University Partner</span>
                   <span className="font-semibold text-brandgray-text mt-1.5 block">{project.collaboration.university}</span>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Industry CSR Sponsor</span>
+                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Industry / CSR Partner</span>
                   <span className="font-semibold text-brandgray-text mt-1.5 block flex items-center gap-1">
                     <Building className="h-3.5 w-3.5 text-brandgray-muted shrink-0" /> {project.collaboration.industryPartner}
                   </span>
@@ -307,18 +387,36 @@ export default function ProjectDetailsPage() {
                   <span className="font-semibold text-brandgray-text mt-1.5 block">{project.collaboration.governmentAuthority}</span>
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Agreement Status & Type</span>
-                  <span className="font-semibold text-brandgray-text mt-1.5 block">
-                    {project.collaboration.agreementStatus} ({project.collaboration.agreementType})
-                  </span>
-                </div>
-                <div className="space-y-1">
                   <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Project Coordinator</span>
                   <span className="font-semibold text-brandgray-text mt-1.5 block">{project.collaboration.coordinator}</span>
                 </div>
-                <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Total Allocation Funding</span>
-                  <span className="font-bold text-primary mt-1.5 block text-sm">{project.collaboration.funding}</span>
+                
+                <div className="sm:col-span-2 border-t border-brandgray-border/40 pt-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Agreement Status</span>
+                    <span className={`inline-block text-[10px] font-bold px-2 py-0.5 border rounded mt-1.5 ${AGREEMENT_STATUS_BADGES[project.collaboration.agreementStatus as keyof typeof AGREEMENT_STATUS_BADGES] || AGREEMENT_STATUS_BADGES.Draft}`}>
+                      {project.collaboration.agreementStatus}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Agreement Type</span>
+                    <span className="font-semibold text-brandgray-text mt-1.5 block">{project.collaboration.agreementType}</span>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Total Funding</span>
+                    <span className="font-bold text-primary mt-1.5 block text-sm">{project.collaboration.funding}</span>
+                  </div>
+                </div>
+
+                <div className="sm:col-span-2 border-t border-brandgray-border/40 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Start Date</span>
+                    <span className="font-semibold text-brandgray-text mt-1.5 block">{project.collaboration.startDate}</span>
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">End Date</span>
+                    <span className="font-semibold text-brandgray-text mt-1.5 block">{project.collaboration.endDate}</span>
+                  </div>
                 </div>
               </div>
 
@@ -328,20 +426,24 @@ export default function ProjectDetailsPage() {
                   Associated Project Documents
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {project.documents.map((doc, i) => (
-                    <div key={i} className="flex items-center justify-between p-2.5 border border-brandgray-border rounded bg-brandgray-light/20 text-xs">
+                  {project.documents.map((doc, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2.5 border border-brandgray-border rounded bg-brandgray-light/20 text-xs">
                       <div className="flex items-center gap-2 min-w-0">
                         <FileText className="h-4 w-4 text-brandgray-muted shrink-0" />
                         <div className="truncate">
                           <span className="font-medium text-brandgray-text block truncate leading-none">{doc.name}</span>
-                          <span className="text-[9px] text-brandgray-muted mt-0.5 block">{doc.type} · {doc.size || "Size TBD"}</span>
+                          <span className="text-[9px] text-brandgray-muted mt-0.5 block">{doc.type} · {doc.size || "Size TBD"} · Uploaded {doc.uploadedDate}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[9px] font-semibold text-brandgray-muted bg-brandgray-light border border-brandgray-border/60 px-1.5 rounded">
                           {doc.status}
                         </span>
-                        <button className="text-primary hover:text-primary-hover p-1" aria-label="Download Document">
+                        <button 
+                          className="text-primary hover:text-primary-hover p-1" 
+                          aria-label="Download Document"
+                          onClick={() => alert(`Initiating secure download: ${doc.name} (${doc.size})`)}
+                        >
                           <Download className="h-3.5 w-3.5" />
                         </button>
                       </div>
@@ -355,7 +457,7 @@ export default function ProjectDetailsPage() {
 
         </div>
 
-        {/* Right Column (Assigned Team, Milestones list, activities) */}
+        {/* Right Column */}
         <div className="space-y-6">
           
           {/* Assigned Research Team */}
@@ -366,63 +468,89 @@ export default function ProjectDetailsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 space-y-4">
-              <div className="space-y-1">
-                <h4 className="text-sm font-bold text-primary">
-                  {project.assignedTeam.name}
-                </h4>
-                <p className="text-[11px] text-brandgray-muted">
-                  Faculty Mentor: <span className="font-semibold text-brandgray-text">{project.assignedTeam.facultyMentor}</span>
-                </p>
-              </div>
+              {project.assignedTeam ? (
+                <>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-bold text-primary">
+                      {project.assignedTeam.name}
+                    </h4>
+                    <p className="text-[11px] text-brandgray-muted">
+                      Faculty Mentor: <span className="font-semibold text-brandgray-text">{project.assignedTeam.facultyMentor}</span>
+                    </p>
+                  </div>
 
-              {/* Members */}
-              <div className="space-y-1.5 pt-3 border-t border-brandgray-border/40">
-                <span className="text-[10px] font-bold text-brandgray-muted uppercase block tracking-wider mb-1">
-                  Team Members
-                </span>
-                <ul className="space-y-1 text-xs text-brandgray-text">
-                  {project.assignedTeam.members.map((member, i) => (
-                    <li key={i} className="flex justify-between items-center py-0.5">
-                      <span>{member.name}</span>
-                      <span className="bg-brandgray-light text-brandgray-muted text-[10px] px-1.5 py-0.2 rounded border border-brandgray-border/50">
-                        {member.degree}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Departments */}
-              <div className="space-y-1.5 pt-3 border-t border-brandgray-border/40">
-                <span className="text-[10px] font-bold text-brandgray-muted uppercase block tracking-wider mb-1">
-                  Departments
-                </span>
-                <div className="flex flex-wrap gap-1">
-                  {project.assignedTeam.departments.map((dept, i) => (
-                    <span key={i} className="text-[10px] bg-slate-50 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
-                      {dept}
+                  {/* Members */}
+                  <div className="space-y-1.5 pt-3 border-t border-brandgray-border/40">
+                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block tracking-wider mb-1">
+                      Student Members
                     </span>
-                  ))}
-                </div>
-              </div>
+                    <ul className="space-y-1 text-xs text-brandgray-text">
+                      {project.assignedTeam.members.map((member, i) => (
+                        <li key={i} className="flex justify-between items-center py-0.5">
+                          <span>{member.name}</span>
+                          <span className="bg-brandgray-light text-brandgray-muted text-[10px] px-1.5 py-0.2 rounded border border-brandgray-border/50">
+                            {member.degree}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
 
-              {/* Skills */}
-              <div className="space-y-1.5 pt-3 border-t border-brandgray-border/40">
-                <span className="text-[10px] font-bold text-brandgray-muted uppercase block tracking-wider mb-1">
-                  Focus Research Skills
-                </span>
-                <div className="flex flex-wrap gap-1">
-                  {project.assignedTeam.skills.map((skill, i) => (
-                    <span key={i} className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-150/40">
-                      {skill}
+                  {/* Departments */}
+                  <div className="space-y-1.5 pt-3 border-t border-brandgray-border/40">
+                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block tracking-wider mb-1">
+                      Departments
                     </span>
-                  ))}
+                    <div className="flex flex-wrap gap-1">
+                      {project.assignedTeam.departments.map((dept, i) => (
+                        <span key={i} className="text-[10px] bg-slate-50 text-slate-700 px-2 py-0.5 rounded border border-slate-200">
+                          {dept}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Skills */}
+                  <div className="space-y-1.5 pt-3 border-t border-brandgray-border/40">
+                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block tracking-wider mb-1">
+                      Research Skills
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {project.assignedTeam.skills.map((skill, i) => (
+                        <span key={i} className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-150/40">
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex justify-end">
+                    <Link href="/university/teams">
+                      <Button variant="outline" size="sm" className="w-full h-8 font-semibold text-xs">
+                        View Team Workspace
+                      </Button>
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <div className="py-4 text-center space-y-3">
+                  <div className="text-xs font-bold text-red-600 uppercase bg-red-50 border border-red-200 px-3 py-1 rounded inline-block">
+                    TEAM FORMATION PENDING
+                  </div>
+                  <p className="text-[11px] text-brandgray-muted">
+                    No research team is assigned to this project match yet. Assign a team to prepare the solution proposal.
+                  </p>
+                  <Link href="/university/teams">
+                    <Button variant="primary" size="sm" className="w-full h-8 font-semibold text-xs">
+                      Manage Team
+                    </Button>
+                  </Link>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Project Progress (Detailed Milestones Checklist) */}
+          {/* Milestones & Progress Tracker */}
           <Card className="border-brandgray-border shadow-subtle bg-white">
             <CardHeader className="p-5 border-b border-brandgray-border/60">
               <CardTitle className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
@@ -430,37 +558,55 @@ export default function ProjectDetailsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 space-y-4">
-              <div className="space-y-3.5">
-                {project.milestones.map((m, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className="mt-0.5 shrink-0">
-                      {m.status === "Completed" ? (
-                        <CheckCircle2 className="h-4 w-4 text-success" />
-                      ) : m.status === "Current" ? (
-                        <div className="h-4 w-4 rounded-full border-2 border-primary flex items-center justify-center">
-                          <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                        </div>
-                      ) : (
-                        <div className="h-4 w-4 rounded-full border-2 border-brandgray-border bg-transparent" />
-                      )}
-                    </div>
-                    <div className="text-xs">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`font-semibold ${
-                          m.status === "Current" ? "text-primary" : "text-brandgray-text"
-                        }`}>
-                          {m.name}
-                        </span>
-                        {m.date && (
-                          <span className="text-[9.5px] text-brandgray-muted">({m.date})</span>
+              <div className="space-y-4">
+                {project.milestones.map((m, i) => {
+                  const deadlineInfo = getDaysRemainingText(m.dueDate);
+                  return (
+                    <div key={i} className="flex items-start gap-3">
+                      <div className="mt-0.5 shrink-0">
+                        {m.status === "Completed" ? (
+                          <CheckCircle2 className="h-4 w-4 text-success" />
+                        ) : m.status === "Current" ? (
+                          <div className="h-4 w-4 rounded-full border-2 border-primary flex items-center justify-center bg-white shadow-sm ring-2 ring-primary-light">
+                            <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                          </div>
+                        ) : (
+                          <div className="h-4 w-4 rounded-full border-2 border-brandgray-border bg-transparent" />
                         )}
                       </div>
-                      <p className="text-[10.5px] text-brandgray-muted mt-0.5 leading-relaxed">
-                        {m.description}
-                      </p>
+                      <div className="text-xs flex-1">
+                        <div className="flex flex-wrap items-center justify-between gap-1.5">
+                          <span className={`font-bold ${
+                            m.status === "Current" ? "text-primary" : "text-brandgray-text"
+                          }`}>
+                            {m.name}
+                          </span>
+                          
+                          {/* Deadline Badge */}
+                          {deadlineInfo && (
+                            <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded border uppercase tracking-wider ${
+                              deadlineInfo.isOverdue 
+                                ? "bg-red-50 text-red-700 border-red-200" 
+                                : "bg-brandgray-light text-brandgray-muted border-brandgray-border"
+                            }`}>
+                              {deadlineInfo.text}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1 text-[9px] text-brandgray-muted mt-0.5">
+                          <span className="font-semibold">
+                            {m.status === "Completed" ? "Completed" : m.status === "Current" ? "In Progress" : "Upcoming"}
+                          </span>
+                          {m.date && <span>· {m.date}</span>}
+                        </div>
+                        <p className="text-[10.5px] text-brandgray-muted mt-1 leading-relaxed">
+                          {m.description}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -473,21 +619,96 @@ export default function ProjectDetailsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 space-y-4">
-              {project.activities.map((activity, i) => (
-                <div key={i} className="flex gap-2.5 text-[11px] leading-relaxed border-b border-brandgray-light/60 last:border-0 pb-3 last:pb-0">
-                  <div className="h-1.5 w-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-                  <div className="space-y-0.5">
-                    <p className="text-brandgray-text">{activity.text}</p>
-                    <span className="text-[9.5px] text-brandgray-muted block font-medium">{activity.date}</span>
+              <div className="relative pl-3 border-l border-brandgray-border/60 space-y-4">
+                {project.activities.map((activity, i) => (
+                  <div key={i} className="relative text-[11px] leading-relaxed">
+                    <div className="absolute -left-[17px] top-1.5 h-2 w-2 rounded-full bg-primary border-2 border-white ring-2 ring-primary-light" />
+                    <div className="space-y-0.5">
+                      <p className="font-semibold text-brandgray-text">{activity.text}</p>
+                      <p className="text-[10px] text-brandgray-muted">
+                        by <span className="text-brandgray-text font-medium">{activity.performedBy}</span>
+                      </p>
+                      <span className="text-[9.5px] text-brandgray-muted block font-medium">
+                        {activity.date} · {activity.time}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </CardContent>
           </Card>
 
         </div>
 
       </div>
+
+      {/* State-Dependent Project Actions bar at bottom */}
+      <Card className="border-brandgray-border shadow-subtle bg-white">
+        <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
+          <div className="text-xs text-brandgray-muted">
+            Actions for <strong className="text-brandgray-text font-bold">{project.id}</strong> in stage <strong className="text-primary font-bold">{stageConfig.label}</strong>
+          </div>
+          
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href={`/university/problems/${project.problemId}`}>
+              <Button variant="outline" size="sm" className="h-8 font-semibold text-xs bg-white">
+                View Original Problem
+              </Button>
+            </Link>
+            {project.assignedTeam && (
+              <Link href="/university/teams">
+                <Button variant="outline" size="sm" className="h-8 font-semibold text-xs bg-white">
+                  View Team
+                </Button>
+              </Link>
+            )}
+            
+            {/* Conditional action buttons based on Project Stage */}
+            {project.stage === "UNIVERSITY_MATCHED" && (
+              <Link href="/university/teams">
+                <Button variant="primary" size="sm" className="h-8 font-semibold text-xs">
+                  Form Research Team
+                </Button>
+              </Link>
+            )}
+            {project.stage === "TEAM_FORMED" && (
+              <Link href="/university/proposals">
+                <Button variant="primary" size="sm" className="h-8 font-semibold text-xs">
+                  Create Solution Proposal
+                </Button>
+              </Link>
+            )}
+            {project.stage === "PROPOSAL_SUBMITTED" && (
+              <Link href="/university/proposals">
+                <Button variant="primary" size="sm" className="h-8 font-semibold text-xs">
+                  View Active Proposal
+                </Button>
+              </Link>
+            )}
+            {project.stage === "IMPLEMENTATION" && (
+              <Button 
+                variant="primary" 
+                size="sm" 
+                className="h-8 font-semibold text-xs"
+                onClick={() => alert("Open Milestone Progress Update Sheet")}
+              >
+                Update Progress Milestones
+              </Button>
+            )}
+            {project.stage === "COMPLETED" && (
+              <Button 
+                variant="primary" 
+                size="sm" 
+                className="h-8 font-semibold text-xs"
+                onClick={() => alert("Open formal closed-out project report")}
+              >
+                View Final Report
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
     </div>
   );
 }
