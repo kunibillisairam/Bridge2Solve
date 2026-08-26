@@ -26,25 +26,24 @@ interface ProblemInput {
 
 /**
  * Server-side AI Problem Analysis Service.
- * Provides deterministic structured problem analysis with fallback support.
+ * Leverages Gemini API when key is configured, with deterministic fallback engine.
  */
 export async function analyzeProblem(input: ProblemInput): Promise<ProblemAnalysis> {
   const text = `${input.title} ${input.description} ${input.category || ""} ${input.location || ""}`.toLowerCase();
   const today = new Date().toISOString().split("T")[0];
 
   try {
-    // Check if an external LLM API key is present in server environment variables
-    const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY;
-    if (apiKey && process.env.ENABLE_EXTERNAL_AI === "true") {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    if (apiKey) {
       const apiResult = await callExternalAIService(input, apiKey);
       if (apiResult) return apiResult;
     }
   } catch (error) {
-    console.warn("External AI call failed or timed out. Falling back to deterministic analysis engine:", error);
+    console.warn("Gemini AI call failed or timed out. Falling back to deterministic analysis engine:", error);
   }
 
   // ----------------------------------------------------
-  // Deterministic Analysis Engine (Development / Default)
+  // Deterministic Fallback Analysis Engine
   // ----------------------------------------------------
 
   // 1. Water & Sanitation Domain
@@ -188,9 +187,67 @@ export async function analyzeProblem(input: ProblemInput): Promise<ProblemAnalys
 }
 
 /**
- * Optional server-side call helper for external LLMs (Gemini / OpenAI).
+ * Server-side live call to Gemini API for structured problem intelligence.
  */
 async function callExternalAIService(input: ProblemInput, apiKey: string): Promise<ProblemAnalysis | null> {
-  // Placeholder for external provider fetch with timeout
-  return null;
+  const prompt = `Analyze the following community problem and return ONLY a valid JSON object matching this schema:
+{
+  "category": "string (e.g. Water & Sanitation, Agriculture & Food Tech, Education & Social Impact, Renewable Energy, Waste Management)",
+  "subcategory": "string",
+  "summary": "string (1-2 concise sentences)",
+  "severity": "CRITICAL" | "HIGH" | "MEDIUM" | "LOW",
+  "affectedArea": "RURAL" | "URBAN" | "PERI_URBAN" | "TRIBAL",
+  "impactLevel": "CRITICAL" | "HIGH" | "MEDIUM" | "LOW",
+  "requiredExpertise": ["string", "string"],
+  "suggestedDomains": ["string", "string"]
+}
+
+Problem Title: ${input.title}
+Problem Description: ${input.description}
+Location: ${input.location || ""}
+Category: ${input.category || ""}
+Affected Population: ${input.affectedPopulation || ""}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    const responseText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!responseText) return null;
+
+    const parsed = JSON.parse(responseText);
+    const today = new Date().toISOString().split("T")[0];
+
+    return {
+      problemId: input.id || `prob-${Date.now()}`,
+      category: parsed.category || input.category || "Community Development",
+      subcategory: parsed.subcategory || "Community Infrastructure",
+      summary: parsed.summary || input.description.slice(0, 120),
+      severity: ["CRITICAL", "HIGH", "MEDIUM", "LOW"].includes(parsed.severity) ? parsed.severity : "HIGH",
+      affectedArea: ["RURAL", "URBAN", "PERI_URBAN", "TRIBAL"].includes(parsed.affectedArea) ? parsed.affectedArea : "RURAL",
+      impactLevel: ["CRITICAL", "HIGH", "MEDIUM", "LOW"].includes(parsed.impactLevel) ? parsed.impactLevel : "HIGH",
+      requiredExpertise: Array.isArray(parsed.requiredExpertise) ? parsed.requiredExpertise : ["Field Research"],
+      suggestedDomains: Array.isArray(parsed.suggestedDomains) ? parsed.suggestedDomains : ["Local Infrastructure"],
+      analyzedAt: today,
+      reviewStatus: "PENDING",
+    };
+  } catch (error) {
+    console.warn("Gemini API call failed, using fallback engine:", error);
+    return null;
+  }
 }
