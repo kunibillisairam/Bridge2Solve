@@ -17,10 +17,10 @@ export async function POST(
     const { category, priority, priorityScore, action } = body;
 
     if (!status && action) {
-      status = action === 'approve' ? 'AI_ANALYZED' : 'REJECTED';
+      status = action === 'approve' ? 'ANALYZED' : 'REJECTED';
     }
 
-    if (!status || !['VALIDATED', 'REJECTED', 'AI_ANALYZED'].includes(status)) {
+    if (!status || !['UNDER_REVIEW', 'ANALYZED', 'MATCHED', 'IN_PROGRESS', 'RESOLVED', 'REJECTED'].includes(status)) {
       return NextResponse.json({ error: 'Invalid validation status.' }, { status: 400 });
     }
 

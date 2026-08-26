@@ -126,10 +126,12 @@ async function main() {
         'Every monsoon season, Rajajinagar Ward 10 experiences severe waterlogging that disrupts ' +
         'traffic, damages property, and creates health hazards for ~5,000 residents.',
       category: 'Infrastructure & Urban Development',
-      location: 'Rajajinagar, Bengaluru, Karnataka',
-      affectedPopulation: '5000',
-      status: 'AI_ANALYZED',
-      citizenId: citizen.id,
+      district: 'Bengaluru Urban',
+      state: 'Karnataka',
+      affectedPopulation: 5000,
+      status: 'ANALYZED',
+      priority: 'HIGH',
+      submittedById: citizen.id,
       aiAnalysis: {
         create: {
           category: 'Infrastructure & Urban Development',

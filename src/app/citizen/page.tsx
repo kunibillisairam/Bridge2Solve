@@ -3,16 +3,18 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MapPin, Users, CheckCircle, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { PlusCircle, MapPin, Users, CheckCircle, Clock, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 
 interface ProblemWithAI {
   id: string;
   title: string;
   description: string;
   category: string;
-  location: string;
-  affectedPopulation: string;
+  district: string;
+  state: string;
+  affectedPopulation: number;
   status: string;
+  priority: string;
   createdAt: string;
   project?: {
     status: string;
@@ -33,6 +35,8 @@ export default function CitizenDashboard() {
   const [affectedPopulation, setAffectedPopulation] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [selectedProblem, setSelectedProblem] = useState<ProblemWithAI | null>(null);
 
   const categories = [
     'Agriculture & Water Management',
@@ -68,6 +72,7 @@ export default function CitizenDashboard() {
     e.preventDefault();
     setSubmitting(true);
     setSuccessMsg('');
+    setErrorMsg('');
 
     try {
       const res = await fetch('/api/problems', {
@@ -82,19 +87,21 @@ export default function CitizenDashboard() {
         }),
       });
 
+      const data = await res.json();
+
       if (res.ok) {
-        setSuccessMsg('Your problem has been submitted successfully and has queued for AI analysis and admin validation.');
+        setSuccessMsg('Your problem has been submitted successfully.');
         setTitle('');
         setDescription('');
         setLocation('');
         setAffectedPopulation('');
         fetchProblems();
       } else {
-        const data = await res.json();
-        alert(data.error || 'Submission failed');
+        setErrorMsg(data.error || 'Submission failed');
       }
     } catch (err) {
       console.error('Error submitting problem:', err);
+      setErrorMsg('Network error. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -137,22 +144,43 @@ export default function CitizenDashboard() {
                   let statusBadge = (
                     <span className="inline-flex items-center space-x-1 text-[9px] font-bold bg-yellow-50 text-yellow-800 border border-yellow-200 px-2 py-0.5 rounded uppercase tracking-wider">
                       <Clock className="h-3 w-3" />
-                      <span>Pending Validation</span>
+                      <span>Submitted</span>
                     </span>
                   );
 
-                  if (prob.status === 'VALIDATED') {
+                  if (prob.status === 'UNDER_REVIEW') {
                     statusBadge = (
-                      <span className="inline-flex items-center space-x-1 text-[9px] font-bold bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded uppercase tracking-wider">
+                      <span className="inline-flex items-center space-x-1 text-[9px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded uppercase tracking-wider">
                         <Clock className="h-3 w-3" />
-                        <span>Validated & Matching</span>
+                        <span>Under Review</span>
+                      </span>
+                    );
+                  } else if (prob.status === 'ANALYZED') {
+                    statusBadge = (
+                      <span className="inline-flex items-center space-x-1 text-[9px] font-bold bg-purple-50 text-purple-800 border border-purple-200 px-2 py-0.5 rounded uppercase tracking-wider">
+                        <Clock className="h-3 w-3" />
+                        <span>Analyzed</span>
                       </span>
                     );
                   } else if (prob.status === 'MATCHED') {
                     statusBadge = (
+                      <span className="inline-flex items-center space-x-1 text-[9px] font-bold bg-blue-50 text-blue-800 border border-blue-200 px-2 py-0.5 rounded uppercase tracking-wider">
+                        <Clock className="h-3 w-3" />
+                        <span>Matched</span>
+                      </span>
+                    );
+                  } else if (prob.status === 'IN_PROGRESS') {
+                    statusBadge = (
                       <span className="inline-flex items-center space-x-1 text-[9px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded uppercase tracking-wider">
+                        <Clock className="h-3 w-3" />
+                        <span>In Progress</span>
+                      </span>
+                    );
+                  } else if (prob.status === 'RESOLVED') {
+                    statusBadge = (
+                      <span className="inline-flex items-center space-x-1 text-[9px] font-bold bg-gray-50 text-gray-800 border border-gray-200 px-2 py-0.5 rounded uppercase tracking-wider">
                         <CheckCircle2 className="h-3 w-3" />
-                        <span>Matched & Projects Active</span>
+                        <span>Resolved</span>
                       </span>
                     );
                   } else if (prob.status === 'REJECTED') {
@@ -164,10 +192,26 @@ export default function CitizenDashboard() {
                     );
                   }
 
+                  let priorityColor = 'bg-gray-100 text-gray-800 border-gray-200';
+                  if (prob.priority === 'CRITICAL') priorityColor = 'bg-red-100 text-red-800 border-red-200';
+                  else if (prob.priority === 'HIGH') priorityColor = 'bg-orange-100 text-orange-800 border-orange-200';
+                  else if (prob.priority === 'MEDIUM') priorityColor = 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                  else if (prob.priority === 'LOW') priorityColor = 'bg-green-100 text-green-800 border-green-200';
+
+                  const priorityBadge = (
+                    <span className={`inline-flex items-center text-[9px] font-bold border px-1.5 py-0.5 rounded uppercase tracking-wider ${priorityColor}`}>
+                      {prob.priority} Priority
+                    </span>
+                  );
+
                   return (
-                    <div key={prob.id} className="p-5 hover:bg-gray-50 transition-colors">
+                    <div 
+                      key={prob.id} 
+                      onClick={() => setSelectedProblem(prob)}
+                      className="p-5 hover:bg-gray-50 transition-colors cursor-pointer"
+                    >
                       <div className="flex items-start justify-between space-x-4 mb-2">
-                        <h3 className="text-sm sm:text-base font-bold text-primary">{prob.title}</h3>
+                        <h3 className="text-sm sm:text-base font-bold text-primary hover:underline">{prob.title}</h3>
                         <div className="shrink-0">{statusBadge}</div>
                       </div>
                       <p className="text-xs text-brandgray-muted leading-relaxed line-clamp-2">
@@ -180,11 +224,15 @@ export default function CitizenDashboard() {
                         </span>
                         <span className="flex items-center space-x-1">
                           <MapPin className="h-3.5 w-3.5 shrink-0" />
-                          <span className="font-semibold text-brandgray-text">{prob.location}</span>
+                          <span className="font-semibold text-brandgray-text">{prob.district}, {prob.state}</span>
                         </span>
                         <span className="flex items-center space-x-1">
                           <Users className="h-3.5 w-3.5 shrink-0" />
                           <span>Affected: <strong className="text-brandgray-text">{prob.affectedPopulation}</strong></span>
+                        </span>
+                        {priorityBadge}
+                        <span className="text-[10px] text-brandgray-muted ml-auto font-medium">
+                          {new Date(prob.createdAt).toLocaleDateString()}
                         </span>
                       </div>
 
@@ -215,6 +263,13 @@ export default function CitizenDashboard() {
             {successMsg && (
               <div className="mb-4 p-3 bg-success-light border border-success/20 rounded text-success text-xs font-semibold">
                 {successMsg}
+              </div>
+            )}
+
+            {errorMsg && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-xs font-semibold flex items-start space-x-1.5">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-500" />
+                <span>{errorMsg}</span>
               </div>
             )}
 
@@ -287,7 +342,7 @@ export default function CitizenDashboard() {
                   value={affectedPopulation}
                   onChange={(e) => setAffectedPopulation(e.target.value)}
                   className="w-full px-3 py-2 text-xs border border-brandgray-border rounded focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                  placeholder="e.g. 500+ residents, 20 villages"
+                  placeholder="e.g. 500"
                   required
                 />
               </div>
@@ -303,6 +358,71 @@ export default function CitizenDashboard() {
           </div>
         </div>
       </div>
+
+      {/* ─── Problem Details Modal ─── */}
+      {selectedProblem && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg border border-brandgray-border max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="px-6 py-4 border-b border-brandgray-border flex justify-between items-center bg-gray-50">
+              <span className="text-xs font-bold text-primary uppercase tracking-wider">Problem Details</span>
+              <button
+                onClick={() => setSelectedProblem(null)}
+                className="text-brandgray-muted hover:text-brandgray-text font-bold text-sm"
+              >
+                ✕ Close
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <h3 className="text-lg font-bold text-primary">{selectedProblem.title}</h3>
+                <span className="text-[10px] font-semibold text-brandgray-muted uppercase">
+                  Submitted on {new Date(selectedProblem.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-brandgray-light/30 p-4 rounded border border-brandgray-border/50 text-xs">
+                <div>
+                  <span className="block font-bold text-brandgray-muted uppercase text-[9px] tracking-wider mb-0.5">Category</span>
+                  <span className="font-semibold text-brandgray-text">{selectedProblem.category}</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-brandgray-muted uppercase text-[9px] tracking-wider mb-0.5">Location</span>
+                  <span className="font-semibold text-brandgray-text">{selectedProblem.district}, {selectedProblem.state}</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-brandgray-muted uppercase text-[9px] tracking-wider mb-0.5">Status</span>
+                  <span className="font-bold text-primary uppercase tracking-wider">{selectedProblem.status.replace(/_/g, ' ')}</span>
+                </div>
+                <div>
+                  <span className="block font-bold text-brandgray-muted uppercase text-[9px] tracking-wider mb-0.5">Priority</span>
+                  <span className="font-bold text-warning-hover uppercase tracking-wider">{selectedProblem.priority}</span>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="block font-bold text-brandgray-muted uppercase text-[9px] tracking-wider mb-0.5">Affected Population</span>
+                  <span className="font-semibold text-brandgray-text">{selectedProblem.affectedPopulation} residents</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <span className="block font-bold text-brandgray-muted uppercase text-[9px] tracking-wider">Full Description</span>
+                <p className="text-xs text-brandgray-text leading-relaxed whitespace-pre-wrap bg-white p-3 border border-brandgray-border rounded">
+                  {selectedProblem.description}
+                </p>
+              </div>
+            </div>
+            
+            <div className="px-6 py-4 border-t border-brandgray-border bg-gray-50 flex justify-end">
+              <button
+                onClick={() => setSelectedProblem(null)}
+                className="bg-primary hover:bg-primary-hover text-white text-xs font-semibold px-4 py-2 rounded transition-colors shadow-subtle border border-primary"
+              >
+                Close View
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

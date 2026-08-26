@@ -23,6 +23,23 @@ enum UserStatus {
   SUSPENDED
 }
 
+enum ProblemStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ANALYZED
+  MATCHED
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+}
+
+enum ProblemPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
 model User {
   id           String     @id @default(uuid())
   name         String
@@ -116,17 +133,19 @@ model AdminProfile {
 }
 
 model Problem {
-  id                 String      @id @default(uuid())
+  id                 String          @id @default(uuid())
   title              String
   description        String
   category           String
-  location           String
-  affectedPopulation String
-  status             String      @default("PENDING_VALIDATION")
-  citizenId          String
-  citizen            User        @relation("CitizenProblems", fields: [citizenId], references: [id], onDelete: Cascade)
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
+  district           String
+  state              String
+  affectedPopulation Int
+  status             ProblemStatus   @default(SUBMITTED)
+  priority           ProblemPriority @default(MEDIUM)
+  submittedById      String
+  submittedBy        User            @relation("CitizenProblems", fields: [submittedById], references: [id], onDelete: Cascade)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
   aiAnalysis         AiAnalysis?
   project            Project?
 }

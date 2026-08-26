@@ -10,11 +10,13 @@ interface Problem {
   title: string;
   description: string;
   category: string;
-  location: string;
-  affectedPopulation: string;
+  district: string;
+  state: string;
+  affectedPopulation: number;
   status: string;
+  priority: string;
   createdAt: string;
-  citizen: { name: string; email: string };
+  submittedBy: { name: string; email: string };
   aiAnalysis?: {
     category: string;
     priority: string;
@@ -27,9 +29,9 @@ interface Problem {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  PENDING_VALIDATION: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
-  VALIDATED: 'bg-blue-100 text-blue-800 border border-blue-200',
-  AI_ANALYZED: 'bg-purple-100 text-purple-800 border border-purple-200',
+  SUBMITTED: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
+  UNDER_REVIEW: 'bg-amber-100 text-amber-800 border border-amber-200',
+  ANALYZED: 'bg-purple-100 text-purple-800 border border-purple-200',
   MATCHED: 'bg-indigo-100 text-indigo-800 border border-indigo-200',
   IN_PROGRESS: 'bg-green-100 text-green-800 border border-green-200',
   RESOLVED: 'bg-gray-100 text-gray-700 border border-gray-200',
@@ -118,9 +120,9 @@ export default function AdminDashboard() {
     }
   };
 
-  const pending = problems.filter(p => p.status === 'PENDING_VALIDATION');
-  const analyzed = problems.filter(p => p.status === 'AI_ANALYZED' || p.status === 'MATCHED');
-  const rest = problems.filter(p => !['PENDING_VALIDATION', 'AI_ANALYZED', 'MATCHED'].includes(p.status));
+  const pending = problems.filter(p => p.status === 'SUBMITTED' || p.status === 'UNDER_REVIEW');
+  const analyzed = problems.filter(p => p.status === 'ANALYZED' || p.status === 'MATCHED');
+  const rest = problems.filter(p => !['SUBMITTED', 'UNDER_REVIEW', 'ANALYZED', 'MATCHED'].includes(p.status));
 
   if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-brandgray-muted">Loading...</div></div>;
 
@@ -212,7 +214,7 @@ export default function AdminDashboard() {
           {selected ? (
             <div className="bg-white border border-brandgray-border rounded-lg p-5 shadow-subtle sticky top-24">
               <h3 className="font-semibold text-primary text-sm mb-1">{selected.title}</h3>
-              <p className="text-xs text-brandgray-muted mb-3">Submitted by {selected.citizen.name} · {selected.location}</p>
+              <p className="text-xs text-brandgray-muted mb-3">Submitted by {selected.submittedBy?.name || 'Citizen'} · {selected.district}, {selected.state}</p>
               <p className="text-sm text-brandgray-text mb-4">{selected.description}</p>
 
               <div className="space-y-2 mb-4">
@@ -236,7 +238,7 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {selected.status === 'PENDING_VALIDATION' && (
+              {(selected.status === 'SUBMITTED' || selected.status === 'UNDER_REVIEW') && (
                 <div className="flex gap-2 mt-2">
                   <button
                     onClick={() => handleValidate(selected.id, 'approve')}
@@ -255,7 +257,7 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {selected.status === 'AI_ANALYZED' && selected.aiAnalysis && (
+              {selected.status === 'ANALYZED' && selected.aiAnalysis && (
                 <div className="mt-4 pt-4 border-t border-brandgray-border">
                   <p className="text-xs font-bold text-brandgray-text uppercase tracking-wider mb-2">
                     Assign Match to University
@@ -308,15 +310,6 @@ export default function AdminDashboard() {
 }
 
 function ProblemCard({ problem, selected, onClick }: { problem: Problem; selected: boolean; onClick: () => void }) {
-  const STATUS_COLORS: Record<string, string> = {
-    PENDING_VALIDATION: 'bg-yellow-100 text-yellow-800 border border-yellow-200',
-    VALIDATED: 'bg-blue-100 text-blue-800 border border-blue-200',
-    AI_ANALYZED: 'bg-purple-100 text-purple-800 border border-purple-200',
-    MATCHED: 'bg-indigo-100 text-indigo-800 border border-indigo-200',
-    IN_PROGRESS: 'bg-green-100 text-green-800 border border-green-200',
-    RESOLVED: 'bg-gray-100 text-gray-700 border border-gray-200',
-    REJECTED: 'bg-red-100 text-red-800 border border-red-200',
-  };
   return (
     <div
       onClick={onClick}
@@ -325,7 +318,7 @@ function ProblemCard({ problem, selected, onClick }: { problem: Problem; selecte
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-brandgray-text truncate">{problem.title}</p>
-          <p className="text-xs text-brandgray-muted mt-0.5">{problem.location} · {problem.citizen.name}</p>
+          <p className="text-xs text-brandgray-muted mt-0.5">{problem.district}, {problem.state} · {problem.submittedBy?.name || 'Citizen'}</p>
         </div>
         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${STATUS_COLORS[problem.status] || 'bg-gray-100 text-gray-700'}`}>
           {problem.status.replace(/_/g, ' ')}
