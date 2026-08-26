@@ -16,13 +16,16 @@ import {
   ArrowRight,
   GraduationCap,
   PlusCircle,
-  Building
+  Building,
+  BrainCircuit,
+  AlertTriangle
 } from "lucide-react";
 import { 
   universityMockService, 
   CommunityProblem,
   ProblemInterest,
-  UniversityTeam
+  UniversityTeam,
+  ProblemAnalysis
 } from "@/services/universityMockService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -46,6 +49,7 @@ export default function ProblemDetailsPage() {
   const [problem, setProblem] = useState<CommunityProblem | null>(null);
   const [interest, setInterest] = useState<ProblemInterest | null>(null);
   const [assignedTeam, setAssignedTeam] = useState<UniversityTeam | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<ProblemAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
   const [interestSuccess, setInterestSuccess] = useState(false);
 
@@ -60,12 +64,14 @@ export default function ProblemDetailsPage() {
     if (probData) {
       setProblem(probData);
       
-      // Fetch interest and assigned team relationships
       const interestData = universityMockService.getInterestForProblem(problemId);
       setInterest(interestData || null);
 
       const teamData = universityMockService.getAssignedTeamForProblem(problemId);
       setAssignedTeam(teamData || null);
+
+      const analysisData = universityMockService.getProblemAnalysis(problemId);
+      setAiAnalysis(analysisData || null);
     }
     setLoading(false);
   };
@@ -74,7 +80,6 @@ export default function ProblemDetailsPage() {
     if (!problem) return;
     const newInterest = universityMockService.expressInterest(problem.id);
     
-    // Refresh local state
     setInterest(newInterest);
     const updated = universityMockService.getProblemById(problem.id);
     if (updated) {
@@ -148,7 +153,7 @@ export default function ProblemDetailsPage() {
       {interestSuccess && (
         <div className="p-4 bg-success-light text-success border border-success/15 rounded text-xs font-semibold flex items-center gap-2">
           <CheckCircle className="h-4.5 w-4.5 shrink-0" />
-          <span>{"Interest expressed successfully! Your university interest relationship has been recorded."}</span>
+          <span>Interest expressed successfully! Your university interest relationship has been recorded.</span>
         </div>
       )}
 
@@ -196,12 +201,79 @@ export default function ProblemDetailsPage() {
             </CardContent>
           </Card>
 
+          {/* AI-Assisted Intelligence Section */}
+          {aiAnalysis && (
+            <Card className="border-purple-200 shadow-subtle bg-purple-50/30">
+              <CardHeader className="p-5 border-b border-purple-200/60 flex flex-row items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BrainCircuit className="h-5 w-5 text-purple-700" />
+                  <CardTitle className="text-sm font-bold text-purple-900 uppercase tracking-wider">
+                    AI-Assisted Problem Intelligence
+                  </CardTitle>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-200 px-2 py-0.5 rounded">
+                  {aiAnalysis.reviewStatus === "ACCEPTED" ? "Verified Analysis" : "Automated Insights"}
+                </span>
+              </CardHeader>
+              <CardContent className="p-5 space-y-4">
+                <p className="text-xs text-purple-950/90 leading-relaxed font-medium bg-white/70 p-3 rounded border border-purple-100">
+                  {aiAnalysis.summary}
+                </p>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-1">
+                  <div>
+                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Category</span>
+                    <span className="font-semibold text-purple-900 block mt-0.5">{aiAnalysis.category}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Subcategory</span>
+                    <span className="font-semibold text-purple-900 block mt-0.5">{aiAnalysis.subcategory}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Severity</span>
+                    <span className="font-bold text-red-700 block mt-0.5">{aiAnalysis.severity}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Impact Zone</span>
+                    <span className="font-semibold text-purple-900 block mt-0.5">{aiAnalysis.affectedArea}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-3 border-t border-purple-200/50">
+                  <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider block">
+                    Recommended Technical Expertise
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {aiAnalysis.requiredExpertise.map((exp, i) => (
+                      <span key={i} className="text-[11px] bg-white text-purple-900 border border-purple-200 px-2.5 py-0.5 rounded font-medium">
+                        {exp}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider block">
+                    Suggested Solution Domains
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {aiAnalysis.suggestedDomains.map((domain, i) => (
+                      <span key={i} className="text-[11px] bg-purple-100 text-purple-900 border border-purple-200 px-2.5 py-0.5 rounded font-medium">
+                        {domain}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Academic Relevance Match */}
           <Card className="border-brandgray-border shadow-subtle bg-white">
             <CardHeader className="p-5 border-b border-brandgray-border/60 flex flex-row items-center gap-2">
               <Sparkles className="h-4.5 w-4.5 text-primary" />
               <CardTitle className="text-sm font-bold text-primary uppercase tracking-wider">
-                Why this problem matches our university
+                Academic Match Breakdown
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 space-y-5">
@@ -228,32 +300,6 @@ export default function ProblemDetailsPage() {
                     {problem.disciplines.map((disc) => (
                       <span key={disc} className="text-xs bg-brandgray-light text-brandgray-text border border-brandgray-border px-2 py-0.5 rounded font-medium">
                         {disc}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-brandgray-border/40 space-y-3">
-                <div>
-                  <h4 className="text-xs font-bold text-brandgray-muted uppercase tracking-wider mb-1.5">
-                    Recommended Research Focus Areas
-                  </h4>
-                  <ul className="list-disc pl-4 text-xs text-brandgray-text/90 space-y-1">
-                    {problem.researchAreas.map((area, i) => (
-                      <li key={i}>{area}</li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div>
-                  <h4 className="text-xs font-bold text-brandgray-muted uppercase tracking-wider mb-1.5">
-                    Required Project Team Expertise
-                  </h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {problem.requiredExpertise.map((exp, i) => (
-                      <span key={i} className="text-[11px] bg-slate-50 text-slate-700 border border-slate-200 px-2 py-0.5 rounded font-medium">
-                        {exp}
                       </span>
                     ))}
                   </div>

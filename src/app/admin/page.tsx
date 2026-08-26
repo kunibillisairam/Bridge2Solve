@@ -254,18 +254,82 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {selected.aiAnalysis && (
-                <div className="bg-purple-50 rounded-lg p-3 mb-4 border border-purple-100">
-                  <p className="text-xs font-semibold text-purple-700 mb-2">🤖 AI Analysis</p>
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex justify-between"><span className="text-brandgray-muted">Priority</span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${PRIORITY_COLORS[selected.aiAnalysis.priority] || 'bg-gray-200'}`}>{selected.aiAnalysis.priority} ({selected.aiAnalysis.priorityScore}/100)</span>
+              {(() => {
+                const analysis = universityMockService.getProblemAnalysis(selected.id);
+                if (!analysis) return null;
+
+                return (
+                  <div className="bg-purple-50 rounded-lg p-4 mb-4 border border-purple-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
+                        🤖 AI-Assisted Analysis
+                      </span>
+                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase ${
+                        analysis.reviewStatus === "ACCEPTED" 
+                          ? "bg-green-100 text-green-800 border-green-200" 
+                          : analysis.reviewStatus === "MODIFIED" 
+                          ? "bg-blue-100 text-blue-800 border-blue-200" 
+                          : "bg-yellow-100 text-yellow-800 border-yellow-200"
+                      }`}>
+                        {analysis.reviewStatus || "PENDING REVIEW"}
+                      </span>
                     </div>
-                    <div><span className="text-brandgray-muted">Expertise needed:</span><p className="mt-0.5 text-brandgray-text">{(() => { try { return JSON.parse(selected.aiAnalysis!.requiredExpertise).join(', '); } catch { return selected.aiAnalysis!.requiredExpertise; } })()}</p></div>
-                    <div><span className="text-brandgray-muted">Matched Institutions:</span><p className="mt-0.5 text-brandgray-text">{(() => { try { return JSON.parse(selected.aiAnalysis!.matchedInstitutions).join(', '); } catch { return selected.aiAnalysis!.matchedInstitutions; } })()}</p></div>
+
+                    <div className="space-y-1.5 text-xs text-purple-950">
+                      <div><span className="text-brandgray-muted block text-[10px] uppercase font-bold">Category & Subcategory</span><span className="font-semibold">{analysis.category} / {analysis.subcategory}</span></div>
+                      <div><span className="text-brandgray-muted block text-[10px] uppercase font-bold">Problem Summary</span><p className="bg-white/80 p-2 rounded border border-purple-100 text-brandgray-text mt-0.5">{analysis.summary}</p></div>
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <div><span className="text-brandgray-muted block text-[10px] uppercase font-bold">Severity</span><span className="font-bold text-red-700">{analysis.severity}</span></div>
+                        <div><span className="text-brandgray-muted block text-[10px] uppercase font-bold">Impact Level</span><span className="font-bold text-purple-900">{analysis.impactLevel}</span></div>
+                      </div>
+                      <div>
+                        <span className="text-brandgray-muted block text-[10px] uppercase font-bold mt-1">Required Expertise</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {analysis.requiredExpertise.map((exp, i) => (
+                            <span key={i} className="text-[10px] bg-white text-purple-900 border border-purple-200 px-1.5 py-0.5 rounded font-medium">{exp}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-brandgray-muted block text-[10px] uppercase font-bold mt-1">Suggested Domains</span>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {analysis.suggestedDomains.map((domain, i) => (
+                            <span key={i} className="text-[10px] bg-purple-100 text-purple-900 border border-purple-200 px-1.5 py-0.5 rounded font-medium">{domain}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 pt-2 border-t border-purple-200/60">
+                      <button
+                        onClick={() => {
+                          universityMockService.acceptProblemAnalysis(selected.id);
+                          fetchProblems();
+                        }}
+                        className="flex-1 bg-purple-700 hover:bg-purple-800 text-white text-[11px] font-semibold py-1.5 rounded transition-colors"
+                      >
+                        Accept Analysis
+                      </button>
+                      <button
+                        onClick={() => {
+                          const updated = prompt("Enter updated Category & Subcategory (e.g. Water & Sanitation / Water Quality):", `${analysis.category} / ${analysis.subcategory}`);
+                          if (updated) {
+                            const parts = updated.split("/");
+                            universityMockService.updateProblemAnalysis(selected.id, {
+                              category: parts[0]?.trim() || analysis.category,
+                              subcategory: parts[1]?.trim() || analysis.subcategory,
+                            });
+                            fetchProblems();
+                          }
+                        }}
+                        className="flex-1 bg-white hover:bg-purple-100 text-purple-900 border border-purple-300 text-[11px] font-semibold py-1.5 rounded transition-colors"
+                      >
+                        Edit Analysis
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {(selected.status === 'SUBMITTED' || selected.status === 'UNDER_REVIEW') && (
                 <div className="flex gap-2 mt-2">

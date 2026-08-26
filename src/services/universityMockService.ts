@@ -1,5 +1,8 @@
 "use client";
 
+import { ProblemAnalysis } from "./aiService";
+export type { ProblemAnalysis };
+
 export interface CommunityProblem {
   id: string;
   title: string;
@@ -377,6 +380,87 @@ const INITIAL_PROBLEMS: CommunityProblem[] = [
   },
 ];
 
+const INITIAL_ANALYSES: ProblemAnalysis[] = [
+  {
+    problemId: "prob-1",
+    category: "Water & Sanitation",
+    subcategory: "Water Availability",
+    summary: "Seasonal drinking water shortage in Ranchi rural blocks forcing daily 3km travel.",
+    severity: "HIGH",
+    affectedArea: "RURAL",
+    impactLevel: "HIGH",
+    requiredExpertise: ["Groundwater mapping", "Gravity filtration", "Community water management"],
+    suggestedDomains: ["Rainwater Harvesting", "Slow Sand Filtration", "Hydrogeology"],
+    analyzedAt: "2026-08-01",
+    reviewStatus: "ACCEPTED",
+  },
+  {
+    problemId: "prob-2",
+    category: "Agriculture & Food Tech",
+    subcategory: "Soil Bioremediation",
+    summary: "Critical soil salinity in Sangrur causing a 40% drop in wheat crop yield.",
+    severity: "HIGH",
+    affectedArea: "RURAL",
+    impactLevel: "HIGH",
+    requiredExpertise: ["Soil chemistry analysis", "Halophilic microbes", "Sustainable farming"],
+    suggestedDomains: ["Soil Bioremediation", "Salt-Tolerant Crops", "Organic Inputs"],
+    analyzedAt: "2026-08-05",
+    reviewStatus: "ACCEPTED",
+  },
+  {
+    problemId: "prob-3",
+    category: "Waste Management",
+    subcategory: "Automated Waste Sorting",
+    summary: "Unsegregated municipal waste in Pune overburdening landfills.",
+    severity: "MEDIUM",
+    affectedArea: "URBAN",
+    impactLevel: "MEDIUM",
+    requiredExpertise: ["Object detection (YOLO)", "Conveyor belt mechanics", "Routing optimization"],
+    suggestedDomains: ["Computer Vision Sorting", "Recycling Automation", "Urban Logistics"],
+    analyzedAt: "2026-08-12",
+    reviewStatus: "PENDING",
+  },
+  {
+    problemId: "prob-4",
+    category: "Renewable Energy",
+    subcategory: "Microgrid Solar Power",
+    summary: "Frequent 6-8 hour power cuts in rural Gaya primary schools.",
+    severity: "HIGH",
+    affectedArea: "RURAL",
+    impactLevel: "HIGH",
+    requiredExpertise: ["Solar panel sizing", "Inverter load calculation", "LiFePO4 battery configuration"],
+    suggestedDomains: ["Solar Photovoltaics", "Battery Storage Systems", "Microgrids"],
+    analyzedAt: "2026-07-28",
+    reviewStatus: "ACCEPTED",
+  },
+  {
+    problemId: "prob-5",
+    category: "Education & Social Impact",
+    subcategory: "Vernacular Educational Accessibility",
+    summary: "Language barriers and economic constraints causing high dropouts in Mayurbhanj tribal villages.",
+    severity: "MEDIUM",
+    affectedArea: "TRIBAL",
+    impactLevel: "MEDIUM",
+    requiredExpertise: ["Curriculum design", "Tribal dialect translation", "Offline learning tablets"],
+    suggestedDomains: ["Vernacular Pedagogy", "Community Learning Hubs", "E-learning Accessibility"],
+    analyzedAt: "2025-08-10",
+    reviewStatus: "ACCEPTED",
+  },
+  {
+    problemId: "prob-6",
+    category: "Agriculture & Food Tech",
+    subcategory: "Thermal Refrigeration",
+    summary: "Alappuzha fishermen lose 30% of daily catch due to lack of immediate cold storage.",
+    severity: "MEDIUM",
+    affectedArea: "RURAL",
+    impactLevel: "MEDIUM",
+    requiredExpertise: ["Refrigeration cycles", "Thermal insulation design", "PV integration"],
+    suggestedDomains: ["Thermal Refrigeration", "Phase Change Materials", "Solar Cooling"],
+    analyzedAt: "2026-08-15",
+    reviewStatus: "PENDING",
+  },
+];
+
 const INITIAL_TEAMS: UniversityTeam[] = [
   {
     id: "team-1",
@@ -727,6 +811,64 @@ export const universityMockService = {
     return this.getProblems().find((p) => p.id === id);
   },
 
+  addProblem(newProblem: Omit<CommunityProblem, "id" | "submissionDate" | "status" | "matchScore">): CommunityProblem {
+    const problems = this.getProblems();
+    const today = new Date().toISOString().split("T")[0];
+    const created: CommunityProblem = {
+      ...newProblem,
+      id: `prob-${Date.now()}`,
+      submissionDate: today,
+      status: "Unassigned",
+      matchScore: 85,
+    };
+    problems.unshift(created);
+    setStoredData("uni_problems", problems);
+    return created;
+  },
+
+  // ----------------------------------------------------
+  // Problem Analysis AI API
+  // ----------------------------------------------------
+  getProblemAnalysis(problemId: string): ProblemAnalysis | undefined {
+    const analyses = getStoredData<ProblemAnalysis[]>("uni_problem_analyses", INITIAL_ANALYSES);
+    return analyses.find((a) => a.problemId === problemId);
+  },
+
+  saveProblemAnalysis(analysis: ProblemAnalysis): void {
+    const analyses = getStoredData<ProblemAnalysis[]>("uni_problem_analyses", INITIAL_ANALYSES);
+    const idx = analyses.findIndex((a) => a.problemId === analysis.problemId);
+    if (idx !== -1) {
+      analyses[idx] = { ...analyses[idx], ...analysis };
+    } else {
+      analyses.push(analysis);
+    }
+    setStoredData("uni_problem_analyses", analyses);
+  },
+
+  updateProblemAnalysis(problemId: string, updates: Partial<ProblemAnalysis>): ProblemAnalysis | undefined {
+    const analyses = getStoredData<ProblemAnalysis[]>("uni_problem_analyses", INITIAL_ANALYSES);
+    const idx = analyses.findIndex((a) => a.problemId === problemId);
+    if (idx !== -1) {
+      analyses[idx] = { ...analyses[idx], ...updates, reviewStatus: "MODIFIED" };
+      setStoredData("uni_problem_analyses", analyses);
+      this.addActivity(`AI analysis for problem "${problemId}" updated by Admin.`);
+      return analyses[idx];
+    }
+    return undefined;
+  },
+
+  acceptProblemAnalysis(problemId: string): ProblemAnalysis | undefined {
+    const analyses = getStoredData<ProblemAnalysis[]>("uni_problem_analyses", INITIAL_ANALYSES);
+    const idx = analyses.findIndex((a) => a.problemId === problemId);
+    if (idx !== -1) {
+      analyses[idx].reviewStatus = "ACCEPTED";
+      setStoredData("uni_problem_analyses", analyses);
+      this.addActivity(`AI analysis for problem "${problemId}" accepted by Admin.`);
+      return analyses[idx];
+    }
+    return undefined;
+  },
+
   // Problem Interest API
   getInterests(): ProblemInterest[] {
     return getStoredData<ProblemInterest[]>("uni_interests", INITIAL_INTERESTS);
@@ -868,9 +1010,7 @@ export const universityMockService = {
     }
   },
 
-  // ----------------------------------------------------
-  // Proposals API & Authorization Controls
-  // ----------------------------------------------------
+  // Proposals API
   getProposals(universityId = "univ-1"): SolutionProposal[] {
     return getStoredData<SolutionProposal[]>("uni_proposals", INITIAL_PROPOSALS).filter(
       (p) => p.universityId === universityId
@@ -1024,9 +1164,7 @@ export const universityMockService = {
     return newProposal;
   },
 
-  // ----------------------------------------------------
-  // Admin Review & Project Creation (Duplicate Protection)
-  // ----------------------------------------------------
+  // Admin Review & Project Creation
   approveProposal(proposalId: string, adminUserId = "admin-1"): { proposal: SolutionProposal; project: UniversityProject; isNew: boolean } {
     const proposals = getStoredData<SolutionProposal[]>("uni_proposals", INITIAL_PROPOSALS);
     const propIdx = proposals.findIndex((p) => p.id === proposalId);
@@ -1042,13 +1180,11 @@ export const universityMockService = {
 
     const projects = this.getProjects();
 
-    // DUPLICATE PROTECTION CHECK: Check if project already exists for this proposal or problem-team pair
     const existingProject = projects.find(
       (proj) => proj.proposalId === proposalId || (proj.problemId === proposal.problemId && proj.teamId === proposal.teamId)
     );
 
     if (existingProject) {
-      // Proposal status accepted
       proposals[propIdx].status = "ACCEPTED";
       proposals[propIdx].updatedAt = new Date().toISOString().split("T")[0];
       setStoredData("uni_proposals", proposals);
@@ -1056,13 +1192,11 @@ export const universityMockService = {
       return { proposal: proposals[propIdx], project: existingProject, isNew: false };
     }
 
-    // Update proposal status to ACCEPTED
     const today = new Date().toISOString().split("T")[0];
     proposals[propIdx].status = "ACCEPTED";
     proposals[propIdx].updatedAt = today;
     setStoredData("uni_proposals", proposals);
 
-    // Resolve details for project creation
     const problem = this.getProblemById(proposal.problemId);
     const team = this.getTeams().find((t) => t.id === proposal.teamId);
     const interest = this.getInterestForProblem(proposal.problemId, proposal.universityId);
@@ -1106,7 +1240,6 @@ export const universityMockService = {
     projects.push(newProject);
     setStoredData("uni_projects", projects);
 
-    // Update problem status to Active Project
     const problems = this.getProblems();
     const probIdx = problems.findIndex((p) => p.id === proposal.problemId);
     if (probIdx !== -1) {

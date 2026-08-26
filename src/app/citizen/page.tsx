@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { PlusCircle, MapPin, Users, CheckCircle, Clock, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { analyzeProblem } from '@/services/aiService';
+import { universityMockService } from '@/services/universityMockService';
 
 interface ProblemWithAI {
   id: string;
@@ -90,7 +92,28 @@ export default function CitizenDashboard() {
       const data = await res.json();
 
       if (res.ok) {
-        setSuccessMsg('Your problem has been submitted successfully.');
+        // Also register in mock service & trigger AI analysis
+        const createdProb = universityMockService.addProblem({
+          title: title.trim(),
+          description: description.trim(),
+          category,
+          location: location.trim(),
+          state: location.includes(",") ? location.split(",")[1].trim() : "State",
+          district: location.includes(",") ? location.split(",")[0].trim() : location.trim(),
+          affectedPopulation: affectedPopulation ? `${affectedPopulation} people` : "Community",
+          priority: "Medium",
+          departments: ["Engineering", "Environmental Science"],
+          researchAreas: ["Field Analysis", "Sustainable Solutions"],
+          requiredExpertise: ["Project Management", "Community Outreach"],
+          disciplines: ["Engineering", "Social Work"],
+        });
+
+        // Trigger AI analysis asynchronously
+        analyzeProblem(createdProb).then((analysis) => {
+          universityMockService.saveProblemAnalysis(analysis);
+        });
+
+        setSuccessMsg('Problem submitted successfully. Initial AI analysis completed.');
         setTitle('');
         setDescription('');
         setLocation('');
