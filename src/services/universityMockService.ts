@@ -30,21 +30,32 @@ export interface UniversityTeam {
   status: "Available" | "Active";
 }
 
+// ----------------------------------------------------
+// Solution Proposal State Model (Normalized)
+// ----------------------------------------------------
+export type ProposalStatus = "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED";
+
 export interface SolutionProposal {
   id: string;
   title: string;
   problemId: string;
-  problemTitle: string;
   teamId: string;
-  teamName: string;
+  universityId: string;
   problemUnderstanding: string;
-  proposedSolution: string;
-  technologyApproach: string;
+  proposedApproach: string;
   expectedImpact: string;
-  requiredResources: string;
-  timeline: string;
-  status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "ACCEPTED" | "REJECTED";
-  submittedDate: string;
+  resourceRequirements: string;
+  timeline?: string;
+  status: ProposalStatus;
+  createdAt: string;
+  updatedAt: string;
+  submittedAt?: string;
+}
+
+// Resolved Proposal for UI display
+export interface ResolvedProposal extends SolutionProposal {
+  problem: CommunityProblem | null;
+  team: UniversityTeam | null;
 }
 
 export interface ActivityLog {
@@ -382,7 +393,7 @@ const INITIAL_TEAMS: UniversityTeam[] = [
     facultyMentor: "Prof. Anjali Devi (Electrical Engineering)",
     studentMembers: ["Rahul Mehta (BTech)", "Sneha Roy (BTech)"],
     requiredSkills: ["Solar microgrid design", "Battery management", "Load analysis"],
-    assignedProblemId: null, // Available for problem assignment
+    assignedProblemId: null,
     assignedProblemTitle: null,
     status: "Available",
   },
@@ -429,7 +440,7 @@ const INITIAL_INTERESTS: ProblemInterest[] = [
   },
   {
     id: "int-4",
-    problemId: "prob-4", // Intermittent Electricity in Primary Schools
+    problemId: "prob-4",
     universityId: "univ-1",
     universityName: "Indian Institute of Science",
     status: "INTERESTED",
@@ -450,51 +461,35 @@ const INITIAL_INTERESTS: ProblemInterest[] = [
 const INITIAL_PROPOSALS: SolutionProposal[] = [
   {
     id: "prop-1",
-    title: "Solar Powering Rural Primary Schools",
-    problemId: "prob-4",
-    problemTitle: "Intermittent Electricity in Primary Schools",
-    teamId: "team-2",
-    teamName: "SolarEdu Scholars",
-    problemUnderstanding: "Primary schools in Gaya suffer from 6-8 hours of daily power outages, disrupting educational activities and preventing the use of computers.",
-    proposedSolution: "Install 3kW rooftop solar PV systems with lithium-iron-phosphate battery backup to ensure uninterruptible power for classrooms and labs.",
-    technologyApproach: "Monocrystalline solar panels, MPPT charge controllers, LiFePO4 batteries.",
-    expectedImpact: "Uninterrupted education for over 3,200 students, enabling digital classrooms.",
-    requiredResources: "Solar panels, inverter, battery bank, mounting structures, electrical installation team.",
-    timeline: "3 months",
-    status: "SUBMITTED",
-    submittedDate: "2026-08-15",
+    title: "Community-Led Water Security (Jal-Dhara)",
+    problemId: "prob-1",
+    teamId: "team-1",
+    universityId: "univ-1",
+    problemUnderstanding: "Rural areas in Ranchi experience severe dry seasons with dry wells, forcing long travel for drinking water.",
+    proposedApproach: "Build low-cost gravity-fed sand filter systems and rain harvesting reservoirs managed by local village panchayats.",
+    expectedImpact: "Safe year-round drinking water for 4,500 people, reducing waterborne diseases.",
+    resourceRequirements: "Filtration media, storage tanks, local construction labor.",
+    timeline: "4 months",
+    status: "ACCEPTED",
+    createdAt: "2026-08-10",
+    updatedAt: "2026-08-12",
+    submittedAt: "2026-08-10",
   },
   {
     id: "prop-2",
     title: "Biotechnology for Soil Salinity Remediation",
     problemId: "prob-2",
-    problemTitle: "Crop Yield Reduction due to Soil Salinity",
     teamId: "team-3",
-    teamName: "Soil Remediation Taskforce",
+    universityId: "univ-1",
     problemUnderstanding: "Soil salinity has reduced wheat yields in Sangrur by 40%.",
-    proposedSolution: "Deploy halophilic bio-fertilizers and salt-tolerant organic soil conditioners to restore soil microbiota.",
-    technologyApproach: "Halophilic microbial consortia, organic compost formulations.",
+    proposedApproach: "Deploy halophilic bio-fertilizers and salt-tolerant organic soil conditioners to restore soil microbiota.",
     expectedImpact: "Increase crop yield by 20% in the first season, reduce reliance on chemical inputs.",
-    requiredResources: "Microbial strains, lab cultivation equipment, field trial materials.",
+    resourceRequirements: "Microbial strains, lab cultivation equipment, field trial materials.",
     timeline: "6 months",
     status: "DRAFT",
-    submittedDate: "2026-08-25",
-  },
-  {
-    id: "prop-3",
-    title: "Community-Led Water Security (Jal-Dhara)",
-    problemId: "prob-1",
-    problemTitle: "Water Scarcity in Rural Communities",
-    teamId: "team-1",
-    teamName: "Team Jal-Dhara",
-    problemUnderstanding: "Rural areas in Ranchi experience severe dry seasons with dry wells, forcing long travel for drinking water.",
-    proposedSolution: "Build low-cost gravity-fed sand filter systems and rain harvesting reservoirs managed by local village panchayats.",
-    technologyApproach: "Slow sand filtration, rainwater harvesting tanks, IoT level sensors.",
-    expectedImpact: "Safe year-round drinking water for 4,500 people, reducing waterborne diseases.",
-    requiredResources: "Filtration media, storage tanks, local construction labor.",
-    timeline: "4 months",
-    status: "ACCEPTED",
-    submittedDate: "2026-08-10",
+    createdAt: "2026-08-25",
+    updatedAt: "2026-08-25",
+    submittedAt: undefined,
   },
 ];
 
@@ -803,7 +798,7 @@ export const universityMockService = {
     );
 
     if (existing) {
-      return existing; // Prevent duplicate interest records
+      return existing;
     }
 
     const today = new Date().toISOString().split("T")[0];
@@ -820,7 +815,6 @@ export const universityMockService = {
     interests.push(newInterest);
     setStoredData("uni_interests", interests);
 
-    // Update Problem status to Interested
     const problems = this.getProblems();
     const probIdx = problems.findIndex((p) => p.id === problemId);
     if (probIdx !== -1) {
@@ -834,7 +828,6 @@ export const universityMockService = {
     return newInterest;
   },
 
-  // Query problems where university expressed interest and is available for team creation
   getInterestedProblemsForTeams(universityId = "univ-1"): CommunityProblem[] {
     const interests = this.getInterests().filter(
       (i) => i.universityId === universityId && (i.status === "INTERESTED" || i.status === "ASSIGNED")
@@ -845,9 +838,7 @@ export const universityMockService = {
     const teams = this.getTeams();
 
     return problems.filter((p) => {
-      // Must have expressed interest
       if (!interestedProblemIds.includes(p.id)) return false;
-      // If already assigned to a team, only include if unassigned or available
       const assignedTeam = teams.find((t) => t.assignedProblemId === p.id);
       return !assignedTeam;
     });
@@ -896,14 +887,12 @@ export const universityMockService = {
     const probIndex = problems.findIndex((p) => p.id === problemId);
 
     if (teamIndex !== -1 && probIndex !== -1) {
-      // Security check: verify university has expressed interest in this problem
       const interests = this.getInterests();
       const interestIdx = interests.findIndex(
         (i) => i.problemId === problemId && i.universityId === universityId
       );
 
       if (interestIdx === -1) {
-        // Auto-create interest if not yet created
         const today = new Date().toISOString().split("T")[0];
         interests.push({
           id: `int-${Date.now()}`,
@@ -932,34 +921,158 @@ export const universityMockService = {
     }
   },
 
-  // Proposals API
-  getProposals(): SolutionProposal[] {
-    return getStoredData<SolutionProposal[]>("uni_proposals", INITIAL_PROPOSALS);
+  // ----------------------------------------------------
+  // Proposals API & Authorization Controls
+  // ----------------------------------------------------
+  getProposals(universityId = "univ-1"): SolutionProposal[] {
+    return getStoredData<SolutionProposal[]>("uni_proposals", INITIAL_PROPOSALS).filter(
+      (p) => p.universityId === universityId
+    );
   },
 
-  createProposal(
-    proposalData: Omit<SolutionProposal, "id" | "submittedDate">
-  ): SolutionProposal {
-    const proposals = this.getProposals();
-    const newProposal: SolutionProposal = {
-      ...proposalData,
-      id: `prop-${Date.now()}`,
-      submittedDate: new Date().toISOString().split("T")[0],
+  getProposalById(id: string, universityId = "univ-1"): SolutionProposal | undefined {
+    return this.getProposals(universityId).find((p) => p.id === id);
+  },
+
+  resolveProposal(proposal: SolutionProposal): ResolvedProposal {
+    const problems = this.getProblems();
+    const teams = this.getTeams();
+    return {
+      ...proposal,
+      problem: problems.find((p) => p.id === proposal.problemId) || null,
+      team: teams.find((t) => t.id === proposal.teamId) || null,
     };
+  },
+
+  // Query problems that have registered interest AND an assigned team
+  getEligibleProblemsForProposals(universityId = "univ-1"): CommunityProblem[] {
+    const interests = this.getInterests().filter((i) => i.universityId === universityId);
+    const interestedProblemIds = interests.map((i) => i.problemId);
+
+    const problems = this.getProblems();
+    const teams = this.getTeams();
+
+    return problems.filter((p) => {
+      // Must be interested by this university
+      if (!interestedProblemIds.includes(p.id)) return false;
+      // Must have an assigned team
+      const assignedTeam = teams.find((t) => t.assignedProblemId === p.id);
+      return !!assignedTeam;
+    });
+  },
+
+  // Query teams assigned to a specific problem
+  getTeamsForProblem(problemId: string, universityId = "univ-1"): UniversityTeam[] {
+    const teams = this.getTeams();
+    return teams.filter((t) => t.assignedProblemId === problemId);
+  },
+
+  saveProposal(
+    proposalData: {
+      id?: string;
+      problemId: string;
+      teamId: string;
+      title: string;
+      problemUnderstanding: string;
+      proposedApproach: string;
+      expectedImpact: string;
+      resourceRequirements: string;
+      timeline?: string;
+    },
+    isSubmit = false,
+    universityId = "univ-1"
+  ): SolutionProposal {
+    const proposals = getStoredData<SolutionProposal[]>("uni_proposals", INITIAL_PROPOSALS);
+
+    // Authorization & Validation Check 1: Verify problem accessibility
+    const eligibleProblems = this.getEligibleProblemsForProposals(universityId);
+    const isProblemEligible = eligibleProblems.some((p) => p.id === proposalData.problemId);
+    if (!isProblemEligible) {
+      throw new Error("Unauthorized: The selected problem is not associated with your university or has no assigned research team.");
+    }
+
+    // Authorization & Validation Check 2: Verify team belongs to problem
+    const problemTeams = this.getTeamsForProblem(proposalData.problemId, universityId);
+    const isTeamValid = problemTeams.some((t) => t.id === proposalData.teamId);
+    if (!isTeamValid) {
+      throw new Error("Validation Error: The selected team is not assigned to this community problem.");
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+
+    // Case 1: Editing Existing Proposal Draft
+    if (proposalData.id) {
+      const idx = proposals.findIndex((p) => p.id === proposalData.id && p.universityId === universityId);
+      if (idx === -1) {
+        throw new Error("Proposal not found or unauthorized.");
+      }
+
+      proposals[idx] = {
+        ...proposals[idx],
+        problemId: proposalData.problemId,
+        teamId: proposalData.teamId,
+        title: proposalData.title.trim(),
+        problemUnderstanding: proposalData.problemUnderstanding.trim(),
+        proposedApproach: proposalData.proposedApproach.trim(),
+        expectedImpact: proposalData.expectedImpact.trim(),
+        resourceRequirements: proposalData.resourceRequirements.trim(),
+        timeline: proposalData.timeline ? proposalData.timeline.trim() : proposals[idx].timeline,
+        updatedAt: today,
+        status: isSubmit ? "SUBMITTED" : proposals[idx].status,
+        submittedAt: isSubmit ? today : proposals[idx].submittedAt,
+      };
+
+      setStoredData("uni_proposals", proposals);
+
+      if (isSubmit) {
+        this.addActivity(`Proposal "${proposals[idx].title}" submitted for review.`);
+        
+        // Update problem status to Under Review
+        const problems = this.getProblems();
+        const probIdx = problems.findIndex((p) => p.id === proposalData.problemId);
+        if (probIdx !== -1 && problems[probIdx].status !== "Active Project") {
+          problems[probIdx].status = "Under Review";
+          setStoredData("uni_problems", problems);
+        }
+      } else {
+        this.addActivity(`Proposal draft "${proposals[idx].title}" updated.`);
+      }
+
+      return proposals[idx];
+    }
+
+    // Case 2: Creating New Proposal
+    const newProposal: SolutionProposal = {
+      id: `prop-${Date.now()}`,
+      universityId,
+      problemId: proposalData.problemId,
+      teamId: proposalData.teamId,
+      title: proposalData.title.trim(),
+      problemUnderstanding: proposalData.problemUnderstanding.trim(),
+      proposedApproach: proposalData.proposedApproach.trim(),
+      expectedImpact: proposalData.expectedImpact.trim(),
+      resourceRequirements: proposalData.resourceRequirements.trim(),
+      timeline: proposalData.timeline ? proposalData.timeline.trim() : "4 months",
+      status: isSubmit ? "SUBMITTED" : "DRAFT",
+      createdAt: today,
+      updatedAt: today,
+      submittedAt: isSubmit ? today : undefined,
+    };
+
     proposals.push(newProposal);
     setStoredData("uni_proposals", proposals);
 
-    if (newProposal.status === "SUBMITTED") {
+    if (isSubmit) {
       this.addActivity(`Proposal "${newProposal.title}" submitted for review.`);
       
       const problems = this.getProblems();
-      const probIndex = problems.findIndex((p) => p.id === newProposal.problemId);
-      if (probIndex !== -1 && problems[probIndex].status !== "Active Project") {
-        problems[probIndex].status = "Under Review";
+      const probIdx = problems.findIndex((p) => p.id === proposalData.problemId);
+      if (probIdx !== -1 && problems[probIdx].status !== "Active Project") {
+        problems[probIdx].status = "Under Review";
         setStoredData("uni_problems", problems);
       }
     } else {
-      this.addActivity(`Proposal draft "${newProposal.title}" saved.`);
+      this.addActivity(`Proposal draft "${newProposal.title}" created.`);
     }
 
     return newProposal;

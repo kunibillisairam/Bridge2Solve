@@ -56,7 +56,7 @@ export default function DashboardPage() {
   const matchedProblemsCount = interests.length;
   const underReviewCount = proposals.filter((p) => p.status === "SUBMITTED" || p.status === "UNDER_REVIEW").length;
   const totalTeams = teams.length;
-  const totalProposals = proposals.filter((p) => p.status === "SUBMITTED" || p.status === "ACCEPTED").length;
+  const totalProposals = proposals.filter((p) => p.status === "SUBMITTED" || p.status === "ACCEPTED" || p.status === "UNDER_REVIEW" || p.status === "REJECTED").length;
 
   return (
     <div className="space-y-8">
