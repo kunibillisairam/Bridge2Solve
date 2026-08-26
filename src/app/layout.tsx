@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { AuthProvider } from "@/context/AuthContext";
 import "./globals.css";
 
 const inter = Inter({ 
@@ -22,10 +23,12 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <body className={`${inter.className} min-h-screen flex flex-col bg-brandgray-light text-brandgray-text`}>
-        <Header />
-        <main className="flex-1 flex flex-col">
-          {children}
-        </main>
+        <AuthProvider>
+          <Header />
+          <main className="flex-1 flex flex-col">
+            {children}
+          </main>
+        </AuthProvider>
       </body>
     </html>
   );

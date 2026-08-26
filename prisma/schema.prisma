@@ -31,6 +31,8 @@ model User {
   role         UserRole
   phone        String?
   status       UserStatus
+  orgName      String?
+  orgDetails   String?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -38,6 +40,11 @@ model User {
   universityProfile UniversityProfile?
   industryProfile   IndustryProfile?
   adminProfile      AdminProfile?
+
+  submittedProblems      Problem[]    @relation("CitizenProblems")
+  assignedProjectsAsUniv Project[]   @relation("UnivProjects")
+  assignedProjectsAsInd  Project[]   @relation("IndProjects")
+  reviewedAnalyses       AiAnalysis[] @relation("AdminReviews")
 }
 
 model CitizenProfile {
@@ -104,6 +111,118 @@ model AdminProfile {
   userId      String   @unique
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   designation String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Problem {
+  id                 String      @id @default(uuid())
+  title              String
+  description        String
+  category           String
+  location           String
+  affectedPopulation String
+  status             String      @default("PENDING_VALIDATION")
+  citizenId          String
+  citizen            User        @relation("CitizenProblems", fields: [citizenId], references: [id], onDelete: Cascade)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  aiAnalysis         AiAnalysis?
+  project            Project?
+}
+
+model AiAnalysis {
+  id                  String   @id @default(uuid())
+  problemId           String   @unique
+  problem             Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  category            String
+  priority            String
+  priorityScore       Int
+  duplicateIds        String
+  requiredExpertise   String
+  matchingScore       Int
+  matchedInstitutions String
+  matchedIndustries   String
+  reviewStatus        String   @default("PENDING")
+  reviewedByAdminId   String?
+  reviewedByAdmin     User?    @relation("AdminReviews", fields: [reviewedByAdminId], references: [id])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model Project {
+  id                    String        @id @default(uuid())
+  problemId             String        @unique
+  problem               Problem       @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  universityId          String
+  university            User          @relation("UnivProjects", fields: [universityId], references: [id], onDelete: Cascade)
+  industryId            String?
+  industry              User?         @relation("IndProjects", fields: [industryId], references: [id], onDelete: SetNull)
+  status                String        @default("TEAM_FORMATION")
+  currentMilestoneIndex Int           @default(0)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  team                  Team?
+  proposal              Proposal?
+  milestones            Milestone[]
+  comments              Comment[]
+  impactReport          ImpactReport?
+}
+
+model Milestone {
+  id          String   @id @default(uuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  dueDate     DateTime
+  status      String   @default("PENDING")
+  feedback    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Team {
+  id                String   @id @default(uuid())
+  projectId         String   @unique
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  facultyMentorName String
+  studentMembers    String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Proposal {
+  id          String   @id @default(uuid())
+  projectId   String   @unique
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String
+  budget      Float
+  timeline    String
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Comment {
+  id         String   @id @default(uuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  content    String
+  senderId   String
+  senderName String
+  senderRole String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ImpactReport {
+  id          String   @id @default(uuid())
+  projectId   String   @unique
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  metrics     String?
+  description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
