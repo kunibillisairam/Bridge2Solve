@@ -1,287 +1,250 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
-import { Building2, RefreshCw, Layers, IndianRupee, CheckCircle, ChevronRight, MessageCircle } from 'lucide-react';
-import { universityMockService } from '@/services/universityMockService';
-
-interface Project {
-  id: string;
-  status: string;
-  createdAt: string;
-  problem: {
-    title: string;
-    description: string;
-    category: string;
-    location: string;
-    affectedPopulation: string;
-    aiAnalysis?: { priority: string; priorityScore: number } | null;
-  };
-  university: { name: string };
-  proposal?: { title: string; budget: number; description: string; status: string } | null;
-  team?: { facultyMentorName: string; studentMembers: string } | null;
-  milestones?: { id: string; title: string; status: string; dueDate: string }[];
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  TEAM_FORMATION: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-  PROPOSAL_SUBMITTED: 'bg-blue-100 text-blue-800 border-blue-200',
-  IN_PROGRESS: 'bg-green-100 text-green-800 border-green-200',
-  COMPLETED: 'bg-gray-100 text-gray-700 border-gray-200',
-};
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
+import { 
+  Building2, 
+  Layers, 
+  Handshake, 
+  FileText, 
+  CheckCircle2, 
+  MapPin, 
+  Users, 
+  GraduationCap, 
+  ArrowRight,
+  Sparkles,
+  Search,
+  Filter
+} from "lucide-react";
+import { 
+  industryService, 
+  IndustryOrganizationProfile, 
+  SUPPORT_TYPE_LABELS 
+} from "@/services/industryService";
+import { ResolvedProject, STAGE_CONFIG } from "@/services/universityMockService";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 
 export default function IndustryDashboard() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [fetching, setFetching] = useState(true);
-  const [selected, setSelected] = useState<Project | null>(null);
-  const [pledgeAmount, setPledgeAmount] = useState('');
-  const [pledgeNote, setPledgeNote] = useState('');
-  const [msg, setMsg] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const fetchProjects = useCallback(async () => {
-    setFetching(true);
-    try {
-      const res = await fetch('/api/projects?role=INDUSTRY');
-      const data = await res.json();
-      setProjects(data.projects || []);
-    } catch {
-      setMsg('Failed to load projects.');
-    } finally {
-      setFetching(false);
-    }
-  }, []);
+  const [profile, setProfile] = useState<IndustryOrganizationProfile | null>(null);
+  const [projects, setProjects] = useState<ResolvedProject[]>([]);
+  const [metrics, setMetrics] = useState({
+    availableProjectsCount: 0,
+    myInterestsCount: 0,
+    supportRequestsCount: 0,
+    activePartnershipsCount: 0,
+  });
 
   useEffect(() => {
-    if (!loading && (!user || user.role !== 'INDUSTRY')) { router.push('/login'); return; }
-    if (!loading && user) fetchProjects();
-  }, [loading, user]); // eslint-disable-line react-hooks/exhaustive-deps
+    loadData();
+  }, []);
 
-  const submitPledge = async () => {
-    if (!selected || !pledgeAmount) { setMsg('Please enter a pledge amount.'); return; }
-    setSubmitting(true); setMsg('');
-    try {
-      const res = await fetch(`/api/projects/${selected.id}/pledge`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: parseFloat(pledgeAmount), note: pledgeNote }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setMsg(data.error || 'Failed to submit pledge.'); return; }
-      setMsg('CSR pledge submitted successfully!');
-      setPledgeAmount(''); setPledgeNote('');
-      fetchProjects();
-    } catch { setMsg('Network error.'); }
-    finally { setSubmitting(false); }
+  const loadData = () => {
+    const prof = industryService.getProfile("ind-1");
+    setProfile(prof);
+
+    const eligible = industryService.getEligibleProjects();
+    setProjects(eligible);
+
+    const m = industryService.getIndustryMetrics("ind-1");
+    setMetrics(m);
   };
 
-  if (loading) return <div className="flex items-center justify-center min-h-screen"><div className="text-brandgray-muted">Loading...</div></div>;
-
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
-            <Building2 className="h-6 w-6" /> Industry / CSR Portal
-          </h1>
-          <p className="text-sm text-brandgray-muted mt-1">
-            {user?.orgName || 'Industry Partner'} — Explore matched community problems and pledge CSR support.
+    <div className="space-y-8">
+      {/* Workspace Banner */}
+      <div className="bg-white border border-brandgray-border rounded-lg p-6 shadow-subtle flex flex-wrap items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-150 px-2.5 py-0.5 rounded font-bold uppercase tracking-wider">
+              Industry / CSR Workspace
+            </span>
+          </div>
+          <h2 className="text-xl font-bold text-primary">
+            Welcome, {profile?.representativeName || "Industry Partner"}
+          </h2>
+          <p className="text-xs text-brandgray-muted flex items-center gap-1.5 font-medium">
+            <Building2 className="h-3.5 w-3.5 text-primary" /> {profile?.name || "Corporate Partner"} · {profile?.location}
           </p>
         </div>
-        <button onClick={fetchProjects} className="flex items-center gap-1.5 text-sm text-primary border border-primary/20 px-3 py-1.5 rounded hover:bg-primary-light transition-colors">
-          <RefreshCw className="h-3.5 w-3.5" /> Refresh
-        </button>
+
+        <div className="flex items-center gap-3">
+          <Link href="/industry/projects">
+            <Button variant="primary" size="sm" className="h-9 text-xs font-semibold flex items-center gap-1.5">
+              Browse All Projects <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      {msg && (
-        <div className={`mb-4 px-4 py-3 rounded text-sm border ${msg.includes('success') ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>{msg}</div>
-      )}
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
+      {/* Dynamic Statistics Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Available Projects', count: projects.length, icon: Layers, color: 'text-indigo-600 bg-indigo-50' },
-          { label: 'With Proposals', count: projects.filter(p => p.proposal).length, icon: CheckCircle, color: 'text-blue-600 bg-blue-50' },
-          { label: 'Active Projects', count: projects.filter(p => p.status === 'IN_PROGRESS').length, icon: Building2, color: 'text-green-600 bg-green-50' },
-        ].map(({ label, count, icon: Icon, color }) => (
-          <div key={label} className="bg-white rounded-lg border border-brandgray-border p-4 flex items-center gap-3 shadow-subtle">
-            <div className={`p-2 rounded-lg ${color}`}><Icon className="h-4 w-4" /></div>
-            <div><div className="text-xl font-bold text-brandgray-text">{count}</div><div className="text-xs text-brandgray-muted">{label}</div></div>
-          </div>
-        ))}
+          { 
+            label: "Available Projects", 
+            value: metrics.availableProjectsCount, 
+            description: "Active projects seeking industry support",
+            icon: Layers, 
+            color: "text-primary bg-primary-light border-primary/10" 
+          },
+          { 
+            label: "My Interests", 
+            value: metrics.myInterestsCount, 
+            description: "Support requests submitted by your org",
+            icon: Handshake, 
+            color: "text-indigo-700 bg-indigo-50 border-indigo-200" 
+          },
+          { 
+            label: "Support Requests", 
+            value: metrics.supportRequestsCount, 
+            description: "Pending or under review",
+            icon: FileText, 
+            color: "text-amber-700 bg-amber-50 border-amber-250" 
+          },
+          { 
+            label: "Active Partnerships", 
+            value: metrics.activePartnershipsCount, 
+            description: "Confirmed CSR & technical collaborations",
+            icon: CheckCircle2, 
+            color: "text-emerald-700 bg-emerald-50 border-emerald-250" 
+          },
+        ].map((stat, i) => {
+          const Icon = stat.icon;
+          return (
+            <Card key={i} className="border-brandgray-border shadow-subtle flex flex-col justify-between bg-white">
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className={`h-10 w-10 shrink-0 rounded flex items-center justify-center border ${stat.color}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <div>
+                  <span className="text-2xl font-bold text-primary block leading-none">
+                    {stat.value}
+                  </span>
+                  <span className="text-xs font-semibold text-brandgray-text mt-1.5 block">
+                    {stat.label}
+                  </span>
+                  <span className="text-[10px] text-brandgray-muted mt-0.5 block">
+                    {stat.description}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Project List */}
-        <div className="lg:col-span-1 space-y-3">
-          <h2 className="text-sm font-semibold text-brandgray-muted uppercase tracking-wide mb-2">Community Projects</h2>
-          {fetching ? <div className="text-sm text-brandgray-muted">Loading...</div> :
-            projects.length === 0 ? (
-              <div className="text-center py-10 bg-white rounded-lg border border-brandgray-border text-brandgray-muted text-sm">No projects available yet.</div>
-            ) : projects.map(p => (
-              <div
-                key={p.id}
-                onClick={() => { setSelected(p); setMsg(''); }}
-                className={`bg-white border rounded-lg p-4 cursor-pointer transition-all shadow-subtle hover:shadow-standard ${selected?.id === p.id ? 'border-primary ring-1 ring-primary/20' : 'border-brandgray-border'}`}
-              >
-                <p className="text-sm font-semibold text-brandgray-text line-clamp-2">{p.problem.title}</p>
-                <p className="text-xs text-brandgray-muted mt-0.5">{p.problem.category} · {p.problem.location}</p>
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${STATUS_COLORS[p.status] || 'bg-gray-100 text-gray-700 border-gray-200'}`}>
-                    {p.status.replace(/_/g, ' ')}
-                  </span>
-                  {p.problem.aiAnalysis && (
-                    <span className="text-[10px] text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">
-                      {p.problem.aiAnalysis.priority} priority
-                    </span>
-                  )}
-                  {p.proposal && (
-                    <span className="text-[10px] text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">Has Proposal</span>
-                  )}
-                </div>
-              </div>
-            ))
-          }
+      {/* AVAILABLE PROJECTS SECTION */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between border-b border-brandgray-border/60 pb-2">
+          <h3 className="text-sm font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" /> Available Collaborative Projects
+          </h3>
+          <Link 
+            href="/industry/projects" 
+            className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+          >
+            View All Projects ({projects.length}) <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
 
-          {/* Recommended Community Problems (Smart Match Engine) */}
-          <div className="mt-8 pt-6 border-t border-brandgray-border space-y-3">
-            <h2 className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
-              ⚡ Recommended Community Problems (Smart AI Match)
-            </h2>
-            <div className="space-y-3">
-              {(() => {
-                const problems = universityMockService.getProblems();
-                const matchedList = problems.map((prob) => {
-                  const match = universityMockService.getProblemMatches(prob.id);
-                  const indRec = match?.industries.find((i) => i.entityId === "ind-1") || match?.industries[0];
-                  return { prob, indRec };
-                }).filter((item) => item.indRec !== undefined)
-                  .sort((a, b) => (b.indRec?.matchScore || 0) - (a.indRec?.matchScore || 0))
-                  .slice(0, 3);
-
-                return matchedList.map(({ prob, indRec }) => (
-                  <div key={prob.id} className="bg-white border border-emerald-200 rounded-lg p-3.5 space-y-2 shadow-subtle">
-                    <div className="flex justify-between items-start gap-1">
-                      <span className="font-bold text-xs text-primary leading-tight">{prob.title}</span>
-                      <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded shrink-0">
-                        {indRec?.matchScore}% Match
+        {projects.length === 0 ? (
+          <Card className="border-brandgray-border shadow-subtle bg-white">
+            <CardContent className="p-8 text-center space-y-2">
+              <p className="text-sm font-semibold text-primary">No Projects Available</p>
+              <p className="text-xs text-brandgray-muted">No active university projects are currently eligible for industry participation.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {projects.map((project) => {
+              const stageConfig = STAGE_CONFIG[project.stage];
+              return (
+                <Card key={project.id} className="border-brandgray-border shadow-subtle bg-white hover:border-primary/30 transition-all flex flex-col justify-between">
+                  <CardContent className="p-5 space-y-4">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-extrabold text-primary uppercase tracking-wider bg-primary-light border border-primary/10 px-2 py-0.5 rounded">
+                            {project.id}
+                          </span>
+                          <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider">
+                            {project.originalProblem.category}
+                          </span>
+                        </div>
+                        <h4 className="text-base font-bold text-primary">
+                          {project.title}
+                        </h4>
+                      </div>
+                      <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-150 px-2.5 py-0.5 rounded font-bold">
+                        {stageConfig?.label || project.stage} ({project.progress}%)
                       </span>
                     </div>
-                    <p className="text-[11px] text-brandgray-muted line-clamp-2">{prob.description}</p>
-                    <div className="text-[10px] space-y-1 bg-emerald-50/50 p-2 rounded border border-emerald-150">
-                      <span className="font-bold text-emerald-900 block uppercase">CSR Relevance & Why Matched:</span>
-                      <ul className="space-y-0.5 text-brandgray-text">
-                        {indRec?.reasons.map((r, i) => (
-                          <li key={i} className="flex items-center gap-1">
-                            <span className="text-emerald-600 font-bold">✓</span> {r}
-                          </li>
-                        ))}
-                      </ul>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-1">
+                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary transition-all duration-300"
+                          style={{ width: `${project.progress}%` }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[10px] text-brandgray-muted font-medium">
+                        <span>Started: {project.startDate}</span>
+                        <span>Target: {project.expectedCompletionDate}</span>
+                      </div>
                     </div>
-                  </div>
-                ));
-              })()}
-            </div>
+
+                    <p className="text-xs text-brandgray-text leading-relaxed line-clamp-2">
+                      {project.originalProblem.description}
+                    </p>
+
+                    {/* University & Team Info */}
+                    <div className="p-3 bg-slate-50 rounded border border-slate-150 text-xs space-y-1">
+                      <div className="flex items-center gap-1.5 font-bold text-primary">
+                        <GraduationCap className="h-4 w-4 text-primary shrink-0" />
+                        <span>{project.collaboration.university}</span>
+                      </div>
+                      {project.assignedTeam && (
+                        <p className="text-[11px] text-brandgray-muted flex items-center gap-1 pl-5">
+                          <Users className="h-3.5 w-3.5 shrink-0" /> Team: {project.assignedTeam.name} ({project.assignedTeam.facultyMentor})
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Support Needed Tags */}
+                    <div className="space-y-1.5 pt-1">
+                      <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider block">
+                        Industry Support Opportunities:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="text-[10.5px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded font-medium">
+                          CSR Funding
+                        </span>
+                        <span className="text-[10.5px] bg-indigo-50 text-indigo-800 border border-indigo-200 px-2 py-0.5 rounded font-medium">
+                          Technical Mentorship
+                        </span>
+                        <span className="text-[10.5px] bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded font-medium">
+                          Equipment & Resources
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-brandgray-border/40 text-xs">
+                      <span className="flex items-center gap-1 text-brandgray-muted">
+                        <MapPin className="h-3.5 w-3.5" /> {project.originalProblem.district}, {project.originalProblem.state}
+                      </span>
+                      <Link href={`/industry/projects/${project.id}`}>
+                        <Button variant="primary" size="sm" className="h-8 text-xs font-semibold">
+                          View Project & Support
+                        </Button>
+                      </Link>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
-        </div>
-
-        {/* Detail Panel */}
-        <div className="lg:col-span-2">
-          {selected ? (
-            <div className="bg-white border border-brandgray-border rounded-lg shadow-subtle">
-              {/* Problem Detail */}
-              <div className="p-5 border-b border-brandgray-border">
-                <h3 className="font-bold text-primary">{selected.problem.title}</h3>
-                <div className="flex flex-wrap gap-3 mt-1 text-xs text-brandgray-muted">
-                  <span>{selected.problem.category}</span>
-                  <span>·</span>
-                  <span>{selected.problem.location}</span>
-                  <span>·</span>
-                  <span>Affects ~{selected.problem.affectedPopulation} people</span>
-                </div>
-                <p className="text-sm text-brandgray-text mt-3">{selected.problem.description}</p>
-
-                {selected.problem.aiAnalysis && (
-                  <div className="mt-3 flex items-center gap-2">
-                    <span className={`text-xs font-bold px-2 py-1 rounded ${selected.problem.aiAnalysis.priority === 'HIGH' || selected.problem.aiAnalysis.priority === 'CRITICAL' ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'}`}>
-                      {selected.problem.aiAnalysis.priority} Priority · Score {selected.problem.aiAnalysis.priorityScore}/100
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* University Team Info */}
-              {selected.team && (
-                <div className="px-5 py-4 border-b border-brandgray-border bg-blue-50/40">
-                  <p className="text-xs font-semibold text-blue-700 mb-2">🎓 Research Team ({selected.university?.name || 'University'})</p>
-                  <div className="text-sm space-y-1">
-                    <div><span className="text-brandgray-muted">Faculty Mentor:</span> <span className="font-medium ml-1">{selected.team.facultyMentorName}</span></div>
-                    <div><span className="text-brandgray-muted">Students:</span> <span className="font-medium ml-1">{selected.team.studentMembers}</span></div>
-                  </div>
-                </div>
-              )}
-
-              {/* Proposal Info */}
-              {selected.proposal && (
-                <div className="px-5 py-4 border-b border-brandgray-border bg-purple-50/40">
-                  <p className="text-xs font-semibold text-purple-700 mb-2">📄 Solution Proposal</p>
-                  <div className="text-sm space-y-1">
-                    <div className="font-medium">{selected.proposal.title}</div>
-                    <div className="text-brandgray-muted">{selected.proposal.description}</div>
-                    <div className="flex items-center gap-1 text-green-700 font-semibold">
-                      <IndianRupee className="h-3.5 w-3.5" /> {selected.proposal.budget.toLocaleString('en-IN')} requested
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Pledge Section */}
-              <div className="p-5">
-                <p className="text-sm font-semibold text-brandgray-text mb-4 flex items-center gap-1.5">
-                  <IndianRupee className="h-4 w-4 text-success" /> Pledge CSR Funding / Resources
-                </p>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs font-semibold text-brandgray-muted uppercase tracking-wide">Pledge Amount (₹)</label>
-                    <input
-                      type="number"
-                      value={pledgeAmount}
-                      onChange={e => setPledgeAmount(e.target.value)}
-                      className="mt-1 w-full border border-brandgray-border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      placeholder="e.g. 500000"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-brandgray-muted uppercase tracking-wide">Note / Commitment Details</label>
-                    <textarea
-                      value={pledgeNote}
-                      onChange={e => setPledgeNote(e.target.value)}
-                      rows={3}
-                      className="mt-1 w-full border border-brandgray-border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      placeholder="Describe your funding commitment, in-kind resources, mentorship offer, etc."
-                    />
-                  </div>
-                  <button
-                    onClick={submitPledge}
-                    disabled={submitting}
-                    className="bg-success hover:bg-success-hover text-white text-sm font-semibold px-5 py-2 rounded transition-colors disabled:opacity-60 flex items-center gap-1.5"
-                  >
-                    <IndianRupee className="h-4 w-4" />
-                    {submitting ? 'Submitting...' : 'Submit CSR Pledge'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white border border-brandgray-border rounded-lg p-12 text-center text-brandgray-muted">
-              <ChevronRight className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">Select a project to view details and pledge support.</p>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );
