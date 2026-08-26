@@ -407,16 +407,21 @@ export default function ProjectDetailsPage() {
                     <span className="font-bold text-primary mt-1.5 block text-sm">{project.collaboration.funding}</span>
                   </div>
                 </div>
+              </div>
 
-                <div className="sm:col-span-2 border-t border-brandgray-border/40 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Start Date</span>
-                    <span className="font-semibold text-brandgray-text mt-1.5 block">{project.collaboration.startDate}</span>
+              {/* Industry / CSR Partners Display */}
+              <div className="border-t border-brandgray-border/60 pt-4 space-y-2">
+                <span className="text-[10.5px] font-bold text-primary uppercase tracking-wider block">
+                  INDUSTRY / CSR PARTNERS
+                </span>
+                <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded text-xs space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-emerald-950">{project.collaboration.industryPartner}</span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold px-2 py-0.5 rounded">
+                      ACCEPTED
+                    </span>
                   </div>
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">End Date</span>
-                    <span className="font-semibold text-brandgray-text mt-1.5 block">{project.collaboration.endDate}</span>
-                  </div>
+                  <p className="text-[11px] text-emerald-900">CSR Funding & Technical Mentorship</p>
                 </div>
               </div>
 

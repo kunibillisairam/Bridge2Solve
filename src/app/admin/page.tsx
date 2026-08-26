@@ -151,7 +151,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* University Proposal Review Quick Access Banner */}
-      <Link href="/admin/proposals" className="block mb-6">
+      <Link href="/admin/proposals" className="block mb-4">
         <div className="bg-white rounded-lg border border-purple-200 p-4 flex items-center justify-between shadow-subtle hover:border-purple-400 transition-colors">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-lg bg-purple-100 text-purple-800 border border-purple-200">
@@ -165,6 +165,27 @@ export default function AdminDashboard() {
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold bg-amber-50 text-amber-800 border border-amber-250 px-2.5 py-1 rounded">
               {proposalMetrics.pendingCount} Pending Review
+            </span>
+            <ChevronRight className="h-4 w-4 text-brandgray-muted" />
+          </div>
+        </div>
+      </Link>
+
+      {/* Industry CSR Support Requests Quick Access Banner */}
+      <Link href="/admin/industry-support" className="block mb-6">
+        <div className="bg-white rounded-lg border border-indigo-200 p-4 flex items-center justify-between shadow-subtle hover:border-indigo-400 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-indigo-100 text-indigo-800 border border-indigo-200">
+              <ShieldCheck className="h-5 w-5 text-indigo-800" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-primary">Industry / CSR Support Requests</h3>
+              <p className="text-xs text-brandgray-muted">Review and approve industry participation, CSR funding, and technical mentorship for active projects.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded">
+              Review Support Requests
             </span>
             <ChevronRight className="h-4 w-4 text-brandgray-muted" />
           </div>

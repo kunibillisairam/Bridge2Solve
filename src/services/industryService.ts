@@ -26,8 +26,12 @@ export interface IndustrySupportRequest {
   resourcesOffered?: string;
   expectedDuration?: string;
   status: SupportStatus;
+  rejectionReason?: string;
+  clarificationNote?: string;
+  adminReviewerId?: string;
   createdAt: string;
   updatedAt: string;
+  reviewedAt?: string;
 }
 
 export interface IndustryOrganizationProfile {
@@ -81,7 +85,7 @@ const INITIAL_INDUSTRY_PROFILE: IndustryOrganizationProfile = {
 
 const INITIAL_SUPPORT_REQUESTS: IndustrySupportRequest[] = [
   {
-    id: "supp-1",
+    id: "CSR-2026-001",
     industryId: "ind-1",
     industryName: "Tata Steel CSR Foundation",
     projectId: "PB-2026-001",
@@ -93,14 +97,17 @@ const INITIAL_SUPPORT_REQUESTS: IndustrySupportRequest[] = [
     status: "ACCEPTED",
     createdAt: "2026-08-12",
     updatedAt: "2026-08-14",
+    reviewedAt: "2026-08-14",
+    adminReviewerId: "admin-1",
   },
   {
-    id: "supp-2",
+    id: "CSR-2026-002",
     industryId: "ind-1",
     industryName: "Tata Steel CSR Foundation",
     projectId: "PB-2026-001",
     supportType: "EQUIPMENT_RESOURCES",
     description: "Provision of high-density polyethylene storage tanks and gravity filtration pipes.",
+    estimatedFunding: 250000,
     resourcesOffered: "20 storage tanks and filtration media",
     expectedDuration: "2 months",
     status: "UNDER_REVIEW",
@@ -145,7 +152,7 @@ export const industryService = {
   },
 
   // ----------------------------------------------------
-  // Eligible Projects API (Only actual created projects)
+  // Eligible Projects API
   // ----------------------------------------------------
   getEligibleProjects(): ResolvedProject[] {
     const rawProjects = universityMockService.getProjects();
@@ -174,12 +181,20 @@ export const industryService = {
     return getStoredData<IndustrySupportRequest[]>("ind_support_requests", INITIAL_SUPPORT_REQUESTS);
   },
 
+  getSupportRequestById(id: string): IndustrySupportRequest | undefined {
+    return this.getAllSupportRequests().find((r) => r.id === id);
+  },
+
   getSupportRequestsForIndustry(industryId = "ind-1"): IndustrySupportRequest[] {
     return this.getAllSupportRequests().filter((r) => r.industryId === industryId);
   },
 
   getSupportRequestsForProject(projectId: string): IndustrySupportRequest[] {
     return this.getAllSupportRequests().filter((r) => r.projectId === projectId);
+  },
+
+  getAcceptedSupportRequestsForProject(projectId: string): IndustrySupportRequest[] {
+    return this.getSupportRequestsForProject(projectId).filter((r) => r.status === "ACCEPTED");
   },
 
   // Server-Side Duplicate Check & Request Submission
@@ -207,7 +222,7 @@ export const industryService = {
 
     const requests = this.getAllSupportRequests();
 
-    // Duplicate Check: Industry cannot submit another ACTIVE request for the same project and supportType
+    // Duplicate Check: Cannot submit active request for same (industryId, projectId, supportType)
     const existingActive = requests.find(
       (r) =>
         r.industryId === industryId &&
@@ -222,7 +237,7 @@ export const industryService = {
 
     const today = new Date().toISOString().split("T")[0];
     const newRequest: IndustrySupportRequest = {
-      id: `supp-${Date.now()}`,
+      id: `CSR-2026-00${requests.length + 1}`,
       industryId,
       industryName: profile.name,
       projectId: input.projectId,
@@ -239,12 +254,75 @@ export const industryService = {
     requests.push(newRequest);
     setStoredData("ind_support_requests", requests);
 
-    // Create activity event without changing project lifecycle
     universityMockService.addActivity(
       `Industry support interest submitted by "${profile.name}" (${SUPPORT_TYPE_LABELS[input.supportType]}) for project "${project.title}".`
     );
 
     return newRequest;
+  },
+
+  // ----------------------------------------------------
+  // ADMIN REVIEW API (Server-side Role Check)
+  // ----------------------------------------------------
+  updateSupportRequestStatus(
+    requestId: string,
+    status: SupportStatus,
+    notes?: { rejectionReason?: string; clarificationNote?: string },
+    userRole = "ADMIN"
+  ): IndustrySupportRequest {
+    // 1. Server-side role enforcement
+    if (userRole !== "ADMIN") {
+      throw new Error("Unauthorized: Only platform administrators can review and change industry support requests.");
+    }
+
+    const requests = this.getAllSupportRequests();
+    const idx = requests.findIndex((r) => r.id === requestId);
+
+    if (idx === -1) {
+      throw new Error("Support request not found.");
+    }
+
+    const req = requests[idx];
+    const today = new Date().toISOString().split("T")[0];
+    const project = this.getEligibleProjectById(req.projectId);
+    const projectTitle = project ? project.title : req.projectId;
+
+    requests[idx].status = status;
+    requests[idx].updatedAt = today;
+    requests[idx].reviewedAt = today;
+    requests[idx].adminReviewerId = "admin-1";
+
+    if (notes?.rejectionReason) {
+      requests[idx].rejectionReason = notes.rejectionReason.trim();
+    }
+    if (notes?.clarificationNote) {
+      requests[idx].clarificationNote = notes.clarificationNote.trim();
+    }
+
+    setStoredData("ind_support_requests", requests);
+
+    // Create activity event without changing project lifecycle stage
+    if (status === "ACCEPTED") {
+      universityMockService.addActivity(
+        `CSR support from "${req.industryName}" (${SUPPORT_TYPE_LABELS[req.supportType]}) accepted for "${projectTitle}".`
+      );
+    } else if (status === "REJECTED") {
+      universityMockService.addActivity(
+        `CSR support request from "${req.industryName}" rejected for "${projectTitle}".`
+      );
+    } else if (status === "UNDER_REVIEW") {
+      if (notes?.clarificationNote) {
+        universityMockService.addActivity(
+          `Clarification requested from "${req.industryName}" for "${projectTitle}": ${notes.clarificationNote}`
+        );
+      } else {
+        universityMockService.addActivity(
+          `Admin started review of CSR support request from "${req.industryName}" for "${projectTitle}".`
+        );
+      }
+    }
+
+    return requests[idx];
   },
 
   // ----------------------------------------------------
@@ -268,6 +346,25 @@ export const industryService = {
       myInterestsCount,
       supportRequestsCount,
       activePartnershipsCount,
+    };
+  },
+
+  getAdminSupportMetrics(): {
+    pendingCount: number;
+    underReviewCount: number;
+    acceptedCount: number;
+    rejectedCount: number;
+    totalRequestsCount: number;
+    activePartnershipsCount: number;
+  } {
+    const all = this.getAllSupportRequests();
+    return {
+      pendingCount: all.filter((r) => r.status === "PENDING").length,
+      underReviewCount: all.filter((r) => r.status === "UNDER_REVIEW").length,
+      acceptedCount: all.filter((r) => r.status === "ACCEPTED").length,
+      rejectedCount: all.filter((r) => r.status === "REJECTED").length,
+      totalRequestsCount: all.length,
+      activePartnershipsCount: all.filter((r) => r.status === "ACCEPTED").length,
     };
   }
 };
