@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { 
   Search, 
   MapPin, 
@@ -9,7 +10,10 @@ import {
   Filter, 
   X, 
   SlidersHorizontal,
-  ChevronRight
+  ChevronRight,
+  Sparkles,
+  Layers,
+  CheckCircle
 } from "lucide-react";
 import { 
   universityMockService, 
@@ -32,6 +36,13 @@ const STATUS_BADGES = {
 };
 
 export default function ProblemsPage() {
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab") || "all";
+
+  const [activeTab, setActiveTab] = useState<"all" | "recommended" | "my_problems">(
+    initialTab === "recommended" ? "recommended" : initialTab === "my_problems" ? "my_problems" : "all"
+  );
+
   const [problems, setProblems] = useState<CommunityProblem[]>([]);
   const [filteredProblems, setFilteredProblems] = useState<CommunityProblem[]>([]);
   
@@ -40,13 +51,27 @@ export default function ProblemsPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedState, setSelectedState] = useState("All");
   const [selectedPriority, setSelectedPriority] = useState("All");
-  const [selectedStatus, setSelectedStatus] = useState("All");
 
   useEffect(() => {
-    const data = universityMockService.getProblems();
-    setProblems(data);
-    setFilteredProblems(data);
-  }, []);
+    loadProblemsData();
+  }, [activeTab]);
+
+  const loadProblemsData = () => {
+    const all = universityMockService.getProblems();
+    const unregistered = universityMockService.getUnregisteredRecommendedProblems("univ-1");
+    const registered = universityMockService.getRegisteredProblemsForUniversity("univ-1").map((r) => r.problem);
+
+    if (activeTab === "recommended") {
+      setProblems(unregistered);
+      setFilteredProblems(unregistered);
+    } else if (activeTab === "my_problems") {
+      setProblems(registered);
+      setFilteredProblems(registered);
+    } else {
+      setProblems(all);
+      setFilteredProblems(all);
+    }
+  };
 
   // Apply filters
   useEffect(() => {
@@ -74,229 +99,193 @@ export default function ProblemsPage() {
       result = result.filter((p) => p.priority === selectedPriority);
     }
 
-    if (selectedStatus !== "All") {
-      result = result.filter((p) => p.status === selectedStatus);
-    }
-
     setFilteredProblems(result);
-  }, [searchQuery, selectedCategory, selectedState, selectedPriority, selectedStatus, problems]);
+  }, [searchQuery, selectedCategory, selectedState, selectedPriority, problems]);
 
-  const handleResetFilters = () => {
+  const categories = ["All", "Water & Sanitation", "Agriculture & Food Tech", "Waste Management", "Renewable Energy", "Education & Social Impact"];
+  const states = ["All", "Jharkhand", "Punjab", "Maharashtra", "Bihar", "Odisha", "Kerala"];
+  const priorities = ["All", "High", "Medium", "Low"];
+
+  const clearFilters = () => {
     setSearchQuery("");
     setSelectedCategory("All");
     setSelectedState("All");
     setSelectedPriority("All");
-    setSelectedStatus("All");
   };
-
-  // Get unique lists for filter options
-  const categories = ["All", ...Array.from(new Set(problems.map((p) => p.category)))];
-  const states = ["All", ...Array.from(new Set(problems.map((p) => p.state)))];
-  const priorities = ["All", "High", "Medium", "Low"];
-  const statuses = ["All", "Unassigned", "Interested", "Under Review", "Active Project"];
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-primary">Discover Community Problems</h2>
+      {/* Header Info */}
+      <div className="border-b border-brandgray-border/60 pb-5">
+        <h2 className="text-xl font-bold text-primary">Community Problems Discovery</h2>
         <p className="text-xs text-brandgray-muted mt-1">
-          Search and filter verified community-submitted problems to match with your department expertise.
+          Explore validated community issues requiring academic research and engineering solutions.
         </p>
       </div>
 
-      {/* Main Grid: Filters Sidebar + Problems List */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        
-        {/* Filters Sidebar */}
-        <div className="lg:col-span-1 space-y-4">
-          <Card className="border-brandgray-border shadow-subtle bg-white sticky top-48">
-            <CardContent className="p-5 space-y-5">
-              <div className="flex items-center justify-between border-b border-brandgray-border/60 pb-2.5">
-                <span className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
-                  <SlidersHorizontal className="h-4 w-4 text-brandgray-text" /> Filters
-                </span>
-                <button
-                  onClick={handleResetFilters}
-                  className="text-[11px] font-semibold text-primary hover:underline hover:text-primary-hover"
-                >
-                  Clear All
-                </button>
-              </div>
+      {/* Navigation Tabs */}
+      <div className="flex border-b border-brandgray-border">
+        <button
+          onClick={() => setActiveTab("all")}
+          className={`py-2.5 px-4 font-bold text-xs border-b-2 transition-all flex items-center gap-1.5 ${
+            activeTab === "all"
+              ? "border-primary text-primary"
+              : "border-transparent text-brandgray-muted hover:text-brandgray-text"
+          }`}
+        >
+          All Problems ({universityMockService.getProblems().length})
+        </button>
+        <button
+          onClick={() => setActiveTab("recommended")}
+          className={`py-2.5 px-4 font-bold text-xs border-b-2 transition-all flex items-center gap-1.5 ${
+            activeTab === "recommended"
+              ? "border-primary text-primary"
+              : "border-transparent text-brandgray-muted hover:text-brandgray-text"
+          }`}
+        >
+          <Sparkles className="h-3.5 w-3.5 text-primary" /> Recommended ({universityMockService.getUnregisteredRecommendedProblems("univ-1").length})
+        </button>
+        <button
+          onClick={() => setActiveTab("my_problems")}
+          className={`py-2.5 px-4 font-bold text-xs border-b-2 transition-all flex items-center gap-1.5 ${
+            activeTab === "my_problems"
+              ? "border-primary text-primary"
+              : "border-transparent text-brandgray-muted hover:text-brandgray-text"
+          }`}
+        >
+          <Layers className="h-3.5 w-3.5 text-primary" /> My Registered Problems ({universityMockService.getRegisteredProblemsForUniversity("univ-1").length})
+        </button>
+      </div>
 
-              {/* Keyword Search */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-brandgray-muted uppercase tracking-wider block">
-                  Search Keyword
-                </label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-brandgray-muted" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search titles, towns..."
-                    className="w-full bg-brandgray-light/40 border border-brandgray-border rounded pl-9 pr-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40 focus:bg-white"
-                  />
-                </div>
-              </div>
-
-              {/* Category Filter */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-brandgray-muted uppercase tracking-wider block">
-                  Category
-                </label>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full bg-brandgray-light/40 border border-brandgray-border rounded px-2.5 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40 focus:bg-white"
-                >
-                  {categories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* State Filter */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-brandgray-muted uppercase tracking-wider block">
-                  State
-                </label>
-                <select
-                  value={selectedState}
-                  onChange={(e) => setSelectedState(e.target.value)}
-                  className="w-full bg-brandgray-light/40 border border-brandgray-border rounded px-2.5 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40 focus:bg-white"
-                >
-                  {states.map((st) => (
-                    <option key={st} value={st}>
-                      {st}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Priority Filter */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-brandgray-muted uppercase tracking-wider block">
-                  Priority
-                </label>
-                <select
-                  value={selectedPriority}
-                  onChange={(e) => setSelectedPriority(e.target.value)}
-                  className="w-full bg-brandgray-light/40 border border-brandgray-border rounded px-2.5 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40 focus:bg-white"
-                >
-                  {priorities.map((prio) => (
-                    <option key={prio} value={prio}>
-                      {prio === "All" ? "All Priorities" : `${prio} Priority`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Status Filter */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-brandgray-muted uppercase tracking-wider block">
-                  Status
-                </label>
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full bg-brandgray-light/40 border border-brandgray-border rounded px-2.5 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40 focus:bg-white"
-                >
-                  {statuses.map((stat) => (
-                    <option key={stat} value={stat}>
-                      {stat === "All" ? "All Statuses" : stat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </CardContent>
-          </Card>
+      {/* Search and Filters Bar */}
+      <div className="bg-white border border-brandgray-border rounded-lg p-4 shadow-subtle space-y-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-brandgray-muted" />
+          <input
+            type="text"
+            placeholder="Search problems by title, description, or location..."
+            className="w-full text-xs pl-9 pr-4 py-2 border border-brandgray-border rounded focus:outline-none focus:border-primary"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
 
-        {/* Problems List */}
-        <div className="lg:col-span-3 space-y-4">
-          <div className="flex items-center justify-between text-xs text-brandgray-muted pb-1.5">
-            <span>
-              Showing <span className="font-semibold text-brandgray-text">{filteredProblems.length}</span> of {problems.length} problems
-            </span>
-            {(searchQuery || selectedCategory !== "All" || selectedState !== "All" || selectedPriority !== "All" || selectedStatus !== "All") && (
-              <span className="bg-primary-light text-primary border border-primary/10 px-2 py-0.5 rounded font-medium">
-                Filters Applied
-              </span>
-            )}
+        {/* Filter Dropdowns */}
+        <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-brandgray-light/60">
+          <div className="flex items-center gap-1.5 text-xs text-brandgray-muted font-bold uppercase tracking-wider">
+            <SlidersHorizontal className="h-3.5 w-3.5" /> Filters:
           </div>
 
-          <div className="space-y-4">
-            {filteredProblems.length === 0 ? (
-              <div className="text-center py-16 bg-white border border-brandgray-border rounded-md text-brandgray-muted text-sm space-y-2 shadow-subtle">
-                <Filter className="h-8 w-8 mx-auto opacity-30 text-brandgray-muted" />
-                <p className="font-semibold text-brandgray-text">No matching problems found</p>
-                <p className="text-xs max-w-xs mx-auto">{"Try loosening your keyword search or setting filter values back to \"All\"."}</p>
-                <Button variant="outline" size="sm" onClick={handleResetFilters} className="mt-2 h-8">
-                  Reset Filters
-                </Button>
-              </div>
-            ) : (
-              filteredProblems.map((problem) => (
-                <Card key={problem.id} className="border-brandgray-border shadow-subtle hover:border-primary/30 transition-all duration-150 bg-white">
-                  <CardContent className="p-5">
-                    <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-                      <div className="space-y-1">
+          <select
+            className="text-xs border border-brandgray-border rounded px-2.5 py-1.5 bg-white text-brandgray-text font-medium"
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+          >
+            {categories.map((c) => (
+              <option key={c} value={c}>{c === "All" ? "All Categories" : c}</option>
+            ))}
+          </select>
+
+          <select
+            className="text-xs border border-brandgray-border rounded px-2.5 py-1.5 bg-white text-brandgray-text font-medium"
+            value={selectedState}
+            onChange={(e) => setSelectedState(e.target.value)}
+          >
+            {states.map((s) => (
+              <option key={s} value={s}>{s === "All" ? "All States" : s}</option>
+            ))}
+          </select>
+
+          <select
+            className="text-xs border border-brandgray-border rounded px-2.5 py-1.5 bg-white text-brandgray-text font-medium"
+            value={selectedPriority}
+            onChange={(e) => setSelectedPriority(e.target.value)}
+          >
+            {priorities.map((p) => (
+              <option key={p} value={p}>{p === "All" ? "All Priorities" : `${p} Priority`}</option>
+            ))}
+          </select>
+
+          {(searchQuery || selectedCategory !== "All" || selectedState !== "All" || selectedPriority !== "All") && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-[11px] font-semibold flex items-center gap-1 text-red-600 hover:text-red-700"
+              onClick={clearFilters}
+            >
+              <X className="h-3.5 w-3.5" /> Clear Filters
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Problems Listing */}
+      {filteredProblems.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-lg border border-brandgray-border space-y-2">
+          <p className="text-sm font-semibold text-primary">
+            {activeTab === "recommended" 
+              ? "You&apos;re all caught up!" 
+              : activeTab === "my_problems" 
+              ? "You haven&apos;t registered interest in any problems yet." 
+              : "No problems found."}
+          </p>
+          <p className="text-xs text-brandgray-muted">
+            {activeTab === "recommended"
+              ? "No new recommended problems currently matching your university."
+              : activeTab === "my_problems"
+              ? "Explore recommended problems to find opportunities relevant to your expertise."
+              : "Try adjusting your search terms or filter criteria."}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredProblems.map((problem) => {
+            const interest = universityMockService.getInterestForProblem(problem.id, "univ-1");
+            const isRegistered = !!interest && interest.status !== "WITHDRAWN";
+
+            return (
+              <Card key={problem.id} className="border-brandgray-border shadow-subtle hover:border-primary/30 transition-all bg-white flex flex-col justify-between">
+                <CardContent className="p-5 space-y-4">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
                         <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider">
                           {problem.category}
                         </span>
-                        <h3 className="text-base font-bold text-primary">
-                          {problem.title}
-                        </h3>
+                        {isRegistered && (
+                          <span className="text-[9.5px] font-bold bg-green-50 text-green-800 border border-green-200 px-2 py-0.5 rounded">
+                            ✓ REGISTERED
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-150 px-2.5 py-0.5 rounded font-bold">
-                          {problem.matchScore}% Match
-                        </span>
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${PRIORITY_BADGES[problem.priority]}`}>
-                          {problem.priority} Priority
-                        </span>
-                      </div>
+                      <h4 className="text-base font-bold text-primary">{problem.title}</h4>
                     </div>
+                    <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-150 px-2 py-0.5 rounded font-bold shrink-0">
+                      {problem.matchScore}% Match
+                    </span>
+                  </div>
 
-                    <p className="text-sm text-brandgray-text/95 leading-relaxed mb-4">
-                      {problem.description}
-                    </p>
+                  <p className="text-xs text-brandgray-text leading-relaxed line-clamp-2">
+                    {problem.description}
+                  </p>
 
-                    <div className="flex flex-wrap items-center justify-between gap-4 pt-3.5 border-t border-brandgray-border/40">
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-brandgray-muted">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3.5 w-3.5 text-brandgray-muted/80" />
-                          {problem.location}
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Users className="h-3.5 w-3.5 text-brandgray-muted/80" />
-                          Affected: <span className="font-semibold text-brandgray-text">{problem.affectedPopulation}</span>
-                        </span>
-                      </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-brandgray-border/40 text-xs">
+                    <span className="flex items-center gap-1 text-brandgray-muted">
+                      <MapPin className="h-3.5 w-3.5" /> {problem.location}
+                    </span>
 
-                      <div className="flex items-center gap-3">
-                        <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded border ${STATUS_BADGES[problem.status]}`}>
-                          {problem.status}
-                        </span>
-                        <Link href={`/university/problems/${problem.id}`}>
-                          <Button variant="primary" size="sm" className="h-8 text-xs font-semibold">
-                            View Problem
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
+                    <Link href={`/university/problems/${problem.id}`}>
+                      <Button variant={isRegistered ? "outline" : "primary"} size="sm" className="h-8 text-xs font-semibold">
+                        {isRegistered ? "View Problem" : "View Details"}
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
-
-      </div>
+      )}
     </div>
   );
 }

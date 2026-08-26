@@ -2,7 +2,7 @@
 
 import { ProblemAnalysis } from "./aiService";
 import { ProblemCluster, DuplicateMatchCandidate } from "./duplicateDetectionService";
-import { matchProblem, ProblemMatchResult, EntityRecommendation } from "./smartMatchingService";
+import { matchProblem, ProblemMatchResult, EntityRecommendation, DEMO_UNIVERSITIES } from "./smartMatchingService";
 
 export type { ProblemAnalysis, ProblemCluster, DuplicateMatchCandidate, ProblemMatchResult, EntityRecommendation };
 
@@ -27,6 +27,7 @@ export interface CommunityProblem {
 
 export interface UniversityTeam {
   id: string;
+  universityId?: string;
   name: string;
   facultyMentor: string;
   studentMembers: string[];
@@ -83,6 +84,15 @@ export interface ProblemInterest {
   status: InterestStatus;
   createdAt: string;
   updatedAt: string;
+}
+
+// Resolved Registered Problem for University Dashboard
+export interface RegisteredProblemDetail {
+  problem: CommunityProblem;
+  interest: ProblemInterest;
+  team: UniversityTeam | null;
+  proposal: SolutionProposal | null;
+  project: UniversityProject | null;
 }
 
 // ----------------------------------------------------
@@ -845,6 +855,97 @@ export const universityMockService = {
   },
 
   // ----------------------------------------------------
+  // Recommended Problems (Filtered for University Ownership)
+  // ----------------------------------------------------
+  getUnregisteredRecommendedProblems(universityId = "univ-1"): CommunityProblem[] {
+    const interests = this.getInterests().filter(
+      (i) => i.universityId === universityId && i.status !== "WITHDRAWN"
+    );
+    const registeredProblemIds = new Set(interests.map((i) => i.problemId));
+
+    const allProblems = this.getProblems();
+    // Exclude problems already registered by this university
+    return allProblems.filter((p) => !registeredProblemIds.has(p.id));
+  },
+
+  getRegisteredProblemsForUniversity(universityId = "univ-1"): RegisteredProblemDetail[] {
+    const interests = this.getInterests().filter(
+      (i) => i.universityId === universityId && i.status !== "WITHDRAWN"
+    );
+    const problems = this.getProblems();
+    const teams = this.getTeams();
+    const proposals = this.getAllProposalsForAdmin().filter((pr) => pr.universityId === universityId);
+    const projects = this.getProjects();
+
+    const registeredDetails: RegisteredProblemDetail[] = [];
+
+    for (const interest of interests) {
+      const problem = problems.find((p) => p.id === interest.problemId);
+      if (!problem) continue;
+
+      const team = teams.find((t) => t.assignedProblemId === problem.id) || null;
+      const proposal = proposals.find((pr) => pr.problemId === problem.id) || null;
+      const project = projects.find((pj) => pj.problemId === problem.id) || null;
+
+      registeredDetails.push({
+        problem,
+        interest,
+        team,
+        proposal,
+        project,
+      });
+    }
+
+    return registeredDetails;
+  },
+
+  // ----------------------------------------------------
+  // Server-Validated Team Assignment (No Project Creation)
+  // ----------------------------------------------------
+  assignTeamToProblem(teamId: string, problemId: string, universityId = "univ-1"): void {
+    const teams = this.getTeams();
+    const teamIndex = teams.findIndex((t) => t.id === teamId);
+    if (teamIndex === -1) {
+      throw new Error("Team not found.");
+    }
+
+    // 1. Verify team belongs to current university
+    const team = teams[teamIndex];
+    if (team.universityId && team.universityId !== universityId) {
+      throw new Error("Unauthorized: Cannot assign a team belonging to another university.");
+    }
+
+    // 2. Verify problem is registered by current university
+    const interest = this.getInterestForProblem(problemId, universityId);
+    if (!interest) {
+      throw new Error("Unauthorized: This problem has not been registered by your university.");
+    }
+
+    const problems = this.getProblems();
+    const probIndex = problems.findIndex((p) => p.id === problemId);
+    if (probIndex === -1) {
+      throw new Error("Problem not found.");
+    }
+
+    // Update Team Assignment (Does NOT create project or proposal)
+    teams[teamIndex].assignedProblemId = problemId;
+    teams[teamIndex].assignedProblemTitle = problems[probIndex].title;
+    teams[teamIndex].status = "Active";
+    setStoredData("uni_teams", teams);
+
+    // Update Interest Status
+    const interests = this.getInterests();
+    const intIdx = interests.findIndex((i) => i.problemId === problemId && i.universityId === universityId);
+    if (intIdx !== -1) {
+      interests[intIdx].status = "ASSIGNED";
+      interests[intIdx].updatedAt = new Date().toISOString().split("T")[0];
+      setStoredData("uni_interests", interests);
+    }
+
+    this.addActivity(`Team "${teams[teamIndex].name}" assigned to "${problems[probIndex].title}".`);
+  },
+
+  // ----------------------------------------------------
   // Smart Matching Recommendations API
   // ----------------------------------------------------
   getProblemMatches(problemId: string): ProblemMatchResult | undefined {
@@ -1083,48 +1184,6 @@ export const universityMockService = {
       teams[index].studentMembers.push(memberName);
       setStoredData("uni_teams", teams);
       this.addActivity(`Added member "${memberName}" to Team "${teams[index].name}"`);
-    }
-  },
-
-  assignProblemToTeam(teamId: string, problemId: string, universityId = "univ-1"): void {
-    const teams = this.getTeams();
-    const teamIndex = teams.findIndex((t) => t.id === teamId);
-    
-    const problems = this.getProblems();
-    const probIndex = problems.findIndex((p) => p.id === problemId);
-
-    if (teamIndex !== -1 && probIndex !== -1) {
-      const interests = this.getInterests();
-      const interestIdx = interests.findIndex(
-        (i) => i.problemId === problemId && i.universityId === universityId
-      );
-
-      if (interestIdx === -1) {
-        const today = new Date().toISOString().split("T")[0];
-        interests.push({
-          id: `int-${Date.now()}`,
-          problemId,
-          universityId,
-          universityName: "Indian Institute of Science",
-          status: "ASSIGNED",
-          createdAt: today,
-          updatedAt: today,
-        });
-      } else {
-        interests[interestIdx].status = "ASSIGNED";
-        interests[interestIdx].updatedAt = new Date().toISOString().split("T")[0];
-      }
-      setStoredData("uni_interests", interests);
-
-      teams[teamIndex].assignedProblemId = problemId;
-      teams[teamIndex].assignedProblemTitle = problems[probIndex].title;
-      teams[teamIndex].status = "Active";
-      setStoredData("uni_teams", teams);
-
-      problems[probIndex].status = "Active Project";
-      setStoredData("uni_problems", problems);
-
-      this.addActivity(`Assigned problem "${problems[probIndex].title}" to Team "${teams[teamIndex].name}"`);
     }
   },
 

@@ -449,9 +449,9 @@ export default function ProblemDetailsPage() {
                       Interest is registered, but no university research team has been formed/assigned to this challenge yet.
                     </p>
                     <div className="pt-1">
-                      <Link href="/university/teams">
+                      <Link href={`/university/teams?assignProblemId=${problem.id}`}>
                         <Button variant="primary" size="sm" className="w-full h-9 font-semibold text-xs flex items-center justify-center gap-1.5">
-                          <PlusCircle className="h-4 w-4" /> Create Team
+                          <PlusCircle className="h-4 w-4" /> Assign Research Team
                         </Button>
                       </Link>
                     </div>
