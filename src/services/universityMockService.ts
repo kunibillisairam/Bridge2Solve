@@ -1,7 +1,9 @@
 "use client";
 
 import { ProblemAnalysis } from "./aiService";
-export type { ProblemAnalysis };
+import { ProblemCluster, DuplicateMatchCandidate } from "./duplicateDetectionService";
+
+export type { ProblemAnalysis, ProblemCluster, DuplicateMatchCandidate };
 
 export interface CommunityProblem {
   id: string;
@@ -377,6 +379,21 @@ const INITIAL_PROBLEMS: CommunityProblem[] = [
     requiredExpertise: ["Refrigeration cycles", "Thermal insulation design", "PV integration"],
     disciplines: ["Mechanical Engineering", "Thermal Engineering"],
     submissionDate: "2026-08-15",
+  },
+];
+
+const INITIAL_CLUSTERS: ProblemCluster[] = [
+  {
+    id: "cluster-1",
+    primaryProblemId: "prob-1",
+    primaryTitle: "Water Scarcity in Rural Communities",
+    category: "Water & Sanitation",
+    district: "Ranchi",
+    state: "Jharkhand",
+    memberProblemIds: ["prob-1"],
+    status: "ACTIVE",
+    createdAt: "2026-08-01",
+    updatedAt: "2026-08-01",
   },
 ];
 
@@ -824,6 +841,80 @@ export const universityMockService = {
     problems.unshift(created);
     setStoredData("uni_problems", problems);
     return created;
+  },
+
+  // ----------------------------------------------------
+  // Problem Clusters API (No Auto-Merge)
+  // ----------------------------------------------------
+  getClusters(): ProblemCluster[] {
+    return getStoredData<ProblemCluster[]>("uni_problem_clusters", INITIAL_CLUSTERS);
+  },
+
+  getClusterForProblem(problemId: string): ProblemCluster | undefined {
+    return this.getClusters().find((c) => c.memberProblemIds.includes(problemId));
+  },
+
+  createCluster(primaryProblemId: string, secondaryProblemId: string): ProblemCluster {
+    const clusters = this.getClusters();
+    const primary = this.getProblemById(primaryProblemId);
+
+    if (!primary) {
+      throw new Error("Primary problem not found.");
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    const newCluster: ProblemCluster = {
+      id: `cluster-${Date.now()}`,
+      primaryProblemId,
+      primaryTitle: primary.title,
+      category: primary.category,
+      district: primary.district,
+      state: primary.state,
+      memberProblemIds: Array.from(new Set([primaryProblemId, secondaryProblemId])),
+      status: "ACTIVE",
+      createdAt: today,
+      updatedAt: today,
+    };
+
+    clusters.push(newCluster);
+    setStoredData("uni_problem_clusters", clusters);
+    this.addActivity(`Created problem cluster for "${primary.title}" including secondary report "${secondaryProblemId}".`);
+
+    return newCluster;
+  },
+
+  addProblemToCluster(clusterId: string, problemId: string): ProblemCluster {
+    const clusters = this.getClusters();
+    const idx = clusters.findIndex((c) => c.id === clusterId);
+
+    if (idx === -1) {
+      throw new Error("Cluster not found.");
+    }
+
+    if (!clusters[idx].memberProblemIds.includes(problemId)) {
+      clusters[idx].memberProblemIds.push(problemId);
+      clusters[idx].updatedAt = new Date().toISOString().split("T")[0];
+      setStoredData("uni_problem_clusters", clusters);
+      this.addActivity(`Added problem report "${problemId}" to cluster "${clusters[idx].primaryTitle}".`);
+    }
+
+    return clusters[idx];
+  },
+
+  markIndependent(problemId1: string, problemId2: string): void {
+    const independentPairs = getStoredData<string[]>("uni_independent_pairs", []);
+    const key = [problemId1, problemId2].sort().join("::");
+    if (!independentPairs.includes(key)) {
+      independentPairs.push(key);
+      setStoredData("uni_independent_pairs", independentPairs);
+      this.addActivity(`Marked problem reports "${problemId1}" and "${problemId2}" as independent issues.`);
+    }
+  },
+
+  isMarkedIndependent(problemId1: string, problemId2: string): boolean {
+    const independentPairs = getStoredData<string[]>("uni_independent_pairs", []);
+    const key = [problemId1, problemId2].sort().join("::");
+    return independentPairs.includes(key);
   },
 
   // ----------------------------------------------------

@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { ShieldCheck, Clock, CheckCircle, XCircle, AlertTriangle, RefreshCw, ChevronRight, Users } from 'lucide-react';
 import { universityMockService } from '@/services/universityMockService';
+import { findSimilarProblems } from '@/services/duplicateDetectionService';
 
 interface Problem {
   id: string;
@@ -327,6 +328,118 @@ export default function AdminDashboard() {
                         Edit Analysis
                       </button>
                     </div>
+                  </div>
+                );
+              })()}
+
+              {/* AI-Assisted Duplicate Detection & Clustering Section */}
+              {(() => {
+                const allProbs = universityMockService.getProblems();
+                const candidates = findSimilarProblems(
+                  {
+                    id: selected.id,
+                    title: selected.title,
+                    description: selected.description,
+                    category: selected.category,
+                    location: `${selected.district}, ${selected.state}`,
+                    state: selected.state,
+                    district: selected.district,
+                    affectedPopulation: `${selected.affectedPopulation} people`,
+                    priority: selected.priority === "CRITICAL" ? "High" : "Medium",
+                    matchScore: 85,
+                    status: "Unassigned",
+                    departments: [],
+                    researchAreas: [],
+                    requiredExpertise: [],
+                    disciplines: [],
+                    submissionDate: selected.createdAt,
+                  },
+                  allProbs,
+                  universityMockService.getProblemAnalysis
+                ).filter((c) => !universityMockService.isMarkedIndependent(selected.id, c.candidateId));
+
+                const activeCluster = universityMockService.getClusterForProblem(selected.id);
+
+                return (
+                  <div className="bg-indigo-50/70 rounded-lg p-4 mb-4 border border-indigo-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                        🔍 AI Duplicate & Cluster Detection
+                      </span>
+                      {activeCluster && (
+                        <span className="text-[9px] font-bold bg-indigo-200 text-indigo-900 px-2 py-0.5 rounded border border-indigo-300 uppercase">
+                          Clustered
+                        </span>
+                      )}
+                    </div>
+
+                    {activeCluster && (
+                      <div className="p-2.5 bg-white rounded border border-indigo-200 text-xs space-y-1">
+                        <span className="text-[10px] font-bold text-indigo-800 uppercase block">Active Problem Cluster</span>
+                        <p className="font-semibold text-primary">{activeCluster.primaryTitle}</p>
+                        <p className="text-[10.5px] text-brandgray-muted">Cluster Members: {activeCluster.memberProblemIds.length} reports</p>
+                      </div>
+                    )}
+
+                    {candidates.length === 0 ? (
+                      <p className="text-xs text-indigo-900/80 italic">No potential duplicate candidates detected for this problem.</p>
+                    ) : (
+                      <div className="space-y-2.5">
+                        <span className="text-[10px] font-bold text-indigo-800 uppercase block">
+                          Potential Duplicates Detected ({candidates.length})
+                        </span>
+                        {candidates.map((c) => (
+                          <div key={c.candidateId} className="bg-white p-3 rounded border border-indigo-150 space-y-2 text-xs">
+                            <div className="flex justify-between items-start gap-1">
+                              <span className="font-bold text-primary text-xs leading-tight">{c.candidateTitle}</span>
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded border shrink-0 ${
+                                c.confidenceLevel === "HIGH" 
+                                  ? "bg-red-50 text-red-700 border-red-200" 
+                                  : "bg-amber-50 text-amber-800 border-amber-200"
+                              }`}>
+                                {c.similarityScore}% Match ({c.confidenceLevel})
+                              </span>
+                            </div>
+
+                            <p className="text-[10.5px] text-brandgray-muted">Location: {c.candidateLocation}</p>
+                            
+                            <div className="text-[10px] text-brandgray-text bg-slate-50 p-2 rounded space-y-0.5 border border-slate-100">
+                              <span className="font-bold block text-brandgray-muted">Match Reasons:</span>
+                              <ul className="list-disc pl-3.5 space-y-0.5">
+                                {c.matchReasons.map((r, i) => (
+                                  <li key={i}>{r}</li>
+                                ))}
+                              </ul>
+                            </div>
+
+                            <div className="flex gap-1.5 pt-1">
+                              <button
+                                onClick={() => {
+                                  if (activeCluster) {
+                                    universityMockService.addProblemToCluster(activeCluster.id, c.candidateId);
+                                  } else {
+                                    universityMockService.createCluster(selected.id, c.candidateId);
+                                  }
+                                  fetchProblems();
+                                }}
+                                className="flex-1 bg-indigo-700 hover:bg-indigo-800 text-white text-[10px] font-semibold py-1 rounded transition-colors"
+                              >
+                                Cluster Reports
+                              </button>
+                              <button
+                                onClick={() => {
+                                  universityMockService.markIndependent(selected.id, c.candidateId);
+                                  fetchProblems();
+                                }}
+                                className="flex-1 bg-white hover:bg-slate-100 text-brandgray-text border border-brandgray-border text-[10px] font-semibold py-1 rounded transition-colors"
+                              >
+                                Independent
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })()}
