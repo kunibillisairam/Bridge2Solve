@@ -8,6 +8,7 @@ import {
   GraduationCap, 
   LayoutDashboard, 
   Search, 
+  Briefcase,
   Users, 
   FileSpreadsheet, 
   UserCircle,
@@ -60,6 +61,11 @@ export default function UniversityLayout({
       label: "Problems",
       href: "/university/problems",
       icon: Search,
+    },
+    {
+      label: "Projects",
+      href: "/university/projects",
+      icon: Briefcase,
     },
     {
       label: "Teams",
