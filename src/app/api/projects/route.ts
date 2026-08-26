@@ -5,11 +5,17 @@ import { getSessionUser } from '@/lib/auth-server';
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const universityId = searchParams.get('universityId');
-    const industryId = searchParams.get('industryId');
-
+    const user = getSessionUser(req);
     const filter: any = {};
-    if (universityId) filter.universityId = universityId;
+    
+    if (user && user.role === 'UNIVERSITY') {
+      filter.universityId = user.id;
+    } else {
+      const universityId = searchParams.get('universityId');
+      if (universityId) filter.universityId = universityId;
+    }
+
+    const industryId = searchParams.get('industryId');
     if (industryId) filter.industryId = industryId;
 
     const projects = await prisma.project.findMany({

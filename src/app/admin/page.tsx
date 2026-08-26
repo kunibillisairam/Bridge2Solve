@@ -94,6 +94,30 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleCreateProject = async (problemId: string, universityId: string, industryId?: string) => {
+    setActionLoading(true);
+    setMsg('');
+    try {
+      const res = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ problemId, universityId, industryId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMsg(data.error || 'Failed to match project');
+        return;
+      }
+      setMsg('Project successfully matched and assigned to University!');
+      setSelected(null);
+      fetchProblems();
+    } catch {
+      setMsg('Network error.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const pending = problems.filter(p => p.status === 'PENDING_VALIDATION');
   const analyzed = problems.filter(p => p.status === 'AI_ANALYZED' || p.status === 'MATCHED');
   const rest = problems.filter(p => !['PENDING_VALIDATION', 'AI_ANALYZED', 'MATCHED'].includes(p.status));
@@ -228,6 +252,46 @@ export default function AdminDashboard() {
                   >
                     <XCircle className="h-3.5 w-3.5" /> Reject
                   </button>
+                </div>
+              )}
+
+              {selected.status === 'AI_ANALYZED' && selected.aiAnalysis && (
+                <div className="mt-4 pt-4 border-t border-brandgray-border">
+                  <p className="text-xs font-bold text-brandgray-text uppercase tracking-wider mb-2">
+                    Assign Match to University
+                  </p>
+                  <p className="text-[11px] text-brandgray-muted mb-3">
+                    Select a recommended institution to create a collaborative solution project.
+                  </p>
+                  <div className="space-y-2">
+                    {(() => {
+                      try {
+                        const institutions = JSON.parse(selected.aiAnalysis.matchedInstitutions);
+                        const industries = JSON.parse(selected.aiAnalysis.matchedIndustries);
+                        const topIndustryId = industries.length > 0 ? industries[0].id : undefined;
+
+                        return institutions.map((inst: { id: string; name: string; score: number }) => (
+                          <div key={inst.id} className="p-3 border border-brandgray-border rounded bg-gray-50 flex flex-col gap-2">
+                            <div className="flex justify-between items-start gap-1">
+                              <div>
+                                <p className="text-xs font-semibold text-brandgray-text leading-tight">{inst.name}</p>
+                                <p className="text-[10px] text-purple-600 font-medium mt-1">Match Recommendation: {inst.score}%</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => handleCreateProject(selected.id, inst.id, topIndustryId)}
+                              disabled={actionLoading}
+                              className="w-full text-center bg-primary hover:bg-primary-hover text-white text-xs font-semibold py-1.5 rounded transition-colors disabled:opacity-60"
+                            >
+                              Confirm Match & Create Project
+                            </button>
+                          </div>
+                        ));
+                      } catch (e) {
+                        return <p className="text-xs text-red-500">No matched institutions found in AI record.</p>;
+                      }
+                    })()}
+                  </div>
                 </div>
               )}
             </div>

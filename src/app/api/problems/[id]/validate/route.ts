@@ -12,9 +12,15 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized. Admin login required.' }, { status: 401 });
     }
 
-    const { status, category, priority, priorityScore } = await req.json();
+    const body = await req.json();
+    let status = body.status;
+    const { category, priority, priorityScore, action } = body;
 
-    if (!status || !['VALIDATED', 'REJECTED'].includes(status)) {
+    if (!status && action) {
+      status = action === 'approve' ? 'AI_ANALYZED' : 'REJECTED';
+    }
+
+    if (!status || !['VALIDATED', 'REJECTED', 'AI_ANALYZED'].includes(status)) {
       return NextResponse.json({ error: 'Invalid validation status.' }, { status: 400 });
     }
 
