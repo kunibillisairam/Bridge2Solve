@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
       include: {
         aiAnalysis: true,
+        citizen: { select: { name: true, email: true } },
         project: {
           include: {
             university: { select: { name: true } },
