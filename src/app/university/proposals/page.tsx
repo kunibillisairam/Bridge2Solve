@@ -17,14 +17,16 @@ import {
   Edit,
   ArrowRight,
   ExternalLink,
-  GraduationCap
+  GraduationCap,
+  Layers
 } from "lucide-react";
 import { 
   universityMockService, 
   SolutionProposal, 
   ResolvedProposal,
   CommunityProblem, 
-  UniversityTeam 
+  UniversityTeam,
+  UniversityProject 
 } from "@/services/universityMockService";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -37,14 +39,18 @@ const STATUS_BADGES = {
   REJECTED: "bg-red-50 text-red-700 border-red-200",
 };
 
+interface ProposalWithProject extends ResolvedProposal {
+  project?: UniversityProject | null;
+}
+
 export default function ProposalsPage() {
-  const [proposals, setProposals] = useState<ResolvedProposal[]>([]);
+  const [proposals, setProposals] = useState<ProposalWithProject[]>([]);
   const [eligibleProblems, setEligibleProblems] = useState<CommunityProblem[]>([]);
   const [availableTeams, setAvailableTeams] = useState<UniversityTeam[]>([]);
 
   // Page Mode: 'list' | 'create' | 'edit' | 'view'
   const [mode, setMode] = useState<'list' | 'create' | 'edit' | 'view'>('list');
-  const [selectedProposal, setSelectedProposal] = useState<ResolvedProposal | null>(null);
+  const [selectedProposal, setSelectedProposal] = useState<ProposalWithProject | null>(null);
 
   // Form State
   const [editingId, setEditingId] = useState<string | undefined>(undefined);
@@ -64,20 +70,21 @@ export default function ProposalsPage() {
 
   const loadData = () => {
     const rawProposals = universityMockService.getProposals("univ-1");
-    const resolved = rawProposals.map((p) => universityMockService.resolveProposal(p));
+    const resolved = rawProposals.map((p) => {
+      const res = universityMockService.resolveProposal(p);
+      const proj = universityMockService.getProjectForProposal(p.id);
+      return { ...res, project: proj || null };
+    });
     setProposals(resolved);
 
-    // Eligible problems for proposals (interested problems that have assigned research teams)
     const eligible = universityMockService.getEligibleProblemsForProposals("univ-1");
     setEligibleProblems(eligible);
   };
 
-  // When problemId changes in form, dynamically update available teams assigned to that problem
   useEffect(() => {
     if (problemId) {
       const teamsForProb = universityMockService.getTeamsForProblem(problemId, "univ-1");
       setAvailableTeams(teamsForProb);
-      // Auto-select first team if available
       if (teamsForProb.length > 0 && (!teamId || !teamsForProb.some(t => t.id === teamId))) {
         setTeamId(teamsForProb[0].id);
       }
@@ -100,7 +107,7 @@ export default function ProposalsPage() {
     setMode("create");
   };
 
-  const handleOpenEdit = (proposal: ResolvedProposal) => {
+  const handleOpenEdit = (proposal: ProposalWithProject) => {
     setEditingId(proposal.id);
     setTitle(proposal.title);
     setProblemId(proposal.problemId);
@@ -127,7 +134,7 @@ export default function ProposalsPage() {
     }
 
     try {
-      const saved = universityMockService.saveProposal(
+      universityMockService.saveProposal(
         {
           id: editingId,
           problemId,
@@ -144,12 +151,11 @@ export default function ProposalsPage() {
 
       setSuccessMessage(
         isSubmit 
-          ? "Proposal submitted successfully! It is now under review."
+          ? "Proposal submitted successfully! It is now under admin review."
           : "Proposal draft saved successfully."
       );
       setTimeout(() => setSuccessMessage(""), 5000);
 
-      // Reset & Return to List
       setMode("list");
       setSelectedProposal(null);
       loadData();
@@ -158,7 +164,7 @@ export default function ProposalsPage() {
     }
   };
 
-  const handleOpenView = (proposal: ResolvedProposal) => {
+  const handleOpenView = (proposal: ProposalWithProject) => {
     setSelectedProposal(proposal);
     setMode("view");
   };
@@ -220,6 +226,25 @@ export default function ProposalsPage() {
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STATUS_BADGES[proposal.status]}`}>
                           {proposal.status}
                         </span>
+
+                        {proposal.status === "ACCEPTED" && (
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200">
+                            Project Created
+                          </span>
+                        )}
+
+                        {proposal.status === "REJECTED" && (
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded bg-red-100 text-red-800 border border-red-200">
+                            Proposal Rejected
+                          </span>
+                        )}
+
+                        {(proposal.status === "SUBMITTED" || proposal.status === "UNDER_REVIEW") && (
+                          <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+                            Under Admin Review
+                          </span>
+                        )}
+
                         <span className="text-[10px] text-brandgray-muted flex items-center gap-1">
                           <Calendar className="h-3.5 w-3.5" /> {proposal.submittedAt ? `Submitted: ${proposal.submittedAt}` : `Drafted: ${proposal.createdAt}`}
                         </span>
@@ -239,7 +264,19 @@ export default function ProposalsPage() {
                       </div>
                     </div>
 
-                    <div className="shrink-0 flex items-center gap-2">
+                    <div className="shrink-0 flex flex-wrap items-center gap-2">
+                      {proposal.status === "ACCEPTED" && proposal.project && (
+                        <Link href={`/university/projects/${proposal.project.id}`}>
+                          <Button 
+                            variant="primary" 
+                            size="sm" 
+                            className="h-8 font-semibold text-xs flex items-center gap-1.5"
+                          >
+                            <Layers className="h-3.5 w-3.5" /> View Project
+                          </Button>
+                        </Link>
+                      )}
+
                       {proposal.status === "DRAFT" && (
                         <Button 
                           variant="outline" 
@@ -250,8 +287,9 @@ export default function ProposalsPage() {
                           <Edit className="h-3.5 w-3.5" /> Edit Draft
                         </Button>
                       )}
+
                       <Button 
-                        variant="primary" 
+                        variant={proposal.status === "ACCEPTED" && proposal.project ? "outline" : "primary"}
                         size="sm" 
                         onClick={() => handleOpenView(proposal)}
                         className="h-8 font-semibold text-xs flex items-center gap-1"
@@ -472,7 +510,21 @@ export default function ProposalsPage() {
           </CardHeader>
           <CardContent className="p-6 space-y-6">
             
-            {/* Draft Alert Callout */}
+            {/* Status Feedback Callouts */}
+            {selectedProposal.status === "ACCEPTED" && selectedProposal.project && (
+              <div className="p-4 bg-success-light text-success border border-success/15 rounded text-xs flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4.5 w-4.5 shrink-0" />
+                  <span className="font-semibold">This proposal has been APPROVED by Admin. Project {selectedProposal.project.id} is active!</span>
+                </div>
+                <Link href={`/university/projects/${selectedProposal.project.id}`}>
+                  <Button variant="primary" size="sm" className="h-8 font-semibold text-xs flex items-center gap-1 shrink-0">
+                    <Layers className="h-3.5 w-3.5" /> View Project
+                  </Button>
+                </Link>
+              </div>
+            )}
+
             {selectedProposal.status === "DRAFT" && (
               <div className="p-3.5 bg-amber-50 text-amber-900 border border-amber-200 rounded text-xs flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -487,6 +539,13 @@ export default function ProposalsPage() {
                 >
                   Edit Draft
                 </Button>
+              </div>
+            )}
+
+            {(selectedProposal.status === "SUBMITTED" || selectedProposal.status === "UNDER_REVIEW") && (
+              <div className="p-3.5 bg-blue-50 text-blue-900 border border-blue-150 rounded text-xs flex items-center gap-2">
+                <Clock className="h-4 w-4 shrink-0 text-blue-600" />
+                <span>Proposal is currently UNDER ADMIN REVIEW. Outcome will be updated once evaluated.</span>
               </div>
             )}
 

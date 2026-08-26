@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { ShieldCheck, Clock, CheckCircle, XCircle, AlertTriangle, RefreshCw, ChevronRight, Users } from 'lucide-react';
+import { universityMockService } from '@/services/universityMockService';
 
 interface Problem {
   id: string;
@@ -120,6 +122,12 @@ export default function AdminDashboard() {
     }
   };
 
+  const [proposalMetrics, setProposalMetrics] = useState({ pendingCount: 0, acceptedCount: 0, rejectedCount: 0, projectsCreatedCount: 0 });
+
+  useEffect(() => {
+    setProposalMetrics(universityMockService.getAdminProposalMetrics());
+  }, []);
+
   const pending = problems.filter(p => p.status === 'SUBMITTED' || p.status === 'UNDER_REVIEW');
   const analyzed = problems.filter(p => p.status === 'ANALYZED' || p.status === 'MATCHED');
   const rest = problems.filter(p => !['SUBMITTED', 'UNDER_REVIEW', 'ANALYZED', 'MATCHED'].includes(p.status));
@@ -134,12 +142,33 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold text-primary flex items-center gap-2">
             <ShieldCheck className="h-6 w-6" /> Admin Validation Dashboard
           </h1>
-          <p className="text-sm text-brandgray-muted mt-1">Review citizen submissions, trigger AI analysis, and manage problem lifecycle.</p>
+          <p className="text-sm text-brandgray-muted mt-1">Review citizen submissions, trigger AI analysis, and manage problem & proposal lifecycle.</p>
         </div>
         <button onClick={fetchProblems} className="flex items-center gap-1.5 text-sm text-primary border border-primary/20 px-3 py-1.5 rounded hover:bg-primary-light transition-colors">
           <RefreshCw className="h-3.5 w-3.5" /> Refresh
         </button>
       </div>
+
+      {/* University Proposal Review Quick Access Banner */}
+      <Link href="/admin/proposals" className="block mb-6">
+        <div className="bg-white rounded-lg border border-purple-200 p-4 flex items-center justify-between shadow-subtle hover:border-purple-400 transition-colors">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-lg bg-purple-100 text-purple-800 border border-purple-200">
+              <ShieldCheck className="h-5 w-5 text-purple-800" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-primary">University Proposal Review Portal</h3>
+              <p className="text-xs text-brandgray-muted">Evaluate submitted academic research proposals and approve project creation.</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold bg-amber-50 text-amber-800 border border-amber-250 px-2.5 py-1 rounded">
+              {proposalMetrics.pendingCount} Pending Review
+            </span>
+            <ChevronRight className="h-4 w-4 text-brandgray-muted" />
+          </div>
+        </div>
+      </Link>
 
       {msg && (
         <div className={`mb-4 px-4 py-3 rounded text-sm border ${msg.includes('success') ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>

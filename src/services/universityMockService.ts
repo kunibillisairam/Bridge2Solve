@@ -135,6 +135,7 @@ export interface UniversityProject {
   title: string;
   problemId: string;
   teamId: string | null;
+  proposalId?: string | null;
   stage: ProjectStage;
   customProgress?: number;
   startDate: string;
@@ -522,6 +523,7 @@ const INITIAL_PROJECTS: UniversityProject[] = [
     title: "Water Scarcity in Rural Communities",
     problemId: "prob-1",
     teamId: "team-1",
+    proposalId: "prop-1",
     stage: "IMPLEMENTATION",
     customProgress: 72,
     startDate: "12 August 2026",
@@ -552,66 +554,11 @@ const INITIAL_PROJECTS: UniversityProject[] = [
     ],
   },
   {
-    id: "PB-2026-002",
-    title: "Solar Powering Rural Primary Schools",
-    problemId: "prob-4",
-    teamId: null,
-    stage: "PROPOSAL_SUBMITTED",
-    startDate: "20 August 2026",
-    expectedCompletionDate: "15 January 2027",
-    collaboration: {
-      university: "Gaya Technical Academy",
-      industryPartner: "ReNew Power Ltd",
-      governmentAuthority: "Bihar Education Department",
-      agreementStatus: "Under Review",
-      agreementType: "Research Collaboration Agreement",
-      startDate: "Pending Approval",
-      endDate: "Pending Approval",
-      funding: "₹4,20,000 (Requested)",
-      coordinator: "Prof. Anjali Devi",
-    },
-    documents: [
-      { name: "Project Proposal", type: "PDF", status: "Under Review", size: "3.2 MB", uploadedDate: "20 Aug 2026" },
-      { name: "Technical Specification", type: "PDF", status: "Draft", size: "2.1 MB", uploadedDate: "18 Aug 2026" },
-    ],
-    activities: [
-      { text: "Technical proposal uploaded for review", performedBy: "Prof. Anjali Devi", date: "24 Aug 2026", time: "12:15", type: "proposal" },
-      { text: "Rooftop load and solar exposure survey completed", performedBy: "SolarEdu Scholars", date: "23 Aug 2026", time: "10:30", type: "survey" },
-      { text: "SolarEdu Scholars team formed and assigned to school project", performedBy: "Gaya Tech Registry", date: "22 Aug 2026", time: "09:00", type: "team" },
-    ],
-  },
-  {
-    id: "PB-2026-003",
-    title: "Soil Salinity Bioremediation",
-    problemId: "prob-2",
-    teamId: "team-3",
-    stage: "UNIVERSITY_MATCHED",
-    startDate: "25 August 2026",
-    expectedCompletionDate: "30 March 2027",
-    collaboration: {
-      university: "Punjab Agri University",
-      industryPartner: "IFFCO CSR",
-      governmentAuthority: "Punjab Soil Conservation Department",
-      agreementStatus: "Draft",
-      agreementType: "Joint Agri-Research MoU",
-      startDate: "Pending MoU",
-      endDate: "Pending MoU",
-      funding: "₹12,00,000 (Target)",
-      coordinator: "Dr. Sanjay Dutt",
-    },
-    documents: [
-      { name: "Initial Research Brief", type: "PDF", status: "Draft", size: "1.2 MB", uploadedDate: "25 Aug 2026" },
-    ],
-    activities: [
-      { text: "Initial meeting with Punjab Soil Dept representatives", performedBy: "Dr. Sanjay Dutt", date: "26 Aug 2026", time: "15:30", type: "meeting" },
-      { text: "University match registered for Sangrur district salinity challenge", performedBy: "PAU Admin", date: "25 Aug 2026", time: "10:15", type: "match" },
-    ],
-  },
-  {
     id: "PB-2026-004",
     title: "Vernacular E-Learning Kits",
     problemId: "prob-5",
     teamId: "team-4",
+    proposalId: null,
     stage: "COMPLETED",
     startDate: "01 September 2025",
     expectedCompletionDate: "30 June 2026",
@@ -930,8 +877,16 @@ export const universityMockService = {
     );
   },
 
-  getProposalById(id: string, universityId = "univ-1"): SolutionProposal | undefined {
-    return this.getProposals(universityId).find((p) => p.id === id);
+  getAllProposalsForAdmin(): SolutionProposal[] {
+    return getStoredData<SolutionProposal[]>("uni_proposals", INITIAL_PROPOSALS);
+  },
+
+  getProposalById(id: string, universityId?: string): SolutionProposal | undefined {
+    const all = getStoredData<SolutionProposal[]>("uni_proposals", INITIAL_PROPOSALS);
+    if (universityId) {
+      return all.find((p) => p.id === id && p.universityId === universityId);
+    }
+    return all.find((p) => p.id === id);
   },
 
   resolveProposal(proposal: SolutionProposal): ResolvedProposal {
@@ -944,7 +899,6 @@ export const universityMockService = {
     };
   },
 
-  // Query problems that have registered interest AND an assigned team
   getEligibleProblemsForProposals(universityId = "univ-1"): CommunityProblem[] {
     const interests = this.getInterests().filter((i) => i.universityId === universityId);
     const interestedProblemIds = interests.map((i) => i.problemId);
@@ -953,15 +907,12 @@ export const universityMockService = {
     const teams = this.getTeams();
 
     return problems.filter((p) => {
-      // Must be interested by this university
       if (!interestedProblemIds.includes(p.id)) return false;
-      // Must have an assigned team
       const assignedTeam = teams.find((t) => t.assignedProblemId === p.id);
       return !!assignedTeam;
     });
   },
 
-  // Query teams assigned to a specific problem
   getTeamsForProblem(problemId: string, universityId = "univ-1"): UniversityTeam[] {
     const teams = this.getTeams();
     return teams.filter((t) => t.assignedProblemId === problemId);
@@ -984,14 +935,12 @@ export const universityMockService = {
   ): SolutionProposal {
     const proposals = getStoredData<SolutionProposal[]>("uni_proposals", INITIAL_PROPOSALS);
 
-    // Authorization & Validation Check 1: Verify problem accessibility
     const eligibleProblems = this.getEligibleProblemsForProposals(universityId);
     const isProblemEligible = eligibleProblems.some((p) => p.id === proposalData.problemId);
     if (!isProblemEligible) {
       throw new Error("Unauthorized: The selected problem is not associated with your university or has no assigned research team.");
     }
 
-    // Authorization & Validation Check 2: Verify team belongs to problem
     const problemTeams = this.getTeamsForProblem(proposalData.problemId, universityId);
     const isTeamValid = problemTeams.some((t) => t.id === proposalData.teamId);
     if (!isTeamValid) {
@@ -1000,7 +949,6 @@ export const universityMockService = {
 
     const today = new Date().toISOString().split("T")[0];
 
-    // Case 1: Editing Existing Proposal Draft
     if (proposalData.id) {
       const idx = proposals.findIndex((p) => p.id === proposalData.id && p.universityId === universityId);
       if (idx === -1) {
@@ -1027,7 +975,6 @@ export const universityMockService = {
       if (isSubmit) {
         this.addActivity(`Proposal "${proposals[idx].title}" submitted for review.`);
         
-        // Update problem status to Under Review
         const problems = this.getProblems();
         const probIdx = problems.findIndex((p) => p.id === proposalData.problemId);
         if (probIdx !== -1 && problems[probIdx].status !== "Active Project") {
@@ -1041,7 +988,6 @@ export const universityMockService = {
       return proposals[idx];
     }
 
-    // Case 2: Creating New Proposal
     const newProposal: SolutionProposal = {
       id: `prop-${Date.now()}`,
       universityId,
@@ -1076,6 +1022,149 @@ export const universityMockService = {
     }
 
     return newProposal;
+  },
+
+  // ----------------------------------------------------
+  // Admin Review & Project Creation (Duplicate Protection)
+  // ----------------------------------------------------
+  approveProposal(proposalId: string, adminUserId = "admin-1"): { proposal: SolutionProposal; project: UniversityProject; isNew: boolean } {
+    const proposals = getStoredData<SolutionProposal[]>("uni_proposals", INITIAL_PROPOSALS);
+    const propIdx = proposals.findIndex((p) => p.id === proposalId);
+
+    if (propIdx === -1) {
+      throw new Error("Proposal not found.");
+    }
+
+    const proposal = proposals[propIdx];
+    if (proposal.status === "DRAFT") {
+      throw new Error("Cannot approve a draft proposal.");
+    }
+
+    const projects = this.getProjects();
+
+    // DUPLICATE PROTECTION CHECK: Check if project already exists for this proposal or problem-team pair
+    const existingProject = projects.find(
+      (proj) => proj.proposalId === proposalId || (proj.problemId === proposal.problemId && proj.teamId === proposal.teamId)
+    );
+
+    if (existingProject) {
+      // Proposal status accepted
+      proposals[propIdx].status = "ACCEPTED";
+      proposals[propIdx].updatedAt = new Date().toISOString().split("T")[0];
+      setStoredData("uni_proposals", proposals);
+
+      return { proposal: proposals[propIdx], project: existingProject, isNew: false };
+    }
+
+    // Update proposal status to ACCEPTED
+    const today = new Date().toISOString().split("T")[0];
+    proposals[propIdx].status = "ACCEPTED";
+    proposals[propIdx].updatedAt = today;
+    setStoredData("uni_proposals", proposals);
+
+    // Resolve details for project creation
+    const problem = this.getProblemById(proposal.problemId);
+    const team = this.getTeams().find((t) => t.id === proposal.teamId);
+    const interest = this.getInterestForProblem(proposal.problemId, proposal.universityId);
+
+    const newProjectId = `PB-2026-00${projects.length + 1}`;
+    const newProject: UniversityProject = {
+      id: newProjectId,
+      title: proposal.title,
+      problemId: proposal.problemId,
+      teamId: proposal.teamId,
+      proposalId: proposal.id,
+      stage: "PROPOSAL_APPROVED",
+      startDate: today,
+      expectedCompletionDate: "30 June 2027",
+      collaboration: {
+        university: interest?.universityName || "Indian Institute of Science",
+        industryPartner: "CSR Industry Partner",
+        governmentAuthority: problem ? `${problem.district} District Authority` : "Local Authority",
+        agreementStatus: "Active",
+        agreementType: "Research MoU",
+        startDate: today,
+        endDate: "30 June 2027",
+        funding: proposal.resourceRequirements || "₹7,50,000",
+        coordinator: team ? team.facultyMentor.split(" (")[0] : "Faculty Coordinator",
+      },
+      documents: [
+        { name: "Accepted Proposal", type: "PDF", status: "Approved", size: "2.4 MB", uploadedDate: today },
+        { name: "Tripartite Agreement Brief", type: "PDF", status: "Active", size: "1.8 MB", uploadedDate: today },
+      ],
+      activities: [
+        {
+          text: "Project created from approved proposal",
+          performedBy: "Platform Administration",
+          date: today,
+          time: "10:00",
+          type: "creation",
+        },
+      ],
+    };
+
+    projects.push(newProject);
+    setStoredData("uni_projects", projects);
+
+    // Update problem status to Active Project
+    const problems = this.getProblems();
+    const probIdx = problems.findIndex((p) => p.id === proposal.problemId);
+    if (probIdx !== -1) {
+      problems[probIdx].status = "Active Project";
+      setStoredData("uni_problems", problems);
+    }
+
+    this.addActivity(`Proposal "${proposal.title}" approved by Admin; Project ${newProjectId} created.`);
+
+    return { proposal: proposals[propIdx], project: newProject, isNew: true };
+  },
+
+  rejectProposal(proposalId: string): SolutionProposal {
+    const proposals = getStoredData<SolutionProposal[]>("uni_proposals", INITIAL_PROPOSALS);
+    const idx = proposals.findIndex((p) => p.id === proposalId);
+
+    if (idx === -1) {
+      throw new Error("Proposal not found.");
+    }
+
+    proposals[idx].status = "REJECTED";
+    proposals[idx].updatedAt = new Date().toISOString().split("T")[0];
+    setStoredData("uni_proposals", proposals);
+
+    this.addActivity(`Proposal "${proposals[idx].title}" rejected by Admin review.`);
+    return proposals[idx];
+  },
+
+  requestProposalClarification(proposalId: string): SolutionProposal {
+    const proposals = getStoredData<SolutionProposal[]>("uni_proposals", INITIAL_PROPOSALS);
+    const idx = proposals.findIndex((p) => p.id === proposalId);
+
+    if (idx === -1) {
+      throw new Error("Proposal not found.");
+    }
+
+    proposals[idx].status = "UNDER_REVIEW";
+    proposals[idx].updatedAt = new Date().toISOString().split("T")[0];
+    setStoredData("uni_proposals", proposals);
+
+    this.addActivity(`Clarification requested for proposal "${proposals[idx].title}" by Admin.`);
+    return proposals[idx];
+  },
+
+  getProjectForProposal(proposalId: string): UniversityProject | undefined {
+    return this.getProjects().find((proj) => proj.proposalId === proposalId);
+  },
+
+  getAdminProposalMetrics(): { pendingCount: number; acceptedCount: number; rejectedCount: number; projectsCreatedCount: number } {
+    const proposals = this.getAllProposalsForAdmin();
+    const projects = this.getProjects();
+
+    const pendingCount = proposals.filter((p) => p.status === "SUBMITTED" || p.status === "UNDER_REVIEW").length;
+    const acceptedCount = proposals.filter((p) => p.status === "ACCEPTED").length;
+    const rejectedCount = proposals.filter((p) => p.status === "REJECTED").length;
+    const projectsCreatedCount = projects.filter((p) => !!p.proposalId).length;
+
+    return { pendingCount, acceptedCount, rejectedCount, projectsCreatedCount };
   },
 
   // Activity Logs API
