@@ -18,7 +18,7 @@ export async function POST(
     if (!project) {
       return NextResponse.json({ error: 'Project not found.' }, { status: 404 });
     }
-    if (project.universityId !== user.id && user.role !== 'ADMIN') {
+    if (project.universityId !== user.id) {
       return NextResponse.json({ error: 'Forbidden. You do not own this project.' }, { status: 403 });
     }
 
