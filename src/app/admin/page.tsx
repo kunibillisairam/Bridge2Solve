@@ -133,6 +133,20 @@ export default function AdminControlCenterPage() {
             Monitor, validate, approve, coordinate, and verify completion across the complete ProblemBridge ecosystem.
           </p>
         </div>
+        <div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="text-xs font-semibold text-rose-700 border-rose-200 hover:bg-rose-50"
+            onClick={() => {
+              if (confirm("Are you sure you want to reset all mock demonstration data in your browser? This will restore original seeded problems, projects, and matching configurations.")) {
+                universityMockService.resetDemoData();
+              }
+            }}
+          >
+            Reset Browser Demo Data
+          </Button>
+        </div>
       </div>
 
       {/* DOMAIN 1: PROBLEM MANAGEMENT STATISTICS */}

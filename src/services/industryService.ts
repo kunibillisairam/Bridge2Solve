@@ -111,7 +111,7 @@ const INITIAL_SUPPORT_REQUESTS: IndustrySupportRequest[] = [
     industryName: "Tata Steel CSR Foundation",
     projectId: "PB-2026-001",
     supportType: "EQUIPMENT_RESOURCES",
-    description: "Provision of high-density polyethylene storage tanks and gravity filtration pipes.",
+    description: "Provision of high-density HDPE storage tanks and gravity filtration pipes.",
     estimatedFunding: 250000,
     resourcesOffered: "20 storage tanks and filtration media",
     expectedDuration: "2 months",
@@ -119,6 +119,95 @@ const INITIAL_SUPPORT_REQUESTS: IndustrySupportRequest[] = [
     createdAt: "2026-08-18",
     updatedAt: "2026-08-18",
   },
+  {
+    id: "CSR-2026-003",
+    industryId: "ind-2",
+    industryName: "IFFCO AgriTech CSR Division",
+    projectId: "PB-2026-002",
+    supportType: "CSR_FUNDING",
+    description: "CSR funding of ₹6,00,000 to deploy halophilic organic microbial soil conditioners in Sangrur fields.",
+    estimatedFunding: 600000,
+    resourcesOffered: "Halophilic strain kits and agronomy team access",
+    expectedDuration: "6 months",
+    status: "ACCEPTED",
+    createdAt: "2026-08-25",
+    updatedAt: "2026-08-26",
+    reviewedAt: "2026-08-26",
+    adminReviewerId: "admin-1",
+  },
+  {
+    id: "CSR-2026-004",
+    industryId: "ind-3",
+    industryName: "ReNew Power Social Impact Division",
+    projectId: "PB-2026-003",
+    supportType: "CSR_FUNDING",
+    description: "CSR backing of ₹9,50,000 for off-grid PV panels and LiFePO4 battery preservation kits at Gaya Blocks.",
+    estimatedFunding: 950000,
+    resourcesOffered: "10 solar modules and installation engineers",
+    expectedDuration: "5 months",
+    status: "ACCEPTED",
+    createdAt: "2026-08-10",
+    updatedAt: "2026-08-12",
+    reviewedAt: "2026-08-12",
+    adminReviewerId: "admin-1",
+  },
+  {
+    id: "CSR-2026-005",
+    industryId: "ind-4",
+    industryName: "Vedanta Foundation CSR",
+    projectId: "PB-2026-004",
+    supportType: "CSR_FUNDING",
+    description: "Education sponsorship of ₹5,00,000 to deploy 150 offline learning tablets in Mayurbhanj district.",
+    estimatedFunding: 500000,
+    resourcesOffered: "150 rugged e-learning tablets",
+    expectedDuration: "10 months",
+    status: "ACCEPTED",
+    createdAt: "2025-09-01",
+    updatedAt: "2025-09-05",
+    reviewedAt: "2025-09-05",
+    adminReviewerId: "admin-1",
+  },
+  {
+    id: "CSR-2026-006",
+    industryId: "ind-5",
+    industryName: "Prajs CleanTech Solutions",
+    projectId: "PB-2026-001",
+    supportType: "TECHNICAL_MENTORSHIP",
+    description: "Technical mentorship request to inspect gravity pipe pressure parameters.",
+    resourcesOffered: "2 consulting fluid engineers",
+    expectedDuration: "1 month",
+    status: "PENDING",
+    createdAt: "2026-08-26",
+    updatedAt: "2026-08-26",
+  },
+  {
+    id: "CSR-2026-007",
+    industryId: "ind-3",
+    industryName: "ReNew Power Social Impact Division",
+    projectId: "PB-2026-002",
+    supportType: "CSR_FUNDING",
+    description: "Request for solar powered irrigation funding.",
+    estimatedFunding: 400000,
+    status: "REJECTED",
+    rejectionReason: "Proposed scope does not match our current focus on solarizing school infrastructure.",
+    createdAt: "2026-08-24",
+    updatedAt: "2026-08-25",
+    reviewedAt: "2026-08-25",
+    adminReviewerId: "admin-1",
+  },
+  {
+    id: "CSR-2026-008",
+    industryId: "ind-1",
+    industryName: "Tata Steel CSR Foundation",
+    projectId: "PB-2026-003",
+    supportType: "EQUIPMENT_RESOURCES",
+    description: "Provision of backup diesel generators for health centers during monsoon season.",
+    resourcesOffered: "3 backup generators",
+    expectedDuration: "3 months",
+    status: "UNDER_REVIEW",
+    createdAt: "2026-08-27",
+    updatedAt: "2026-08-27",
+  }
 ];
 
 const isClient = typeof window !== "undefined";
@@ -346,15 +435,57 @@ export const industryService = {
       universityMockService.addActivity(
         `CSR support from "${req.industryName}" (${SUPPORT_TYPE_LABELS[req.supportType]}) accepted for "${projectTitle}".`
       );
+      try {
+        notificationService.createNotification({
+          userId: req.industryId,
+          role: "INDUSTRY",
+          type: "INDUSTRY_SUPPORT_ACCEPTED",
+          priority: "HIGH",
+          title: "CSR Support Request Approved",
+          message: `Your ${SUPPORT_TYPE_LABELS[req.supportType]} support for project "${projectTitle}" has been formally approved by Administration.`,
+          entityType: "INDUSTRY_REQUEST",
+          entityId: requestId,
+          actionUrl: `/industry/projects/${req.projectId}`,
+          isActionRequired: false,
+        });
+      } catch (e) { console.error(e); }
     } else if (status === "REJECTED") {
       universityMockService.addActivity(
         `CSR support request from "${req.industryName}" rejected for "${projectTitle}".`
       );
+      try {
+        notificationService.createNotification({
+          userId: req.industryId,
+          role: "INDUSTRY",
+          type: "INDUSTRY_SUPPORT_REJECTED",
+          priority: "MEDIUM",
+          title: "CSR Support Request Declined",
+          message: `Your ${SUPPORT_TYPE_LABELS[req.supportType]} support request for project "${projectTitle}" was not approved.${notes?.rejectionReason ? ` Reason: ${notes.rejectionReason}` : ""}`,
+          entityType: "INDUSTRY_REQUEST",
+          entityId: requestId,
+          actionUrl: `/industry/interests`,
+          isActionRequired: false,
+        });
+      } catch (e) { console.error(e); }
     } else if (status === "UNDER_REVIEW") {
       if (notes?.clarificationNote) {
         universityMockService.addActivity(
           `Clarification requested from "${req.industryName}" for "${projectTitle}": ${notes.clarificationNote}`
         );
+        try {
+          notificationService.createNotification({
+            userId: req.industryId,
+            role: "INDUSTRY",
+            type: "INDUSTRY_SUPPORT_CLARIFICATION",
+            priority: "MEDIUM",
+            title: "Clarification Requested on CSR Support",
+            message: `Admin requested clarification on your support for "${projectTitle}": "${notes.clarificationNote}"`,
+            entityType: "INDUSTRY_REQUEST",
+            entityId: requestId,
+            actionUrl: `/industry/interests`,
+            isActionRequired: true,
+          });
+        } catch (e) { console.error(e); }
       } else {
         universityMockService.addActivity(
           `Admin started review of CSR support request from "${req.industryName}" for "${projectTitle}".`

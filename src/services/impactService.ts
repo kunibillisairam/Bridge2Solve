@@ -251,6 +251,8 @@ export const impactService = {
         projects[pIdx].verificationEvidenceStatus = "SUBMITTED";
         projects[pIdx].customProgress = 95;
         projects[pIdx].completionVerificationNote = data.summary;
+        // Persist the updated projects array to localStorage
+        setStoredData("uni_projects", projects);
         universityMockService.addActivity(`Project "${project.title}" (${projectId}) stage set to Awaiting Government Verification.`);
       }
 

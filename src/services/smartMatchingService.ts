@@ -390,6 +390,42 @@ export const DEMO_RESEARCH_TEAMS: ResearchTeamProfile[] = [
     previousWork: ["Pune Municipal Bin Sensor System"],
     teamStatus: "ACTIVE"
   },
+  {
+    id: "team-6",
+    name: "Agri-Bioenergy Group",
+    universityId: "univ-2",
+    universityName: "Punjab Agricultural University (PAU)",
+    department: "Renewable Energy Systems",
+    facultyMentor: "Dr. Gurbaksh Singh",
+    skills: ["Biomass conversion", "Gasification", "Agricultural residue management", "Stubble management"],
+    status: "Active",
+    previousWork: ["Biomass cookstove pilot"],
+    teamStatus: "ACTIVE"
+  },
+  {
+    id: "team-7",
+    name: "AeroDrone Surveyors",
+    universityId: "univ-3",
+    universityName: "College of Engineering Pune (COEP)",
+    department: "Computer Science",
+    facultyMentor: "Dr. Ramesh Patil",
+    skills: ["Computer Vision", "GIS Mapping", "Drone sensor calibration", "Traffic engineering", "Reflective indicator layout"],
+    status: "Available",
+    previousWork: ["GIS mapping for Pune municipality"],
+    teamStatus: "ACTIVE"
+  },
+  {
+    id: "team-8",
+    name: "Eco-Water Tech Group",
+    universityId: "univ-4",
+    universityName: "National Institute of Technology Patna (NITP)",
+    department: "Civil Engineering",
+    facultyMentor: "Prof. Manoj Jha",
+    skills: ["Fluoride filtering", "Adsorption materials", "Hydrogeology", "Activated alumina filtration", "Fluoride mapping"],
+    status: "Available",
+    previousWork: ["Gaya groundwater auditing"],
+    teamStatus: "ACTIVE"
+  },
 ];
 
 export const DEMO_INDUSTRIES: IndustryProfile[] = [
