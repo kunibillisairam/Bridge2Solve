@@ -184,7 +184,7 @@ export default function AdminProposalDetailsPage() {
         </div>
 
         {createdProject && (
-          <Link href={`/university/projects/${createdProject.id}`}>
+          <Link href={`/admin/projects/${createdProject.id}`}>
             <Button variant="primary" size="sm" className="flex items-center gap-1.5 font-semibold text-xs h-9">
               <Layers className="h-4 w-4" /> View Created Project ({createdProject.id})
             </Button>
@@ -253,7 +253,7 @@ export default function AdminProposalDetailsPage() {
                 <span className="font-semibold">This proposal was formally approved by Administration. Project is active.</span>
               </div>
               {createdProject && (
-                <Link href={`/university/projects/${createdProject.id}`}>
+                <Link href={`/admin/projects/${createdProject.id}`}>
                   <Button variant="outline" size="sm" className="h-7 text-[11px] font-semibold bg-white">
                     View Project ({createdProject.id})
                   </Button>

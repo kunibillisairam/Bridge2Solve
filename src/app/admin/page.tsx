@@ -102,7 +102,7 @@ export default function AdminControlCenterPage() {
   const pendingIndustryRequestsCount = industryRequests.filter((r) => r.status === "PENDING").length;
   const industryUnderReviewCount = industryRequests.filter((r) => r.status === "UNDER_REVIEW").length;
   const acceptedIndustryRequestsCount = industryRequests.filter((r) => r.status === "ACCEPTED").length;
-  const activePartnershipsCount = industryRequests.filter((r) => r.status === "ACCEPTED").length;
+  const activePartnershipsCount = industryService.getAllPartnerships().filter((p) => p.status === "ACTIVE").length;
 
   // Filtered Validation Queue problems
   let queueProblems = problems;

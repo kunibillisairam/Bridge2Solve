@@ -381,12 +381,33 @@ export default function DashboardPage() {
                           </div>
                         )}
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <Link href={`/university/problems/${problem.id}`}>
                             <Button variant="outline" size="sm" className="h-8 text-xs font-semibold">
                               View Problem
                             </Button>
                           </Link>
+                          {team && (
+                            <Link href="/university/teams">
+                              <Button variant="outline" size="sm" className="h-8 text-xs font-semibold">
+                                View Team
+                              </Button>
+                            </Link>
+                          )}
+                          {proposal && (
+                            <Link href="/university/proposals">
+                              <Button variant="outline" size="sm" className="h-8 text-xs font-semibold">
+                                View Proposal
+                              </Button>
+                            </Link>
+                          )}
+                          {project && (
+                            <Link href={`/university/projects/${project.id}`}>
+                              <Button variant="primary" size="sm" className="h-8 text-xs font-semibold">
+                                View Project
+                              </Button>
+                            </Link>
+                          )}
                         </div>
                       </div>
                     </CardContent>

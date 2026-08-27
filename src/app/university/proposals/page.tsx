@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { 
   FileSpreadsheet, 
   Plus, 
@@ -44,6 +45,7 @@ interface ProposalWithProject extends ResolvedProposal {
 }
 
 export default function ProposalsPage() {
+  const searchParams = useSearchParams();
   const [proposals, setProposals] = useState<ProposalWithProject[]>([]);
   const [eligibleProblems, setEligibleProblems] = useState<CommunityProblem[]>([]);
   const [availableTeams, setAvailableTeams] = useState<UniversityTeam[]>([]);
@@ -68,7 +70,12 @@ export default function ProposalsPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+    const prepopulateProblemId = searchParams.get("createForProblemId");
+    if (prepopulateProblemId) {
+      setProblemId(prepopulateProblemId);
+      setMode('create');
+    }
+  }, [searchParams]);
 
   const loadData = () => {
     const rawProposals = universityMockService.getProposals("univ-1");

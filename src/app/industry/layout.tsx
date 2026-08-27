@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
@@ -11,15 +11,32 @@ import {
   LayoutDashboard,
   Briefcase
 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { industryService } from "@/services/industryService";
 
 export default function IndustryLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { user } = useAuth();
+  const industryId = user?.profile?.industryDetails?.id || "ind-1";
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const pendingInterestsCount = mounted ? industryService.getSupportRequestsForIndustry(industryId).filter(
+    r => ["PENDING", "CLARIFICATION_REQUESTED"].includes(r.status)
+  ).length : 0;
+  
+  const activePartnershipsCount = mounted ? industryService.getPartnershipsForIndustry(industryId).filter(
+    p => p.status === "ACTIVE"
+  ).length : 0;
 
   const navItems = [
     { label: "Dashboard", href: "/industry/dashboard", icon: LayoutDashboard },
     { label: "Project Discovery", href: "/industry/projects", icon: Layers },
-    { label: "My Interests", href: "/industry/interests", icon: Handshake },
-    { label: "My Partnerships", href: "/industry/partnerships", icon: Briefcase },
+    { label: "My Interests", href: "/industry/interests", icon: Handshake, badge: pendingInterestsCount },
+    { label: "My Partnerships", href: "/industry/partnerships", icon: Briefcase, badge: activePartnershipsCount },
     { label: "Organization Profile", href: "/industry/profile", icon: User },
   ];
 
@@ -50,6 +67,13 @@ export default function IndustryLayout({ children }: { children: React.ReactNode
                     >
                       <Icon className="h-3.5 w-3.5" />
                       <span>{item.label}</span>
+                      {item.badge !== undefined && item.badge > 0 && (
+                        <span className={`ml-1.5 px-1.5 py-0.5 text-[9.5px] font-extrabold rounded-full ${
+                          isActive ? "bg-white text-primary" : "bg-primary text-white"
+                        } leading-none`}>
+                          {item.badge}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}

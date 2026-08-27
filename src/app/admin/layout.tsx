@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { 
@@ -25,13 +25,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const pendingProblemsCount = mounted ? universityMockService.getProblems().filter((p) => p.status === "Unassigned").length : 0;
+  const pendingProposalsCount = mounted ? universityMockService.getAllProposalsForAdmin().filter((pr) => pr.status === "SUBMITTED").length : 0;
+  const awaitingVerificationProjectsCount = mounted ? universityMockService.getProjects().filter((pj) => pj.stage === "AWAITING_ADMIN_VERIFICATION").length : 0;
+  const pendingCSRCount = mounted ? industryService.getAllSupportRequests().filter((r) => r.status === "PENDING").length : 0;
 
   const navItems = [
     { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    { label: "Problems Queue", href: "/admin/problems", icon: Layers },
-    { label: "Proposals Review", href: "/admin/proposals", icon: FileText },
-    { label: "Projects Control", href: "/admin/projects", icon: FolderKanban },
-    { label: "Industry / CSR Support", href: "/admin/industry-support", icon: Building2 },
+    { label: "Problems Queue", href: "/admin/problems", icon: Layers, badge: pendingProblemsCount },
+    { label: "Proposals Review", href: "/admin/proposals", icon: FileText, badge: pendingProposalsCount },
+    { label: "Projects Control", href: "/admin/projects", icon: FolderKanban, badge: awaitingVerificationProjectsCount },
+    { label: "Industry / CSR Support", href: "/admin/industry-support", icon: Building2, badge: pendingCSRCount },
     { label: "Audit Trail", href: "/admin/activity", icon: Activity },
   ];
 
@@ -83,6 +93,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     >
                       <Icon className="h-3.5 w-3.5" />
                       <span>{item.label}</span>
+                      {item.badge !== undefined && item.badge > 0 && (
+                        <span className={`ml-1 px-1.5 py-0.5 text-[9.5px] font-extrabold rounded-full ${
+                          isActive ? "bg-primary text-white border border-primary-light" : "bg-amber-400 text-primary"
+                        } leading-none`}>
+                          {item.badge}
+                        </span>
+                      )}
                     </Link>
                   );
                 })}

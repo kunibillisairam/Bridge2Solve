@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
@@ -15,6 +15,7 @@ import {
   LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { universityMockService } from "@/services/universityMockService";
 
 export default function UniversityLayout({
   children,
@@ -24,6 +25,11 @@ export default function UniversityLayout({
   const { user, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!loading && (!user || user.role !== "UNIVERSITY")) {
@@ -51,6 +57,16 @@ export default function UniversityLayout({
     return null; // Will redirect in useEffect
   }
 
+  const teamFormationPendingCount = mounted
+    ? universityMockService.getProblems().filter(
+        (p) => p.status === "Interested" && !universityMockService.getAssignedTeamForProblem(p.id)
+      ).length
+    : 0;
+
+  const draftProposalsCount = mounted
+    ? universityMockService.getProposals("univ-1").filter((p) => p.status === "DRAFT").length
+    : 0;
+
   const navItems = [
     {
       label: "Dashboard",
@@ -71,11 +87,13 @@ export default function UniversityLayout({
       label: "Teams",
       href: "/university/teams",
       icon: Users,
+      badge: teamFormationPendingCount,
     },
     {
       label: "Proposals",
       href: "/university/proposals",
       icon: FileSpreadsheet,
+      badge: draftProposalsCount,
     },
     {
       label: "Profile",
@@ -137,7 +155,14 @@ export default function UniversityLayout({
                   }`}
                 >
                   <Icon className="h-4.5 w-4.5" />
-                  {item.label}
+                  <span>{item.label}</span>
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <span className={`ml-1.5 px-1.5 py-0.5 text-[9.5px] font-extrabold rounded-full ${
+                      isActive ? "bg-white text-primary" : "bg-primary text-white"
+                    } leading-none`}>
+                      {item.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}

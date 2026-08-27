@@ -1,14 +1,30 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, Bell } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useAuth, ROLE_REDIRECT } from "@/context/AuthContext";
+import { notificationService } from "@/services/notificationService";
 
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, logout } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (user) {
+      const roleUserId = user.role === "ADMIN" ? "admin-1" : user.role === "UNIVERSITY" ? "univ-1" : user.role === "INDUSTRY" ? "ind-1" : "citizen-1";
+      setUnreadCount(notificationService.getUnreadCount(roleUserId, user.role as any));
+      
+      const interval = setInterval(() => {
+        setUnreadCount(notificationService.getUnreadCount(roleUserId, user.role as any));
+      }, 3000);
+      return () => clearInterval(interval);
+    } else {
+      setUnreadCount(0);
+    }
+  }, [user]);
 
   const navigationLinks = [
     { label: "Explore Problems", href: "#" },
@@ -81,6 +97,14 @@ export function Header() {
           <div className="hidden md:flex items-center gap-4">
             {user ? (
               <>
+                <Link href="/notifications" className="relative p-2 text-slate-500 hover:text-primary rounded-full hover:bg-slate-50 transition-all mr-1 flex items-center justify-center" title="Notifications">
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-red-600 text-[9px] font-extrabold text-white">
+                      {unreadCount}
+                    </span>
+                  )}
+                </Link>
                 <Link href={ROLE_REDIRECT[user.role] || "/"}>
                   <Button variant="outline" size="sm">
                     Dashboard
@@ -133,6 +157,16 @@ export function Header() {
           <div className="pt-4 border-t border-brandgray-border mt-3 px-3 space-y-2">
             {user ? (
               <>
+                <Link href="/notifications" onClick={() => setIsMobileMenuOpen(false)} className="relative py-2 px-3 rounded-md text-base font-semibold text-brandgray-text hover:text-primary hover:bg-gray-50 transition-colors flex items-center justify-between">
+                  <span className="flex items-center gap-2">
+                    <Bell className="h-4.5 w-4.5 text-slate-500" /> Notifications
+                  </span>
+                  {unreadCount > 0 && (
+                    <span className="px-2 py-0.5 rounded-full bg-red-600 text-[10px] font-extrabold text-white">
+                      {unreadCount} new
+                    </span>
+                  )}
+                </Link>
                 <Link href={ROLE_REDIRECT[user.role] || "/"} onClick={() => setIsMobileMenuOpen(false)}>
                   <Button variant="outline" size="md" className="w-full">
                     Dashboard

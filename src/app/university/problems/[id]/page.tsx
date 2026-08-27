@@ -114,6 +114,7 @@ export default function ProblemDetailsPage() {
 
   const isInterestedOrAssigned = !!interest || problem.status !== "Unassigned";
   const rec = universityMockService.getRecommendationForUniversity(problem.id, "univ-1");
+  const proposal = universityMockService.getProposals("univ-1").find((p) => p.problemId === problem.id);
 
   return (
     <div className="space-y-6">
@@ -403,12 +404,25 @@ export default function ProblemDetailsPage() {
                         <GraduationCap className="h-3.5 w-3.5 shrink-0" /> {assignedTeam.facultyMentor}
                       </p>
                     </div>
-                    <div className="pt-2">
+                    <div className="pt-2 flex flex-col gap-2">
                       <Link href="/university/teams">
                         <Button variant="outline" size="sm" className="w-full h-8 font-semibold text-xs flex items-center justify-center gap-1">
                           View Team <ArrowRight className="h-3.5 w-3.5" />
                         </Button>
                       </Link>
+                      {proposal ? (
+                        <Link href="/university/proposals">
+                          <Button variant="outline" size="sm" className="w-full h-8 font-semibold text-xs flex items-center justify-center gap-1.5 border-emerald-500 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">
+                            View Solution Proposal ({proposal.status})
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Link href={`/university/proposals?createForProblemId=${problem.id}`}>
+                          <Button variant="primary" size="sm" className="w-full h-9 font-bold text-xs flex items-center justify-center gap-1.5">
+                            <PlusCircle className="h-4.5 w-4.5" /> Submit Solution Proposal
+                          </Button>
+                        </Link>
+                      )}
                     </div>
                   </div>
                 ) : (
