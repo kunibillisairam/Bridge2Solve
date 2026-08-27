@@ -367,7 +367,16 @@ export const industryService = {
     setStoredData("ind_support_requests", requests);
 
     universityMockService.addActivity(
-      `Industry support interest submitted by "${profile.name}" (${SUPPORT_TYPE_LABELS[input.supportType]}) for project "${project.title}".`
+      `Industry support interest submitted by "${profile.name}" (${SUPPORT_TYPE_LABELS[input.supportType]}) for project "${project.title}".`,
+      {
+        actor: profile.name,
+        actorRole: "INDUSTRY",
+        action: "Industry support requested",
+        entityType: "SUPPORT_REQUEST",
+        entityId: newRequest.id,
+        entityName: `${profile.name} - ${SUPPORT_TYPE_LABELS[input.supportType]}`,
+        newState: "PENDING"
+      }
     );
 
     try {
@@ -433,7 +442,17 @@ export const industryService = {
     // Create activity event without changing project lifecycle stage
     if (status === "ACCEPTED") {
       universityMockService.addActivity(
-        `CSR support from "${req.industryName}" (${SUPPORT_TYPE_LABELS[req.supportType]}) accepted for "${projectTitle}".`
+        `CSR support from "${req.industryName}" (${SUPPORT_TYPE_LABELS[req.supportType]}) accepted for "${projectTitle}".`,
+        {
+          actor: "Sunita Rao",
+          actorRole: "ADMIN",
+          action: "Industry support approved",
+          entityType: "SUPPORT_REQUEST",
+          entityId: requestId,
+          entityName: `${req.industryName} - ${SUPPORT_TYPE_LABELS[req.supportType]}`,
+          previousState: "PENDING",
+          newState: "ACCEPTED"
+        }
       );
       try {
         notificationService.createNotification({
@@ -451,7 +470,18 @@ export const industryService = {
       } catch (e) { console.error(e); }
     } else if (status === "REJECTED") {
       universityMockService.addActivity(
-        `CSR support request from "${req.industryName}" rejected for "${projectTitle}".`
+        `CSR support request from "${req.industryName}" rejected for "${projectTitle}".${notes?.rejectionReason ? ` Reason: ${notes.rejectionReason}` : ""}`,
+        {
+          actor: "Sunita Rao",
+          actorRole: "ADMIN",
+          action: "Industry support rejected",
+          entityType: "SUPPORT_REQUEST",
+          entityId: requestId,
+          entityName: `${req.industryName} - ${SUPPORT_TYPE_LABELS[req.supportType]}`,
+          previousState: "PENDING",
+          newState: "REJECTED",
+          note: notes?.rejectionReason
+        }
       );
       try {
         notificationService.createNotification({
@@ -470,7 +500,18 @@ export const industryService = {
     } else if (status === "UNDER_REVIEW") {
       if (notes?.clarificationNote) {
         universityMockService.addActivity(
-          `Clarification requested from "${req.industryName}" for "${projectTitle}": ${notes.clarificationNote}`
+          `Clarification requested from "${req.industryName}" for "${projectTitle}": ${notes.clarificationNote}`,
+          {
+            actor: "Sunita Rao",
+            actorRole: "ADMIN",
+            action: "Industry support clarification requested",
+            entityType: "SUPPORT_REQUEST",
+            entityId: requestId,
+            entityName: `${req.industryName} - ${SUPPORT_TYPE_LABELS[req.supportType]}`,
+            previousState: "PENDING",
+            newState: "UNDER_REVIEW",
+            note: notes.clarificationNote
+          }
         );
         try {
           notificationService.createNotification({
@@ -488,7 +529,17 @@ export const industryService = {
         } catch (e) { console.error(e); }
       } else {
         universityMockService.addActivity(
-          `Admin started review of CSR support request from "${req.industryName}" for "${projectTitle}".`
+          `Admin started review of CSR support request from "${req.industryName}" for "${projectTitle}".`,
+          {
+            actor: "Sunita Rao",
+            actorRole: "ADMIN",
+            action: "Industry support review started",
+            entityType: "SUPPORT_REQUEST",
+            entityId: requestId,
+            entityName: `${req.industryName} - ${SUPPORT_TYPE_LABELS[req.supportType]}`,
+            previousState: "PENDING",
+            newState: "UNDER_REVIEW"
+          }
         );
       }
     }

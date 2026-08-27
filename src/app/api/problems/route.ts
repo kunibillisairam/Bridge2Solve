@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
       include: {
         aiAnalysis: true,
-        submittedBy: { select: { name: true, email: true } },
+        submittedBy: user.role === 'ADMIN' || user.role === 'CITIZEN' ? { select: { name: true, email: true } } : false,
         project: {
           include: {
             university: { select: { name: true } },

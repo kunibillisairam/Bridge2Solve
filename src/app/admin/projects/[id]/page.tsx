@@ -58,10 +58,20 @@ export default function AdminProjectDetailPage() {
   // Verification Modal & Action State
   const [verificationNote, setVerificationNote] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<"complete" | "request_evidence">("complete");
+  const [modalMode, setModalMode] = useState<"complete" | "request_evidence" | "return_correction">("complete");
   const [actionSuccess, setActionSuccess] = useState("");
   const [actionError, setActionError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Evidence Checklist State
+  const [checklist, setChecklist] = useState({
+    implementationReport: false,
+    fieldTestingEvidence: false,
+    impactAssessment: true, // Default to true since they submitted the impact report
+    beneficiaryData: false,
+    supportingPhotos: false,
+    completionReport: false,
+  });
 
   useEffect(() => {
     loadProjectDetails();
@@ -111,7 +121,13 @@ export default function AdminProjectDetailPage() {
     );
   }
 
+  const isAllEvidenceChecked = checklist.implementationReport && checklist.fieldTestingEvidence && checklist.impactAssessment && checklist.beneficiaryData && checklist.supportingPhotos && checklist.completionReport;
+
   const handleVerifyAndComplete = () => {
+    if (!isAllEvidenceChecked) {
+      setActionError("Verification Blocked: All evidence checklist items must be checked before final sign-off.");
+      return;
+    }
     setActionError("");
     setActionSuccess("");
     setIsSubmitting(true);
@@ -146,6 +162,28 @@ export default function AdminProjectDetailPage() {
       loadProjectDetails();
     } catch (err: any) {
       setActionError(err.message || "Failed to request revision.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReturnCorrection = () => {
+    if (!verificationNote.trim()) {
+      setActionError("Please provide a note specifying the correction requirements.");
+      return;
+    }
+    setActionError("");
+    setActionSuccess("");
+    setIsSubmitting(true);
+
+    try {
+      universityMockService.returnProjectForCorrection(projectId, verificationNote, "ADMIN");
+      setActionSuccess("Project returned to university for correction successfully.");
+      setIsModalOpen(false);
+      setVerificationNote("");
+      loadProjectDetails();
+    } catch (err: any) {
+      setActionError(err.message || "Failed to return project for correction.");
     } finally {
       setIsSubmitting(false);
     }

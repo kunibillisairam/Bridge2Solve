@@ -13,7 +13,8 @@ import {
   LayoutDashboard,
   X,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  Activity
 } from "lucide-react";
 import { universityMockService } from "@/services/universityMockService";
 import { industryService } from "@/services/industryService";
@@ -31,6 +32,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: "Proposals Review", href: "/admin/proposals", icon: FileText },
     { label: "Projects Control", href: "/admin/projects", icon: FolderKanban },
     { label: "Industry / CSR Support", href: "/admin/industry-support", icon: Building2 },
+    { label: "Audit Trail", href: "/admin/activity", icon: Activity },
   ];
 
   // Global Admin Search Results

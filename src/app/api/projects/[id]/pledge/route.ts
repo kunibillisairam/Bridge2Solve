@@ -13,6 +13,14 @@ export async function POST(
     }
 
     const projectId = params.id;
+    
+    const existingProject = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!existingProject) {
+      return NextResponse.json({ error: 'Project not found.' }, { status: 404 });
+    }
+    if (existingProject.industryId) {
+      return NextResponse.json({ error: 'Project already has an industry partner.' }, { status: 400 });
+    }
 
     const project = await prisma.project.update({
       where: { id: projectId },

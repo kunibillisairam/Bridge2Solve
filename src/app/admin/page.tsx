@@ -248,73 +248,98 @@ export default function AdminControlCenterPage() {
             <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" /> Action Required Queue
           </CardTitle>
           <span className="text-[11px] font-bold text-amber-900 bg-amber-200/60 px-2.5 py-0.5 rounded">
-            Immediate Platform Tasks
+            Platform Operational Tasks
           </span>
         </CardHeader>
         <CardContent className="p-4 space-y-2.5">
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             {[
               {
                 title: "Validation Needed",
-                desc: `${pendingValidationCount} problem reports awaiting validation`,
+                desc: "Citizen-reported community challenges awaiting administrative verification.",
                 count: pendingValidationCount,
                 href: "/admin/problems?status=Unassigned",
-                badge: "HIGH PRIORITY",
-                badgeColor: "bg-red-100 text-red-800 border-red-300",
+                badge: "Validation",
+                priority: "HIGH",
+                priorityColor: "bg-red-50 text-red-800 border-red-300 font-extrabold",
               },
               {
                 title: "Potential Duplicates",
-                desc: `${potentialDuplicatesCount} clusters awaiting duplication review`,
+                desc: "Localized reports flagged by AI with high similarity to existing problems.",
                 count: potentialDuplicatesCount,
                 href: "/admin/problems?duplicates=true",
-                badge: "REVIEW NEEDED",
-                badgeColor: "bg-amber-100 text-amber-800 border-amber-300",
+                badge: "Duplicate Review",
+                priority: "MEDIUM",
+                priorityColor: "bg-amber-50 text-amber-800 border-amber-300 font-extrabold",
               },
               {
-                title: "Proposals Pending",
-                desc: `${proposalsUnderReviewCount} research proposals awaiting decision`,
+                title: "Proposals Review",
+                desc: "Academic solution proposals submitted by universities awaiting approval.",
                 count: proposalsUnderReviewCount,
                 href: "/admin/proposals",
-                badge: "DECISION NEEDED",
-                badgeColor: "bg-purple-100 text-purple-800 border-purple-300",
-              },
-              {
-                title: "CSR Requests",
-                desc: `${pendingIndustryRequestsCount} support requests awaiting approval`,
-                count: pendingIndustryRequestsCount,
-                href: "/admin/industry-support",
-                badge: "APPROVAL NEEDED",
-                badgeColor: "bg-indigo-100 text-indigo-800 border-indigo-300",
+                badge: "Proposal Review",
+                priority: "HIGH",
+                priorityColor: "bg-purple-50 text-purple-800 border-purple-300 font-extrabold",
               },
               {
                 title: "Overdue Milestones",
-                desc: `${delayedProjectsCount} projects with overdue milestones`,
+                desc: "Active projects with delayed milestones past scheduled deadlines.",
                 count: delayedProjectsCount,
                 href: "/admin/projects?stage=Delayed",
-                badge: "DELAYED",
-                badgeColor: "bg-red-50 text-red-700 border-red-200 font-extrabold",
+                badge: "Milestone Alert",
+                priority: "CRITICAL",
+                priorityColor: "bg-rose-50 text-rose-900 border-rose-300 font-extrabold animate-pulse",
               },
               {
                 title: "Awaiting Verification",
-                desc: `${projectsAwaitingVerificationCount} projects awaiting completion sign-off`,
+                desc: "Projects with submitted impact assessments awaiting final sign-off.",
                 count: projectsAwaitingVerificationCount,
                 href: "/admin/projects?stage=AWAITING_ADMIN_VERIFICATION",
-                badge: "VERIFICATION",
-                badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-300 font-extrabold",
+                badge: "Completion Verification",
+                priority: "CRITICAL",
+                priorityColor: "bg-emerald-50 text-emerald-900 border-emerald-300 font-extrabold",
+              },
+              {
+                title: "CSR Support Requests",
+                desc: "Industry support offers and CSR funding requests awaiting admin review.",
+                count: pendingIndustryRequestsCount,
+                href: "/admin/industry-support",
+                badge: "CSR Approval",
+                priority: "MEDIUM",
+                priorityColor: "bg-indigo-50 text-indigo-800 border-indigo-300 font-extrabold",
+              },
+              {
+                title: "Awaiting Team",
+                desc: "Validated problems registered by universities that lack research teams.",
+                count: awaitingTeamAssignmentCount,
+                href: "/admin/problems",
+                badge: "Team Assignment",
+                priority: "MEDIUM",
+                priorityColor: "bg-yellow-50 text-yellow-800 border-yellow-300 font-extrabold",
+              },
+              {
+                title: "CSR Clarification",
+                desc: "CSR partnership requests flagged for detail clarification.",
+                count: industryRequests.filter((r) => r.status === "UNDER_REVIEW").length,
+                href: "/admin/industry-support",
+                badge: "CSR Clarification",
+                priority: "LOW",
+                priorityColor: "bg-slate-50 text-slate-800 border-slate-300 font-extrabold",
               },
             ].map((item, idx) => (
-              <div key={idx} className="bg-white p-3.5 rounded border border-amber-200/80 space-y-2.5 flex flex-col justify-between">
+              <div key={idx} className="bg-white p-3.5 rounded border border-amber-250/60 space-y-2 flex flex-col justify-between hover:border-amber-400 transition-all shadow-subtle">
                 <div className="space-y-1">
-                  <div className="flex justify-between items-center">
-                    <span className={`text-[9px] font-extrabold px-1.5 py-0.5 border rounded uppercase ${item.badgeColor}`}>
-                      {item.badge}
+                  <div className="flex justify-between items-center gap-1.5">
+                    <span className={`text-[9px] font-extrabold px-1.5 py-0.5 border rounded uppercase ${item.priorityColor}`}>
+                      {item.priority}
                     </span>
                     <span className="text-base font-extrabold text-primary">{item.count}</span>
                   </div>
+                  <div className="text-[10px] text-brandgray-muted font-bold uppercase tracking-wider">{item.badge}</div>
                   <h4 className="text-xs font-bold text-primary">{item.title}</h4>
                   <p className="text-[10px] text-brandgray-muted leading-tight">{item.desc}</p>
                 </div>
-                <Link href={item.href}>
+                <Link href={item.href} className="pt-2">
                   <Button variant="primary" size="sm" className="w-full h-7 text-[11px] font-bold">
                     Review Queue
                   </Button>

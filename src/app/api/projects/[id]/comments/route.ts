@@ -7,7 +7,21 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const user = getSessionUser(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+    }
+
     const projectId = params.id;
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found.' }, { status: 404 });
+    }
+
+    // Only Admin, or University/Industry attached to the project can view comments
+    if (user.role !== 'ADMIN' && project.universityId !== user.id && project.industryId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden. You do not have access to this project.' }, { status: 403 });
+    }
 
     const comments = await prisma.comment.findMany({
       where: { projectId },
@@ -32,6 +46,17 @@ export async function POST(
     }
 
     const projectId = params.id;
+    
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found.' }, { status: 404 });
+    }
+
+    // Only Admin, or University/Industry attached to the project can post comments
+    if (user.role !== 'ADMIN' && project.universityId !== user.id && project.industryId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden. You do not have access to this project.' }, { status: 403 });
+    }
+
     const { content } = await req.json();
 
     if (!content) {

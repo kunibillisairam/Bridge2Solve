@@ -88,6 +88,15 @@ export interface ActivityLog {
   id: string;
   text: string;
   timestamp: string;
+  actor?: string;
+  actorRole?: "CITIZEN" | "UNIVERSITY" | "INDUSTRY" | "ADMIN";
+  action?: string;
+  entityType?: "PROBLEM" | "PROPOSAL" | "PROJECT" | "TEAM" | "INTEREST" | "SUPPORT_REQUEST" | "IMPACT_ASSESSMENT";
+  entityId?: string;
+  entityName?: string;
+  previousState?: string;
+  newState?: string;
+  note?: string;
 }
 
 // ----------------------------------------------------
@@ -155,6 +164,9 @@ export interface ProjectDocument {
   status: string;
   size?: string;
   uploadedDate: string;
+  uploadedBy?: string;
+  uploadedByRole?: string;
+  fileType?: string;
 }
 
 export interface ProjectActivityLog {
@@ -1587,6 +1599,29 @@ export const universityMockService = {
     };
     problems.unshift(created);
     setStoredData("uni_problems", problems);
+
+    // 1. Audit Log: Citizen problem submitted
+    this.addActivity(`Citizen problem submitted: "${created.title}" (${created.id}) in ${created.location}.`, {
+      actor: "Ravi Kumar",
+      actorRole: "CITIZEN",
+      action: "Citizen problem submitted",
+      entityType: "PROBLEM",
+      entityId: created.id,
+      entityName: created.title,
+      newState: "Unassigned"
+    });
+
+    // 2. Audit Log: AI analysis completed
+    this.addActivity(`AI analysis completed for problem "${created.title}" (${created.id}). Category: ${created.category}, Priority: ${created.priority}.`, {
+      actor: "Gemini AI Engine",
+      actorRole: "ADMIN",
+      action: "AI analysis completed",
+      entityType: "PROBLEM",
+      entityId: created.id,
+      entityName: created.title,
+      newState: "Unassigned"
+    });
+
     return created;
   },
 
@@ -1673,7 +1708,15 @@ export const universityMockService = {
       setStoredData("uni_interests", interests);
     }
 
-    this.addActivity(`Team "${teams[teamIndex].name}" assigned to "${problems[probIndex].title}".`);
+    this.addActivity(`Team "${teams[teamIndex].name}" (${teamId}) assigned to localized problem "${problems[probIndex].title}" (${problemId}).`, {
+      actor: team.facultyMentor,
+      actorRole: "UNIVERSITY",
+      action: "Team assigned",
+      entityType: "TEAM",
+      entityId: teamId,
+      entityName: team.name,
+      newState: "Assigned"
+    });
   },
 
   // Smart Matching Recommendations API
@@ -1931,11 +1974,21 @@ export const universityMockService = {
     const problems = this.getProblems();
     const probIdx = problems.findIndex((p) => p.id === problemId);
     if (probIdx !== -1) {
+      const prevStatus = problems[probIdx].status;
       if (problems[probIdx].status === "Unassigned") {
         problems[probIdx].status = "Interested";
         setStoredData("uni_problems", problems);
       }
-      this.addActivity(`Expressed interest in problem: "${problems[probIdx].title}"`);
+      this.addActivity(`University expressed interest in problem: "${problems[probIdx].title}" (${problemId}).`, {
+        actor: universityName,
+        actorRole: "UNIVERSITY",
+        action: "University expressed interest",
+        entityType: "PROBLEM",
+        entityId: problemId,
+        entityName: problems[probIdx].title,
+        previousState: prevStatus,
+        newState: problems[probIdx].status
+      });
     }
 
     return newInterest;
@@ -2147,7 +2200,7 @@ export const universityMockService = {
   },
 
   // Admin Review & Project Creation
-  approveProposal(proposalId: string, adminUserId = "admin-1"): { proposal: SolutionProposal; project: UniversityProject; isNew: boolean } {
+  approveProposal(proposalId: string, adminUserId = "admin-1", note?: string): { proposal: SolutionProposal; project: UniversityProject; isNew: boolean } {
     const proposals = getStoredData<SolutionProposal[]>("uni_proposals", INITIAL_PROPOSALS);
     const propIdx = proposals.findIndex((p) => p.id === proposalId);
 
@@ -2229,7 +2282,29 @@ export const universityMockService = {
       setStoredData("uni_problems", problems);
     }
 
-    this.addActivity(`Proposal "${proposal.title}" approved by Admin; Project ${newProjectId} created.`);
+    // 1. Audit Log: Proposal approved
+    this.addActivity(`Proposal "${proposal.title}" (${proposalId}) approved by Administration.${note ? ` Note: ${note}` : ""}`, {
+      actor: "Sunita Rao",
+      actorRole: "ADMIN",
+      action: "Proposal approved",
+      entityType: "PROPOSAL",
+      entityId: proposalId,
+      entityName: proposal.title,
+      previousState: "SUBMITTED",
+      newState: "ACCEPTED",
+      note: note
+    });
+
+    // 2. Audit Log: Project created
+    this.addActivity(`Project "${newProject.title}" (${newProjectId}) created from approved proposal.`, {
+      actor: "Sunita Rao",
+      actorRole: "ADMIN",
+      action: "Project created",
+      entityType: "PROJECT",
+      entityId: newProjectId,
+      entityName: newProject.title,
+      newState: "PROPOSAL_APPROVED"
+    });
 
     try {
       notificationService.createNotification({
@@ -2249,7 +2324,7 @@ export const universityMockService = {
     return { proposal: proposals[propIdx], project: newProject, isNew: true };
   },
 
-  rejectProposal(proposalId: string): SolutionProposal {
+  rejectProposal(proposalId: string, reason?: string): SolutionProposal {
     const proposals = getStoredData<SolutionProposal[]>("uni_proposals", INITIAL_PROPOSALS);
     const idx = proposals.findIndex((p) => p.id === proposalId);
 
@@ -2257,11 +2332,22 @@ export const universityMockService = {
       throw new Error("Proposal not found.");
     }
 
+    const previous = proposals[idx].status;
     proposals[idx].status = "REJECTED";
     proposals[idx].updatedAt = new Date().toISOString().split("T")[0];
     setStoredData("uni_proposals", proposals);
 
-    this.addActivity(`Proposal "${proposals[idx].title}" rejected by Admin review.`);
+    this.addActivity(`Proposal "${proposals[idx].title}" (${proposalId}) rejected by Administration.${reason ? ` Reason: ${reason}` : ""}`, {
+      actor: "Sunita Rao",
+      actorRole: "ADMIN",
+      action: "Proposal rejected",
+      entityType: "PROPOSAL",
+      entityId: proposalId,
+      entityName: proposals[idx].title,
+      previousState: previous,
+      newState: "REJECTED",
+      note: reason
+    });
 
     try {
       notificationService.createNotification({
@@ -2281,7 +2367,7 @@ export const universityMockService = {
     return proposals[idx];
   },
 
-  requestProposalClarification(proposalId: string): SolutionProposal {
+  requestProposalClarification(proposalId: string, reason?: string): SolutionProposal {
     const proposals = getStoredData<SolutionProposal[]>("uni_proposals", INITIAL_PROPOSALS);
     const idx = proposals.findIndex((p) => p.id === proposalId);
 
@@ -2289,11 +2375,22 @@ export const universityMockService = {
       throw new Error("Proposal not found.");
     }
 
+    const previous = proposals[idx].status;
     proposals[idx].status = "UNDER_REVIEW";
     proposals[idx].updatedAt = new Date().toISOString().split("T")[0];
     setStoredData("uni_proposals", proposals);
 
-    this.addActivity(`Clarification requested for proposal "${proposals[idx].title}" by Admin.`);
+    this.addActivity(`Clarification requested for proposal "${proposals[idx].title}" (${proposalId}) by Administration.${reason ? ` Reason: ${reason}` : ""}`, {
+      actor: "Sunita Rao",
+      actorRole: "ADMIN",
+      action: "Proposal clarification requested",
+      entityType: "PROPOSAL",
+      entityId: proposalId,
+      entityName: proposals[idx].title,
+      previousState: previous,
+      newState: "UNDER_REVIEW",
+      note: reason
+    });
     return proposals[idx];
   },
 
@@ -2318,15 +2415,29 @@ export const universityMockService = {
     return getStoredData<ActivityLog[]>("uni_activities", INITIAL_ACTIVITIES);
   },
 
-  addActivity(text: string): void {
+  addActivity(
+    text: string,
+    metadata?: {
+      actor?: string;
+      actorRole?: "CITIZEN" | "UNIVERSITY" | "INDUSTRY" | "ADMIN";
+      action?: string;
+      entityType?: "PROBLEM" | "PROPOSAL" | "PROJECT" | "TEAM" | "INTEREST" | "SUPPORT_REQUEST" | "IMPACT_ASSESSMENT";
+      entityId?: string;
+      entityName?: string;
+      previousState?: string;
+      newState?: string;
+      note?: string;
+    }
+  ): void {
     const activities = this.getActivities();
     const newActivity: ActivityLog = {
-      id: `act-${Date.now()}`,
+      id: `act-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       text,
-      timestamp: "Just now",
+      timestamp: new Date().toISOString(),
+      ...metadata,
     };
     activities.unshift(newActivity);
-    setStoredData("uni_activities", activities.slice(0, 15));
+    setStoredData("uni_activities", activities.slice(0, 500));
   },
 
   // Projects API
@@ -2369,7 +2480,17 @@ export const universityMockService = {
     });
 
     setStoredData("uni_projects", projects);
-    this.addActivity(`Project "${projects[idx].title}" (${projectId}) verified and completed by Platform Administration.`);
+    this.addActivity(`Project "${projects[idx].title}" (${projectId}) verified and completed by Platform Administration.`, {
+      actor: "Sunita Rao",
+      actorRole: "ADMIN",
+      action: "Project completed",
+      entityType: "PROJECT",
+      entityId: projectId,
+      entityName: projects[idx].title,
+      previousState: "AWAITING_ADMIN_VERIFICATION",
+      newState: "COMPLETED",
+      note: note
+    });
 
     return projects[idx];
   },
@@ -2399,7 +2520,17 @@ export const universityMockService = {
     });
 
     setStoredData("uni_projects", projects);
-    this.addActivity(`Additional verification evidence requested for project "${projects[idx].title}" (${projectId}).`);
+    this.addActivity(`Additional verification evidence requested for project "${projects[idx].title}" (${projectId}). Note: ${note.trim()}`, {
+      actor: "Sunita Rao",
+      actorRole: "ADMIN",
+      action: "Verification evidence requested",
+      entityType: "PROJECT",
+      entityId: projectId,
+      entityName: projects[idx].title,
+      previousState: "AWAITING_ADMIN_VERIFICATION",
+      newState: "IMPACT_ASSESSMENT",
+      note: note.trim()
+    });
 
     return projects[idx];
   },
@@ -2429,7 +2560,17 @@ export const universityMockService = {
     });
 
     setStoredData("uni_projects", projects);
-    this.addActivity(`Project "${projects[idx].title}" (${projectId}) returned for correction by Platform Administration.`);
+    this.addActivity(`Project "${projects[idx].title}" (${projectId}) returned for correction by Platform Administration. Note: ${note.trim()}`, {
+      actor: "Sunita Rao",
+      actorRole: "ADMIN",
+      action: "Project returned for correction",
+      entityType: "PROJECT",
+      entityId: projectId,
+      entityName: projects[idx].title,
+      previousState: "AWAITING_ADMIN_VERIFICATION",
+      newState: "IMPLEMENTATION",
+      note: note.trim()
+    });
 
     return projects[idx];
   },
@@ -2482,7 +2623,12 @@ export const universityMockService = {
     };
   },
 
-  updateProblemStatus(problemId: string, status: "Unassigned" | "Interested" | "Under Review" | "Active Project" | "Rejected", userRole = "ADMIN"): CommunityProblem {
+  updateProblemStatus(
+    problemId: string,
+    status: "Unassigned" | "Interested" | "Under Review" | "Active Project" | "Rejected",
+    userRole = "ADMIN",
+    note?: string
+  ): CommunityProblem {
     if (userRole !== "ADMIN") {
       throw new Error("Unauthorized: Only platform administrators can validate or update problem status.");
     }
@@ -2491,9 +2637,23 @@ export const universityMockService = {
     if (idx === -1) {
       throw new Error("Problem not found.");
     }
+    const previous = problems[idx].status;
     problems[idx].status = status as any;
     setStoredData("uni_problems", problems);
-    this.addActivity(`Admin updated problem "${problems[idx].title}" status to "${status}".`);
+
+    const actionLabel = status === "Rejected" ? "Problem rejected" : "Problem validated";
+    this.addActivity(`Admin updated problem "${problems[idx].title}" (${problemId}) status from "${previous}" to "${status}".${note ? ` Note: ${note}` : ""}`, {
+      actor: "Sunita Rao",
+      actorRole: "ADMIN",
+      action: actionLabel,
+      entityType: "PROBLEM",
+      entityId: problemId,
+      entityName: problems[idx].title,
+      previousState: previous,
+      newState: status,
+      note: note
+    });
+
     return problems[idx];
   },
 

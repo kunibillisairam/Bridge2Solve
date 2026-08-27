@@ -241,7 +241,16 @@ export const impactService = {
     setStoredData("pb_impact_assessments", assessments);
 
     if (isSubmit) {
-      universityMockService.addActivity(`Impact assessment submitted for project "${project.title}" (${projectId}).`);
+      universityMockService.addActivity(`Impact assessment submitted for project "${project.title}" (${projectId}).`, {
+        actor: "Dr. Priya Sharma",
+        actorRole: "UNIVERSITY",
+        action: "Impact assessment submitted",
+        entityType: "IMPACT_ASSESSMENT",
+        entityId: projectId,
+        entityName: project.title,
+        previousState: "IMPLEMENTATION",
+        newState: "AWAITING_ADMIN_VERIFICATION"
+      });
       
       // Transition project stage to AWAITING_ADMIN_VERIFICATION
       const projects = universityMockService.getProjects();
@@ -253,7 +262,6 @@ export const impactService = {
         projects[pIdx].completionVerificationNote = data.summary;
         // Persist the updated projects array to localStorage
         setStoredData("uni_projects", projects);
-        universityMockService.addActivity(`Project "${project.title}" (${projectId}) stage set to Awaiting Verification.`);
       }
 
       try {
@@ -299,7 +307,17 @@ export const impactService = {
 
     // Call universityMockService to update project stage
     universityMockService.requestVerificationEvidence(projectId, note, "ADMIN");
-    universityMockService.addActivity(`Admin requested revision for impact assessment of "${projectId}": ${note.trim()}`);
+    universityMockService.addActivity(`Admin requested revision for impact assessment of project "${projectId}". Note: ${note.trim()}`, {
+      actor: "Sunita Rao",
+      actorRole: "ADMIN",
+      action: "Impact assessment revision requested",
+      entityType: "IMPACT_ASSESSMENT",
+      entityId: projectId,
+      entityName: `Project ${projectId}`,
+      previousState: "AWAITING_ADMIN_VERIFICATION",
+      newState: "IMPLEMENTATION",
+      note: note.trim()
+    });
 
     try {
       notificationService.createNotification({
@@ -344,7 +362,17 @@ export const impactService = {
 
     // Call universityMockService to verify project completion
     universityMockService.verifyProjectCompletion(projectId, note, "ADMIN");
-    universityMockService.addActivity(`Admin verified impact assessment and completed project "${projectId}".`);
+    universityMockService.addActivity(`Admin verified impact assessment and completed project "${projectId}".${note ? ` Note: ${note}` : ""}`, {
+      actor: "Sunita Rao",
+      actorRole: "ADMIN",
+      action: "Impact assessment verified",
+      entityType: "IMPACT_ASSESSMENT",
+      entityId: projectId,
+      entityName: `Project ${projectId}`,
+      previousState: "AWAITING_ADMIN_VERIFICATION",
+      newState: "COMPLETED",
+      note: note
+    });
 
     try {
       notificationService.createNotification({

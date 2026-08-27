@@ -68,6 +68,7 @@ export default function AdminProblemDetailPage() {
   // Action State
   const [actionSuccess, setActionSuccess] = useState("");
   const [actionError, setActionError] = useState("");
+  const [decisionNote, setDecisionNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -157,8 +158,9 @@ export default function AdminProblemDetailPage() {
     setIsSubmitting(true);
 
     try {
-      universityMockService.updateProblemStatus(problemId, "Interested", "ADMIN");
+      universityMockService.updateProblemStatus(problemId, "Interested", "ADMIN", decisionNote);
       setActionSuccess("Problem validated and approved for university matching!");
+      setDecisionNote("");
       loadProblemData();
     } catch (err: any) {
       setActionError(err.message || "Failed to validate problem.");
@@ -173,8 +175,9 @@ export default function AdminProblemDetailPage() {
     setIsSubmitting(true);
 
     try {
-      universityMockService.updateProblemStatus(problemId, "Rejected", "ADMIN");
+      universityMockService.updateProblemStatus(problemId, "Rejected", "ADMIN", decisionNote);
       setActionSuccess("Problem status updated to Rejected.");
+      setDecisionNote("");
       loadProblemData();
     } catch (err: any) {
       setActionError(err.message || "Failed to reject problem.");
@@ -219,10 +222,40 @@ export default function AdminProblemDetailPage() {
     );
   }
 
-  // Calculate duplicate risk
-  const duplicateRisk = duplicateCandidates.length > 0
-    ? (duplicateCandidates.some(c => c.similarityScore >= 80) ? "HIGH" : "MEDIUM")
-    : "LOW";
+  // Stepper calculations based on actual activities
+  const steps = [
+    { label: "Reported", done: true, date: problem.submissionDate },
+    { 
+      label: "AI Analyzed", 
+      done: !!analysis || activityHistory.some(a => a.action === "AI analysis completed"),
+      date: activityHistory.find(a => a.action === "AI analysis completed")?.timestamp
+    },
+    { 
+      label: "Validated", 
+      done: problem.status !== "Unassigned" && problem.status !== "Rejected",
+      date: activityHistory.find(a => a.action === "Problem validated")?.timestamp
+    },
+    { 
+      label: "University Matched", 
+      done: interests.length > 0 || problem.status === "Active Project" || problem.status === "Under Review",
+      date: activityHistory.find(a => a.action === "University expressed interest")?.timestamp
+    },
+    { 
+      label: "Team Assigned", 
+      done: activityHistory.some(a => a.action === "Team assigned") || !!associatedProject?.teamId,
+      date: activityHistory.find(a => a.action === "Team assigned")?.timestamp
+    },
+    { 
+      label: "Proposal Submitted", 
+      done: !!associatedProposal || problem.status === "Active Project",
+      date: activityHistory.find(a => a.action === "Proposal submitted")?.timestamp
+    },
+    { 
+      label: "Project Created", 
+      done: !!associatedProject,
+      date: activityHistory.find(a => a.action === "Project created")?.timestamp
+    }
+  ];
 
   return (
     <div className="space-y-6">
@@ -293,35 +326,94 @@ export default function AdminProblemDetailPage() {
         )}
       </div>
 
+      {/* Problem Lifecycle Timeline Stepper */}
+      <Card className="border-brandgray-border bg-white shadow-subtle">
+        <CardHeader className="p-4 border-b border-brandgray-border/60">
+          <CardTitle className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+            <History className="h-4 w-4 text-primary shrink-0" /> Problem Lifecycle Status Trail
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            {steps.map((step, idx) => {
+              const formattedDate = step.date && step.date.includes("T")
+                ? new Date(step.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+                : step.date;
+              return (
+                <React.Fragment key={idx}>
+                  <div className="flex flex-col items-center text-center space-y-1 relative z-10 flex-1">
+                    <div className={`h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold border transition-colors ${
+                      step.done 
+                        ? "bg-emerald-500 text-white border-emerald-600 shadow-sm" 
+                        : "bg-slate-50 text-slate-400 border-slate-200"
+                    }`}>
+                      {step.done ? <Check className="h-4 w-4" /> : idx + 1}
+                    </div>
+                    <span className={`text-[10px] font-bold ${step.done ? "text-primary animate-pulse" : "text-brandgray-muted"}`}>
+                      {step.label}
+                    </span>
+                    {formattedDate && (
+                      <span className="text-[8.5px] text-brandgray-muted font-medium">{formattedDate}</span>
+                    )}
+                  </div>
+                  {idx < steps.length - 1 && (
+                    <div className="hidden md:block h-0.5 bg-slate-200 flex-1 relative -top-3">
+                      <div className={`h-full bg-emerald-500 transition-all ${steps[idx + 1].done ? "w-full" : "w-0"}`} />
+                    </div>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* SECTION 10: ADMIN DECISION AREA (Top Control Panel) */}
       <Card className="border-primary/20 shadow-subtle bg-slate-50/50">
-        <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="space-y-0.5">
-            <h3 className="text-xs font-bold text-primary uppercase tracking-wider">Admin Validation Decision Panel</h3>
-            <p className="text-[11px] text-brandgray-muted font-medium">Verify the legitimacy and details of this report to proceed with matching.</p>
+        <CardContent className="p-4 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="space-y-0.5">
+              <h3 className="text-xs font-bold text-primary uppercase tracking-wider">Admin Validation Decision Panel</h3>
+              <p className="text-[11px] text-brandgray-muted font-medium">Verify the legitimacy and details of this report to proceed with matching.</p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 text-xs font-bold text-red-700 border-red-200 hover:bg-red-50"
+                onClick={handleRejectProblem}
+                disabled={isSubmitting || problem.status === "Rejected" || (problem.status === "Unassigned" && !decisionNote.trim())}
+              >
+                {isSubmitting ? "Rejecting..." : "Reject Report"}
+              </Button>
+              <Button 
+                variant="primary" 
+                size="sm" 
+                className="h-8 text-xs font-bold bg-emerald-700 hover:bg-emerald-800"
+                onClick={handleApproveProblem}
+                disabled={isSubmitting || problem.status === "Interested" || problem.status === "Active Project"}
+              >
+                <Check className="h-4 w-4 mr-1 shrink-0" /> 
+                {isSubmitting ? "Validating..." : "Validate & Approve Problem"}
+              </Button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="h-8 text-xs font-bold text-red-700 border-red-200 hover:bg-red-50"
-              onClick={handleRejectProblem}
-              disabled={isSubmitting || problem.status === "Rejected"}
-            >
-              {isSubmitting ? "Rejecting..." : "Reject Report"}
-            </Button>
-            <Button 
-              variant="primary" 
-              size="sm" 
-              className="h-8 text-xs font-bold bg-emerald-700 hover:bg-emerald-800"
-              onClick={handleApproveProblem}
-              disabled={isSubmitting || problem.status === "Interested" || problem.status === "Active Project"}
-            >
-              <Check className="h-4 w-4 mr-1 shrink-0" /> 
-              {isSubmitting ? "Validating..." : "Validate & Approve Problem"}
-            </Button>
-          </div>
+          {(problem.status === "Unassigned") && (
+            <div className="space-y-1.5 pt-2 border-t border-brandgray-border/40">
+              <label className="text-[10px] font-bold text-brandgray-text uppercase block">
+                Validation / Rejection Notes (Required for Rejecting)
+              </label>
+              <textarea
+                value={decisionNote}
+                onChange={(e) => setDecisionNote(e.target.value)}
+                placeholder="Type structural feedback, validation notes or reject reason here..."
+                rows={2}
+                className="w-full text-xs p-2 border border-brandgray-border rounded focus:outline-none focus:border-primary font-medium"
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 

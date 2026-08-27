@@ -46,6 +46,12 @@ export default function AdminProposalDetailsPage() {
 
   // Modal confirmation states
   const [confirmAction, setConfirmAction] = useState<"approve" | "reject" | "clarify" | null>(null);
+  const [decisionReason, setDecisionReason] = useState("");
+
+  const handleSetConfirmAction = (action: "approve" | "reject" | "clarify" | null) => {
+    setConfirmAction(action);
+    setDecisionReason("");
+  };
 
   useEffect(() => {
     if (id) {
@@ -99,7 +105,7 @@ export default function AdminProposalDetailsPage() {
     setFeedbackMsg(null);
 
     try {
-      universityMockService.rejectProposal(proposal.id);
+      universityMockService.rejectProposal(proposal.id, decisionReason);
       setFeedbackMsg({ type: "success", text: "Proposal rejected." });
       loadDetails(proposal.id);
     } catch (err: any) {
@@ -116,7 +122,7 @@ export default function AdminProposalDetailsPage() {
     setFeedbackMsg(null);
 
     try {
-      universityMockService.requestProposalClarification(proposal.id);
+      universityMockService.requestProposalClarification(proposal.id, decisionReason);
       setFeedbackMsg({ type: "success", text: "Clarification requested from university team." });
       loadDetails(proposal.id);
     } catch (err: any) {
@@ -217,7 +223,7 @@ export default function AdminProposalDetailsPage() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => setConfirmAction("clarify")}
+                  onClick={() => handleSetConfirmAction("clarify")}
                   className="h-9 font-semibold text-xs border-amber-250 text-amber-800 bg-amber-50 hover:bg-amber-100"
                 >
                   <HelpCircle className="h-3.5 w-3.5 mr-1" /> Request Clarification
@@ -225,7 +231,7 @@ export default function AdminProposalDetailsPage() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => setConfirmAction("reject")}
+                  onClick={() => handleSetConfirmAction("reject")}
                   className="h-9 font-semibold text-xs border-red-200 text-red-700 bg-red-50 hover:bg-red-100"
                 >
                   <XCircle className="h-3.5 w-3.5 mr-1" /> Reject Proposal
@@ -233,7 +239,7 @@ export default function AdminProposalDetailsPage() {
                 <Button 
                   variant="primary" 
                   size="sm"
-                  onClick={() => setConfirmAction("approve")}
+                  onClick={() => handleSetConfirmAction("approve")}
                   className="h-9 font-semibold text-xs px-4"
                 >
                   <CheckCircle className="h-3.5 w-3.5 mr-1" /> Approve & Create Project
@@ -431,11 +437,31 @@ export default function AdminProposalDetailsPage() {
               {confirmAction === "clarify" && "Request technical clarification from the faculty mentor and research team."}
             </p>
 
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-brandgray-text uppercase block">
+                Decision Note / Remarks {confirmAction === "reject" || confirmAction === "clarify" ? "*" : "(Optional)"}
+              </label>
+              <textarea
+                value={decisionReason}
+                onChange={(e) => setDecisionReason(e.target.value)}
+                placeholder={
+                  confirmAction === "reject"
+                    ? "e.g. Budget justification insufficient."
+                    : confirmAction === "clarify"
+                    ? "e.g. Beneficiary measurement methodology requires clarification."
+                    : "e.g. Approved for field trial implementation."
+                }
+                rows={3}
+                className="w-full text-xs p-2 border border-brandgray-border rounded focus:outline-none focus:border-primary font-medium"
+                required={confirmAction === "reject" || confirmAction === "clarify"}
+              />
+            </div>
+
             <div className="flex justify-end gap-3 pt-2 border-t border-brandgray-border/60">
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={() => setConfirmAction(null)}
+                onClick={() => handleSetConfirmAction(null)}
                 disabled={actionLoading}
               >
                 Cancel
@@ -444,7 +470,7 @@ export default function AdminProposalDetailsPage() {
                 variant={confirmAction === "approve" ? "primary" : confirmAction === "reject" ? "outline" : "primary"}
                 size="sm"
                 onClick={confirmAction === "approve" ? handleApprove : confirmAction === "reject" ? handleReject : handleClarify}
-                disabled={actionLoading}
+                disabled={actionLoading || ((confirmAction === "reject" || confirmAction === "clarify") && !decisionReason.trim())}
                 className={confirmAction === "reject" ? "bg-red-50 border-red-200 text-red-700 hover:bg-red-100" : ""}
               >
                 {actionLoading ? (
