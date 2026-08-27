@@ -46,6 +46,7 @@ export default function TeamsPage() {
   const [selectedTeamIdToAssign, setSelectedTeamIdToAssign] = useState("");
   const [assignError, setAssignError] = useState("");
   const [assignSuccess, setAssignSuccess] = useState("");
+  const [expandedRecTeamId, setExpandedRecTeamId] = useState<string | null>(null);
 
   // Add Member State (Keyed by Team ID)
   const [addMemberName, setAddMemberName] = useState<Record<string, string>>({});
@@ -363,39 +364,113 @@ export default function TeamsPage() {
 
               <div className="space-y-2">
                 <label className="text-xs font-bold text-primary uppercase tracking-wider block">
-                  Select Available Team
+                  Select Matched Team
                 </label>
-                <div className="space-y-2 max-h-48 overflow-y-auto border border-brandgray-border rounded p-2">
-                  {teams.map((t) => (
-                    <label 
-                      key={t.id} 
-                      className={`flex items-start gap-3 p-3 rounded border cursor-pointer transition-all ${
-                        selectedTeamIdToAssign === t.id 
-                          ? "border-primary bg-primary-light/30 ring-1 ring-primary/20" 
-                          : "border-brandgray-border hover:bg-slate-50"
-                      }`}
-                    >
-                      <input 
-                        type="radio" 
-                        name="assignTeam" 
-                        value={t.id} 
-                        checked={selectedTeamIdToAssign === t.id}
-                        onChange={() => setSelectedTeamIdToAssign(t.id)}
-                        className="mt-1"
-                      />
-                      <div className="text-xs space-y-0.5">
-                        <p className="font-bold text-primary">{t.name}</p>
-                        <p className="text-brandgray-muted">Mentor: {t.facultyMentor}</p>
-                        <div className="flex flex-wrap gap-1 pt-1">
-                          {t.requiredSkills.map((s, i) => (
-                            <span key={i} className="text-[9.5px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
-                              {s}
-                            </span>
-                          ))}
+                <div className="space-y-3 max-h-72 overflow-y-auto border border-brandgray-border rounded p-3">
+                  {(() => {
+                    const teamRecs = universityMockService.getTeamRecommendationsForProblem(assignModalProblem.id, "univ-1");
+                    if (teamRecs.length === 0) {
+                      return <p className="text-xs text-brandgray-muted text-center py-4">No active available research teams match this problem requirements.</p>;
+                    }
+                    return teamRecs.map((tr, idx) => {
+                      const isSelected = selectedTeamIdToAssign === tr.teamId;
+                      const isExpanded = expandedRecTeamId === tr.teamId;
+                      
+                      return (
+                        <div 
+                          key={tr.teamId} 
+                          className={`p-3 rounded-lg border transition-all space-y-2 ${
+                            isSelected 
+                              ? "border-indigo-650 bg-indigo-50/20 ring-1 ring-indigo-500/20" 
+                              : "border-brandgray-border hover:bg-slate-50"
+                          }`}
+                        >
+                          <label className="flex items-start gap-3 cursor-pointer">
+                            <input 
+                              type="radio" 
+                              name="assignTeam" 
+                              value={tr.teamId} 
+                              checked={isSelected}
+                              onChange={() => setSelectedTeamIdToAssign(tr.teamId)}
+                              className="mt-1"
+                            />
+                            <div className="text-xs space-y-0.5 flex-1">
+                              <div className="flex justify-between items-start gap-2">
+                                <span className="font-bold text-primary">{idx + 1}. {tr.teamName}</span>
+                                <div className="text-right shrink-0">
+                                  <span className="text-[11px] font-extrabold text-indigo-700 block">{tr.score}% Match</span>
+                                  <span className="text-[8px] font-bold text-slate-500 uppercase block">{tr.matchLevel} MATCH</span>
+                                </div>
+                              </div>
+                              <p className="text-[10px] text-brandgray-muted">Mentor: {tr.reasons.find(r => r.includes("mentor"))?.replace("✓ ", "") || "Faculty Mentor"}</p>
+                            </div>
+                          </label>
+
+                          {/* Explanations */}
+                          <div className="pl-6 space-y-0.5">
+                            {tr.reasons.slice(0, 3).map((reason: string, rIdx: number) => (
+                              <div key={rIdx} className="flex items-center gap-1 text-[10px] text-slate-650 font-medium">
+                                <span className="text-emerald-600 font-bold">✓</span>
+                                <span>{reason.replace("✓ ", "")}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="pl-6 flex gap-2">
+                            <Button 
+                              type="button"
+                              variant="outline" 
+                              size="sm" 
+                              className="h-6 text-[9.5px] font-semibold text-slate-700 px-2"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                setExpandedRecTeamId(isExpanded ? null : tr.teamId);
+                              }}
+                            >
+                              {isExpanded ? "Hide Breakdown" : "Score Breakdown"}
+                            </Button>
+                          </div>
+
+                          {/* BREAKDOWN */}
+                          {isExpanded && (
+                            <div className="ml-6 bg-white border border-slate-200 rounded p-2 text-[10px] space-y-1">
+                              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                                <div className="flex justify-between">
+                                  <span className="text-brandgray-muted">Expertise:</span>
+                                  <span className="font-semibold">{tr.breakdown.expertiseScore}/30</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-brandgray-muted">Skills:</span>
+                                  <span className="font-semibold">{tr.breakdown.skillsScore}/25</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-brandgray-muted">Focus:</span>
+                                  <span className="font-semibold">{tr.breakdown.researchFocusScore}/15</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-brandgray-muted">Domain:</span>
+                                  <span className="font-semibold">{tr.breakdown.domainScore}/10</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-brandgray-muted">Dept:</span>
+                                  <span className="font-semibold">{tr.breakdown.departmentScore}/10</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-brandgray-muted">Previous Work:</span>
+                                  <span className="font-semibold">{tr.breakdown.previousExperienceScore}/5</span>
+                                </div>
+                                <div className="flex justify-between col-span-2 border-t border-slate-100 pt-0.5">
+                                  <span className="text-brandgray-muted">Location:</span>
+                                  <span className="font-semibold">{tr.breakdown.locationScore}/5</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    </label>
-                  ))}
+                      );
+                    });
+                  })()}
                 </div>
               </div>
 

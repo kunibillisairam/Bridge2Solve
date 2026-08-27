@@ -2,13 +2,16 @@
 
 import { ProblemAnalysis } from "./aiService";
 import { ProblemCluster, DuplicateMatchCandidate } from "./duplicateDetectionService";
+import { notificationService } from "./notificationService";
 import { 
   matchProblem, 
   ProblemMatchResult, 
   EntityRecommendation, 
   DEMO_UNIVERSITIES, 
   getUniversityRecommendations, 
-  UniversityMatchResult 
+  UniversityMatchResult,
+  getTeamRecommendationsForProblem,
+  TeamMatchResult
 } from "./smartMatchingService";
 
 export type { 
@@ -17,7 +20,8 @@ export type {
   DuplicateMatchCandidate, 
   ProblemMatchResult, 
   EntityRecommendation, 
-  UniversityMatchResult 
+  UniversityMatchResult,
+  TeamMatchResult
 };
 
 export interface CommunityProblem {
@@ -49,6 +53,7 @@ export interface UniversityTeam {
   assignedProblemId: string | null;
   assignedProblemTitle: string | null;
   status: "Available" | "Active";
+  teamStatus?: "ACTIVE" | "INACTIVE" | "SUSPENDED";
 }
 
 // ----------------------------------------------------
@@ -529,6 +534,7 @@ const INITIAL_ANALYSES: ProblemAnalysis[] = [
 const INITIAL_TEAMS: UniversityTeam[] = [
   {
     id: "team-1",
+    universityId: "univ-1",
     name: "Team Jal-Dhara",
     facultyMentor: "Dr. Ramesh Kumar (Environmental Science)",
     studentMembers: ["Amit Sharma (MTech)", "Pooja Patel (BTech)", "Vikram Singh (PhD)"],
@@ -538,7 +544,68 @@ const INITIAL_TEAMS: UniversityTeam[] = [
     status: "Active",
   },
   {
+    id: "team-iisc-available-1",
+    universityId: "univ-1",
+    name: "Jal-Dhara Research Team",
+    facultyMentor: "Dr. Rajesh Shah (Environmental Science)",
+    studentMembers: ["Vijay Kumar (MTech)", "Nisha Patel (BTech)"],
+    requiredSkills: ["Water Engineering", "Environmental Science", "Rural Infrastructure", "Water filtration systems", "Gravity filtration", "IoT"],
+    assignedProblemId: null,
+    assignedProblemTitle: null,
+    status: "Available",
+    teamStatus: "ACTIVE"
+  },
+  {
+    id: "team-iisc-available-2",
+    universityId: "univ-1",
+    name: "AquaTech Research Group",
+    facultyMentor: "Dr. Sunita Rao (Civil Engineering)",
+    studentMembers: ["Anil Rao (MTech)", "Meera Nair (PhD)"],
+    requiredSkills: ["Water Management", "IoT", "Environmental Engineering", "Sensors"],
+    assignedProblemId: null,
+    assignedProblemTitle: null,
+    status: "Available",
+    teamStatus: "ACTIVE"
+  },
+  {
+    id: "team-iisc-available-3",
+    universityId: "univ-1",
+    name: "Rural Innovation Team",
+    facultyMentor: "Dr. Amit Verma (Social Work)",
+    studentMembers: ["John Doe (MA)", "Jane Smith (MA)"],
+    requiredSkills: ["Rural Development", "Water filtration systems", "Community Outreach"],
+    assignedProblemId: null,
+    assignedProblemTitle: null,
+    status: "Available",
+    teamStatus: "ACTIVE"
+  },
+  {
+    id: "team-iisc-suspended",
+    universityId: "univ-1",
+    name: "Suspended Hydro-Lab",
+    facultyMentor: "Dr. Broken Link (Environmental Science)",
+    studentMembers: ["Nobody (PhD)"],
+    requiredSkills: ["Water filtration systems"],
+    assignedProblemId: null,
+    assignedProblemTitle: null,
+    status: "Available",
+    teamStatus: "SUSPENDED"
+  },
+  {
+    id: "team-iisc-inactive",
+    universityId: "univ-1",
+    name: "Inactive Tech Group",
+    facultyMentor: "Dr. Sleep Mode (Civil Engineering)",
+    studentMembers: ["Nobody (PhD)"],
+    requiredSkills: ["Gravity filtration"],
+    assignedProblemId: null,
+    assignedProblemTitle: null,
+    status: "Available",
+    teamStatus: "INACTIVE"
+  },
+  {
     id: "team-2",
+    universityId: "univ-4",
     name: "SolarEdu Scholars",
     facultyMentor: "Prof. Anjali Devi (Electrical Engineering)",
     studentMembers: ["Rahul Mehta (BTech)", "Sneha Roy (BTech)"],
@@ -546,9 +613,11 @@ const INITIAL_TEAMS: UniversityTeam[] = [
     assignedProblemId: null,
     assignedProblemTitle: null,
     status: "Available",
+    teamStatus: "ACTIVE"
   },
   {
     id: "team-3",
+    universityId: "univ-2",
     name: "Soil Remediation Taskforce",
     facultyMentor: "Dr. Sanjay Dutt (Biotechnology)",
     studentMembers: ["Nikhil Gupta (MSc)", "Kriti Sen (BTech)"],
@@ -556,9 +625,11 @@ const INITIAL_TEAMS: UniversityTeam[] = [
     assignedProblemId: "prob-2",
     assignedProblemTitle: "Crop Yield Reduction due to Soil Salinity",
     status: "Active",
+    teamStatus: "ACTIVE"
   },
   {
     id: "team-4",
+    universityId: "univ-5",
     name: "Tribal Education Hub",
     facultyMentor: "Dr. Priyadarshini Mohanty (Social Work)",
     studentMembers: ["Rashmi Naik (MA)", "Alok Das (PhD)"],
@@ -566,6 +637,19 @@ const INITIAL_TEAMS: UniversityTeam[] = [
     assignedProblemId: "prob-5",
     assignedProblemTitle: "High School Dropout Rates in Tribal Districts",
     status: "Active",
+    teamStatus: "ACTIVE"
+  },
+  {
+    id: "team-5",
+    universityId: "univ-3",
+    name: "CleanSort Automators",
+    facultyMentor: "Prof. Vinay Deshmukh (Mechanical Engineering)",
+    studentMembers: ["Amit Kulkarni (BTech)", "Seema Deshpande (BTech)"],
+    requiredSkills: ["Object detection (YOLO)", "Conveyor belt mechanics", "Routing optimization"],
+    assignedProblemId: null,
+    assignedProblemTitle: null,
+    status: "Available",
+    teamStatus: "ACTIVE"
   },
 ];
 
@@ -1108,6 +1192,61 @@ export const universityMockService = {
     const analysis = this.getProblemAnalysis(problemId);
     const recommendations = getUniversityRecommendations(problem, analysis, new Set<string>());
     return recommendations.find(r => r.universityId === universityId);
+  },
+
+  getTeamRecommendationsForProblem(problemId: string, universityId: string): TeamMatchResult[] {
+    const problem = this.getProblemById(problemId);
+    if (!problem) return [];
+
+    const analysis = this.getProblemAnalysis(problemId);
+    const allTeams = this.getTeams();
+    const universities = DEMO_UNIVERSITIES;
+
+    // Map UniversityTeam to ResearchTeamProfile structure
+    const mappedProfiles = allTeams.map((t) => {
+      let department = "Environmental Science";
+      if (t.facultyMentor.includes("(") && t.facultyMentor.includes(")")) {
+        const matches = t.facultyMentor.match(/\(([^)]+)\)/);
+        if (matches && matches[1]) {
+          department = matches[1];
+        }
+      }
+
+      const u = universities.find((univ) => univ.id === t.universityId);
+
+      return {
+        id: t.id,
+        name: t.name,
+        universityId: t.universityId || "univ-1",
+        universityName: u ? u.name : "Indian Institute of Science",
+        department,
+        facultyMentor: t.facultyMentor.split(" (")[0],
+        skills: t.requiredSkills,
+        status: t.status,
+        previousWork: t.id === "team-1" || t.id === "team-iisc-available-1"
+          ? ["Ranchi Sand Filter Deployment", "Village Well Water Quality Audit"]
+          : t.id === "team-iisc-available-2"
+          ? ["Urban Water Distribution Retrofit"]
+          : t.id === "team-2"
+          ? ["Gaya Primary School Solar Rooftop Installation"]
+          : t.id === "team-3"
+          ? ["Sangrur Bio-fertilizer Field Trial"]
+          : t.id === "team-4"
+          ? ["Mayurbhanj Offline Tablet Deployment"]
+          : t.id === "team-5"
+          ? ["Pune Municipal Bin Sensor System"]
+          : [],
+        teamStatus: t.teamStatus || "ACTIVE"
+      };
+    });
+
+    // Exclude teams already assigned to ANY OTHER problem
+    const availableProfiles = mappedProfiles.filter(profile => {
+      const originalTeam = allTeams.find(at => at.id === profile.id);
+      return originalTeam && (originalTeam.assignedProblemId === null || originalTeam.assignedProblemId === problemId);
+    });
+
+    return getTeamRecommendationsForProblem(problem, analysis, universityId, availableProfiles, universities);
   },
 
   saveMatchRecommendationAction(

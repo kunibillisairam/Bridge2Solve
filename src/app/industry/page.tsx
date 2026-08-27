@@ -14,7 +14,9 @@ import {
   ArrowRight,
   Sparkles,
   Search,
-  Filter
+  Filter,
+  Bell,
+  Clock
 } from "lucide-react";
 import { 
   industryService, 
@@ -22,6 +24,7 @@ import {
   SUPPORT_TYPE_LABELS 
 } from "@/services/industryService";
 import { ResolvedProject, STAGE_CONFIG } from "@/services/universityMockService";
+import { notificationService, formatRelativeTime } from "@/services/notificationService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
@@ -76,6 +79,54 @@ export default function IndustryDashboard() {
           </Link>
         </div>
       </div>
+
+      {/* ACTION REQUIRED & INDUSTRY NOTIFICATIONS */}
+      {(() => {
+        const indNotifs = notificationService.getNotificationsForUser("ind-1", "INDUSTRY");
+        if (indNotifs.length === 0) return null;
+
+        return (
+          <Card className="border-indigo-200 bg-indigo-50/40 shadow-subtle">
+            <CardHeader className="p-4 border-b border-indigo-150 bg-indigo-100/40 flex flex-row items-center justify-between">
+              <CardTitle className="text-xs font-extrabold text-indigo-950 uppercase tracking-wider flex items-center gap-2">
+                <Bell className="h-4 w-4 text-indigo-600 shrink-0" /> Industry Action Center & Support Updates
+              </CardTitle>
+              <Link href="/notifications" className="text-xs font-bold text-indigo-900 hover:underline flex items-center gap-1">
+                View All <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </CardHeader>
+            <CardContent className="p-4 space-y-2">
+              <div className="space-y-2">
+                {indNotifs.slice(0, 3).map((n) => (
+                  <div key={n.id} className="flex flex-wrap items-center justify-between p-3 rounded bg-white border border-indigo-150 text-xs gap-2">
+                    <div className="space-y-0.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[9px] font-extrabold px-1.5 py-0.5 border rounded uppercase ${
+                          n.priority === "HIGH" ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-indigo-50 text-indigo-800 border-indigo-200"
+                        }`}>
+                          {n.priority}
+                        </span>
+                        <span className="font-bold text-primary">{n.title}</span>
+                      </div>
+                      <p className="text-[11px] text-brandgray-text line-clamp-1">{n.message}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] text-brandgray-muted flex items-center gap-1">
+                        <Clock className="h-3 w-3" /> {formatRelativeTime(n.createdAt)}
+                      </span>
+                      <Link href={n.actionUrl}>
+                        <Button variant="outline" size="sm" className="h-6 text-[10.5px] font-bold">
+                          View Project
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Dynamic Statistics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

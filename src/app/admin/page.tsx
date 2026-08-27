@@ -21,7 +21,8 @@ import {
   ChevronRight,
   Filter,
   Search,
-  Award
+  Award,
+  Bell
 } from "lucide-react";
 import { 
   universityMockService, 
@@ -33,6 +34,7 @@ import {
 } from "@/services/universityMockService";
 import { industryService, IndustrySupportRequest } from "@/services/industryService";
 import { findSimilarProblems } from "@/services/duplicateDetectionService";
+import { notificationService, NotificationItem, formatRelativeTime } from "@/services/notificationService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
@@ -406,6 +408,55 @@ export default function AdminControlCenterPage() {
           </div>
         )}
       </div>
+
+      {/* RECENT ADMIN NOTIFICATIONS & ACTION STREAM */}
+      <Card className="border-brandgray-border bg-white shadow-subtle">
+        <CardHeader className="p-4 border-b border-brandgray-border/60 flex items-center justify-between">
+          <CardTitle className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+            <Bell className="h-4 w-4 text-amber-500 shrink-0" /> Recent Administrative Notifications & Alerts
+          </CardTitle>
+          <Link href="/notifications" className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
+            Open Action Center <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </CardHeader>
+        <CardContent className="p-4 space-y-3">
+          {(() => {
+            const adminNotifs = notificationService.getNotificationsForUser("admin-1", "ADMIN").slice(0, 4);
+            if (adminNotifs.length === 0) {
+              return <div className="text-center py-6 text-xs text-brandgray-muted">No notifications recorded yet.</div>;
+            }
+            return (
+              <div className="space-y-2">
+                {adminNotifs.map((n) => (
+                  <div key={n.id} className="flex flex-wrap items-center justify-between p-3 rounded bg-slate-50 border border-slate-200 text-xs gap-2">
+                    <div className="space-y-0.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[9px] font-extrabold px-1.5 py-0.5 border rounded uppercase ${
+                          n.priority === "HIGH" ? "bg-red-50 text-red-800 border-red-300" : "bg-amber-50 text-amber-800 border-amber-300"
+                        }`}>
+                          {n.priority}
+                        </span>
+                        <span className="font-bold text-primary">{n.title}</span>
+                      </div>
+                      <p className="text-[11px] text-brandgray-text line-clamp-1">{n.message}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] text-brandgray-muted flex items-center gap-1">
+                        <Clock className="h-3 w-3" /> {formatRelativeTime(n.createdAt)}
+                      </span>
+                      <Link href={n.actionUrl}>
+                        <Button variant="outline" size="sm" className="h-6 text-[10.5px] font-bold">
+                          {n.isActionRequired ? "Take Action" : "View"}
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </CardContent>
+      </Card>
 
       {/* RECENT PLATFORM ACTIVITY STREAM */}
       <Card className="border-brandgray-border bg-white shadow-subtle">

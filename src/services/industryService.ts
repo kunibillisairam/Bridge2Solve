@@ -1,4 +1,5 @@
 import { universityMockService, UniversityProject, ResolvedProject } from "./universityMockService";
+import { notificationService } from "./notificationService";
 
 export type SupportType = 
   | "CSR_FUNDING"
@@ -257,6 +258,23 @@ export const industryService = {
     universityMockService.addActivity(
       `Industry support interest submitted by "${profile.name}" (${SUPPORT_TYPE_LABELS[input.supportType]}) for project "${project.title}".`
     );
+
+    try {
+      notificationService.createNotification({
+        userId: "admin-1",
+        role: "ADMIN",
+        type: "INDUSTRY_SUPPORT_SUBMITTED",
+        priority: "MEDIUM",
+        title: "New CSR Support Request Received",
+        message: `Industry partner "${profile.name}" submitted support interest (${SUPPORT_TYPE_LABELS[input.supportType]}) for project "${project.title}".`,
+        entityType: "INDUSTRY_REQUEST",
+        entityId: newRequest.id,
+        actionUrl: `/admin/industry-support/${newRequest.id}`,
+        isActionRequired: true,
+      });
+    } catch (e) {
+      console.error(e);
+    }
 
     return newRequest;
   },

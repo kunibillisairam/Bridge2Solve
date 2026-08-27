@@ -11,11 +11,13 @@ import {
   AlertTriangle, 
   Sparkles, 
   Activity, 
-  GraduationCap,
+  GraduationCap, 
   ArrowRight,
   PlusCircle,
   CheckCircle,
-  FolderKanban
+  FolderKanban,
+  Bell,
+  Clock
 } from "lucide-react";
 import { 
   universityMockService, 
@@ -25,6 +27,7 @@ import {
   ActivityLog,
   RegisteredProblemDetail
 } from "@/services/universityMockService";
+import { notificationService, formatRelativeTime } from "@/services/notificationService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
@@ -78,6 +81,55 @@ export default function DashboardPage() {
           Explore recommended challenges, manage registered community problems, and form research taskforces.
         </p>
       </div>
+
+      {/* ACTION REQUIRED & UNIVERSITY NOTIFICATIONS */}
+      {(() => {
+        const univNotifs = notificationService.getNotificationsForUser("univ-1", "UNIVERSITY");
+        const actionRequired = univNotifs.filter((n) => n.isActionRequired);
+        if (univNotifs.length === 0) return null;
+
+        return (
+          <Card className="border-amber-300 bg-amber-50/40 shadow-subtle">
+            <CardHeader className="p-4 border-b border-amber-200 bg-amber-100/50 flex flex-row items-center justify-between">
+              <CardTitle className="text-xs font-extrabold text-amber-950 uppercase tracking-wider flex items-center gap-2">
+                <Bell className="h-4 w-4 text-amber-600 shrink-0" /> University Action Center ({actionRequired.length} Pending Actions)
+              </CardTitle>
+              <Link href="/notifications" className="text-xs font-bold text-amber-900 hover:underline flex items-center gap-1">
+                View All <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </CardHeader>
+            <CardContent className="p-4 space-y-2">
+              <div className="space-y-2">
+                {univNotifs.slice(0, 3).map((n) => (
+                  <div key={n.id} className="flex flex-wrap items-center justify-between p-3 rounded bg-white border border-amber-200 text-xs gap-2">
+                    <div className="space-y-0.5 min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[9px] font-extrabold px-1.5 py-0.5 border rounded uppercase ${
+                          n.priority === "HIGH" ? "bg-red-50 text-red-800 border-red-300" : "bg-amber-50 text-amber-800 border-amber-300"
+                        }`}>
+                          {n.priority}
+                        </span>
+                        <span className="font-bold text-primary">{n.title}</span>
+                      </div>
+                      <p className="text-[11px] text-brandgray-text line-clamp-1">{n.message}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] text-brandgray-muted flex items-center gap-1">
+                        <Clock className="h-3 w-3" /> {formatRelativeTime(n.createdAt)}
+                      </span>
+                      <Link href={n.actionUrl}>
+                        <Button variant="primary" size="sm" className="h-6 text-[10.5px] font-bold bg-amber-700 hover:bg-amber-800 text-white">
+                          {n.isActionRequired ? "Take Action" : "View"}
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -296,15 +348,32 @@ export default function DashboardPage() {
 
                       <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                         {!team ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded font-semibold flex items-center gap-1">
-                              <AlertTriangle className="h-3.5 w-3.5 text-amber-600" /> Action Required: Team Not Assigned
-                            </span>
-                            <Link href={`/university/teams?assignProblemId=${problem.id}`}>
-                              <Button variant="primary" size="sm" className="h-8 text-xs font-semibold flex items-center gap-1">
-                                <PlusCircle className="h-3.5 w-3.5" /> Assign Research Team
-                              </Button>
-                            </Link>
+                          <div className="space-y-2.5 w-full">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded font-semibold flex items-center gap-1">
+                                <AlertTriangle className="h-3.5 w-3.5 text-amber-600" /> Team Assignment Required
+                              </span>
+                            </div>
+                            
+                            {(() => {
+                              const recs = universityMockService.getTeamRecommendationsForProblem(problem.id, "univ-1");
+                              if (recs.length === 0) return null;
+                              const best = recs[0];
+                              return (
+                                <div className="text-[11px] bg-slate-50 border border-slate-200 p-3 rounded-lg flex flex-wrap justify-between items-center gap-2 w-full">
+                                  <div className="space-y-0.5">
+                                    <span className="text-[9.5px] font-bold text-slate-500 uppercase block">Best Recommended Team Match</span>
+                                    <span className="font-extrabold text-primary text-xs">{best.teamName}</span>
+                                    <span className="text-indigo-700 font-extrabold ml-2">{best.score}% MATCH ({best.matchLevel})</span>
+                                  </div>
+                                  <Link href={`/university/problems/${problem.id}`}>
+                                    <Button variant="primary" size="sm" className="h-7 text-[10px] font-bold flex items-center gap-1">
+                                      Review Teams & Assign <ArrowRight className="h-3 w-3" />
+                                    </Button>
+                                  </Link>
+                                </div>
+                              );
+                            })()}
                           </div>
                         ) : (
                           <div className="flex items-center gap-2 text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded font-medium">

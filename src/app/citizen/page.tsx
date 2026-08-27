@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, MapPin, Users, CheckCircle, Clock, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { PlusCircle, MapPin, Users, CheckCircle, Clock, CheckCircle2, XCircle, AlertTriangle, Bell, ArrowRight } from 'lucide-react';
 import { analyzeProblem } from '@/services/aiService';
 import { universityMockService } from '@/services/universityMockService';
+import { notificationService, formatRelativeTime } from '@/services/notificationService';
 
 interface ProblemWithAI {
   id: string;
@@ -149,6 +150,36 @@ export default function CitizenDashboard() {
 
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
+          {/* CITIZEN UPDATES NOTIFICATIONS */}
+          {(() => {
+            const citNotifs = notificationService.getNotificationsForUser("citizen-1", "CITIZEN");
+            if (citNotifs.length === 0) return null;
+
+            return (
+              <div className="bg-white rounded-lg border border-blue-200 shadow-subtle p-4 space-y-3">
+                <div className="flex items-center justify-between border-b border-blue-100 pb-2">
+                  <span className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                    <Bell className="h-4 w-4 text-blue-600" /> Updates On Your Submitted Problems
+                  </span>
+                  <a href="/notifications" className="text-[11px] font-bold text-blue-700 hover:underline flex items-center gap-1">
+                    All Alerts <ArrowRight className="h-3 w-3" />
+                  </a>
+                </div>
+                <div className="space-y-2">
+                  {citNotifs.slice(0, 3).map((n) => (
+                    <div key={n.id} className="p-3 bg-blue-50/50 border border-blue-150 rounded text-xs space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-primary">{n.title}</span>
+                        <span className="text-[10px] text-brandgray-muted">{formatRelativeTime(n.createdAt)}</span>
+                      </div>
+                      <p className="text-[11.5px] text-brandgray-text">{n.message}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="bg-white rounded-lg border border-brandgray-border shadow-subtle overflow-hidden">
             <div className="px-5 py-4 border-b border-brandgray-border bg-gray-50 flex items-center justify-between">
               <span className="text-xs font-bold text-primary uppercase tracking-wider">My Submitted Problems</span>

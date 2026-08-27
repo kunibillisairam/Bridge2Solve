@@ -1,6 +1,7 @@
 "use client";
 
 import { universityMockService, UniversityProject } from "./universityMockService";
+import { notificationService } from "./notificationService";
 
 export type ImpactAssessmentStatus = 
   | "DRAFT" 
@@ -252,6 +253,23 @@ export const impactService = {
         projects[pIdx].completionVerificationNote = data.summary;
         universityMockService.addActivity(`Project "${project.title}" (${projectId}) stage set to Awaiting Government Verification.`);
       }
+
+      try {
+        notificationService.createNotification({
+          userId: "admin-1",
+          role: "ADMIN",
+          type: "IMPACT_ASSESSMENT_SUBMITTED",
+          priority: "HIGH",
+          title: "Impact Assessment Awaiting Verification",
+          message: `Impact assessment submitted for project "${project.title}" (${projectId}) and requires final verification.`,
+          entityType: "IMPACT_ASSESSMENT",
+          entityId: projectId,
+          actionUrl: `/admin/projects/${projectId}`,
+          isActionRequired: true,
+        });
+      } catch (e) {
+        console.error(e);
+      }
     } else {
       universityMockService.addActivity(`Impact assessment draft saved for project "${project.title}" (${projectId}).`);
     }
@@ -281,6 +299,23 @@ export const impactService = {
     universityMockService.requestVerificationEvidence(projectId, note, "ADMIN");
     universityMockService.addActivity(`Admin requested revision for impact assessment of "${projectId}": ${note.trim()}`);
 
+    try {
+      notificationService.createNotification({
+        userId: "univ-1",
+        role: "UNIVERSITY",
+        type: "IMPACT_REVISION_REQUIRED",
+        priority: "HIGH",
+        title: "Impact Assessment Revision Requested",
+        message: `Admin requested revision for project ${projectId}: "${note.trim()}"`,
+        entityType: "IMPACT_ASSESSMENT",
+        entityId: projectId,
+        actionUrl: `/university/projects/${projectId}`,
+        isActionRequired: true,
+      });
+    } catch (e) {
+      console.error(e);
+    }
+
     return assessments[idx];
   },
 
@@ -308,6 +343,36 @@ export const impactService = {
     // Call universityMockService to verify project completion
     universityMockService.verifyProjectCompletion(projectId, note, "ADMIN");
     universityMockService.addActivity(`Admin verified impact assessment and completed project "${projectId}".`);
+
+    try {
+      notificationService.createNotification({
+        userId: "univ-1",
+        role: "UNIVERSITY",
+        type: "PROJECT_COMPLETED",
+        priority: "HIGH",
+        title: "Project Verified & Completed",
+        message: `Project ${projectId} has been formally verified and completed by Platform Administration.`,
+        entityType: "PROJECT",
+        entityId: projectId,
+        actionUrl: `/university/projects/${projectId}`,
+        isActionRequired: false,
+      });
+
+      notificationService.createNotification({
+        userId: "ind-1",
+        role: "INDUSTRY",
+        type: "PROJECT_COMPLETED",
+        priority: "MEDIUM",
+        title: "Sponsored Project Completed & Verified",
+        message: `Project ${projectId} supported by your CSR initiative has achieved 100% completion and government verification.`,
+        entityType: "PROJECT",
+        entityId: projectId,
+        actionUrl: `/industry/projects/${projectId}`,
+        isActionRequired: false,
+      });
+    } catch (e) {
+      console.error(e);
+    }
 
     return assessments[idx];
   },

@@ -25,6 +25,7 @@ export interface ResearchTeamProfile {
   skills: string[];
   status: "Available" | "Active";
   previousWork: string[];
+  teamStatus?: "ACTIVE" | "SUSPENDED" | "INACTIVE";
 }
 
 export interface IndustryProfile {
@@ -231,6 +232,67 @@ export const DEMO_RESEARCH_TEAMS: ResearchTeamProfile[] = [
     skills: ["Groundwater hydrology", "Water filtration systems", "Piping design", "Groundwater mapping", "Gravity filtration"],
     status: "Active",
     previousWork: ["Ranchi Sand Filter Deployment", "Village Well Water Quality Audit"],
+    teamStatus: "ACTIVE"
+  },
+  {
+    id: "team-iisc-available-1",
+    name: "Jal-Dhara Research Team",
+    universityId: "univ-1",
+    universityName: "Indian Institute of Science (IISc)",
+    department: "Environmental Science",
+    facultyMentor: "Dr. Rajesh Shah",
+    skills: ["Water Engineering", "Environmental Science", "Rural Infrastructure", "Water filtration systems", "Gravity filtration", "IoT"],
+    status: "Available",
+    previousWork: ["Ranchi Sand Filter Deployment", "Village Well Water Quality Audit"],
+    teamStatus: "ACTIVE"
+  },
+  {
+    id: "team-iisc-available-2",
+    name: "AquaTech Research Group",
+    universityId: "univ-1",
+    universityName: "Indian Institute of Science (IISc)",
+    department: "Civil Engineering",
+    facultyMentor: "Dr. Sunita Rao",
+    skills: ["Water Management", "IoT", "Environmental Engineering", "Sensors"],
+    status: "Available",
+    previousWork: ["Urban Water Distribution Retrofit"],
+    teamStatus: "ACTIVE"
+  },
+  {
+    id: "team-iisc-available-3",
+    name: "Rural Innovation Team",
+    universityId: "univ-1",
+    universityName: "Indian Institute of Science (IISc)",
+    department: "Social Work",
+    facultyMentor: "Dr. Amit Verma",
+    skills: ["Rural Development", "Water filtration systems", "Community Outreach"],
+    status: "Available",
+    previousWork: ["Village Sanitation Campaign"],
+    teamStatus: "ACTIVE"
+  },
+  {
+    id: "team-iisc-suspended",
+    name: "Suspended Hydro-Lab",
+    universityId: "univ-1",
+    universityName: "Indian Institute of Science (IISc)",
+    department: "Environmental Science",
+    facultyMentor: "Dr. Broken Link",
+    skills: ["Water filtration systems"],
+    status: "Available",
+    previousWork: [],
+    teamStatus: "SUSPENDED"
+  },
+  {
+    id: "team-iisc-inactive",
+    name: "Inactive Tech Group",
+    universityId: "univ-1",
+    universityName: "Indian Institute of Science (IISc)",
+    department: "Civil Engineering",
+    facultyMentor: "Dr. Sleep Mode",
+    skills: ["Gravity filtration"],
+    status: "Available",
+    previousWork: [],
+    teamStatus: "INACTIVE"
   },
   {
     id: "team-2",
@@ -242,6 +304,7 @@ export const DEMO_RESEARCH_TEAMS: ResearchTeamProfile[] = [
     skills: ["Solar microgrid design", "Battery management", "Load analysis", "Solar panel sizing", "LiFePO4 battery configuration"],
     status: "Available",
     previousWork: ["Gaya Primary School Solar Rooftop Installation"],
+    teamStatus: "ACTIVE"
   },
   {
     id: "team-3",
@@ -253,6 +316,7 @@ export const DEMO_RESEARCH_TEAMS: ResearchTeamProfile[] = [
     skills: ["Bio-remediation", "Soil chemical analysis", "Microbial culture", "Halophilic microbes", "Soil chemistry analysis"],
     status: "Active",
     previousWork: ["Sangrur Bio-fertilizer Field Trial"],
+    teamStatus: "ACTIVE"
   },
   {
     id: "team-4",
@@ -264,6 +328,7 @@ export const DEMO_RESEARCH_TEAMS: ResearchTeamProfile[] = [
     skills: ["Vernacular Pedagogy", "Community Outreach", "Tablet Config", "Tribal dialect translation", "Curriculum design"],
     status: "Active",
     previousWork: ["Mayurbhanj Offline Tablet Deployment"],
+    teamStatus: "ACTIVE"
   },
   {
     id: "team-5",
@@ -275,6 +340,7 @@ export const DEMO_RESEARCH_TEAMS: ResearchTeamProfile[] = [
     skills: ["Object detection (YOLO)", "Conveyor belt mechanics", "Routing optimization", "Waste sorting automation"],
     status: "Available",
     previousWork: ["Pune Municipal Bin Sensor System"],
+    teamStatus: "ACTIVE"
   },
 ];
 
@@ -779,4 +845,233 @@ export function matchProblem(
     industries: industryRecommendations,
     generatedAt: new Date().toISOString().split("T")[0],
   };
+}
+
+export interface TeamMatchResult {
+  teamId: string;
+  teamName: string;
+  universityId: string;
+  score: number;
+  matchLevel: "HIGH" | "MEDIUM" | "LOW";
+  matchedSkills: string[];
+  matchedExpertise: string[];
+  matchedResearchAreas: string[];
+  departmentMatch: boolean;
+  domainMatch: boolean;
+  previousExperience: string[];
+  locationMatch: "SAME_DISTRICT" | "SAME_STATE" | "OUT_OF_STATE";
+  reasons: string[];
+  breakdown: {
+    expertiseScore: number;
+    skillsScore: number;
+    researchFocusScore: number;
+    domainScore: number;
+    departmentScore: number;
+    previousExperienceScore: number;
+    locationScore: number;
+  };
+  algorithmVersion: string;
+}
+
+export const TEAM_MATCHING_ALGORITHM_VERSION = "v1";
+
+export const TEAM_MATCH_CONFIG = {
+  version: TEAM_MATCHING_ALGORITHM_VERSION,
+  thresholds: {
+    HIGH: 80,
+    MEDIUM: 60
+  },
+  weights: {
+    expertise: 30,
+    skills: 25,
+    researchFocus: 15,
+    domain: 10,
+    department: 10,
+    previousExperience: 5,
+    location: 5
+  }
+};
+
+export function getTeamRecommendationsForProblem(
+  problem: CommunityProblem,
+  analysis: ProblemAnalysis | undefined,
+  universityId: string,
+  teams = DEMO_RESEARCH_TEAMS,
+  universities = DEMO_UNIVERSITIES
+): TeamMatchResult[] {
+  const { weights, thresholds } = TEAM_MATCH_CONFIG;
+
+  return teams
+    .filter((t) => {
+      // Rule 9: University Isolation (Enforced in service/server layer)
+      if (t.universityId !== universityId) return false;
+      // Rule 11: Exclude inactive/suspended research teams
+      if (t.teamStatus === "SUSPENDED" || t.teamStatus === "INACTIVE") return false;
+      return true;
+    })
+    .map((t) => {
+      const reasons: string[] = [];
+      const matchedExpertise: string[] = [];
+      const matchedSkills: string[] = [];
+      const matchedResearchAreas: string[] = [];
+      const previousExperience: string[] = [];
+      
+      let expertiseScore = 0;
+      let skillsScore = 0;
+      let researchFocusScore = 0;
+      let domainScore = 0;
+      let departmentScore = 0;
+      let previousExperienceScore = 0;
+      let locationScore = 0;
+
+      // 1. Required Expertise Match (30%)
+      const reqExp = problem.requiredExpertise || analysis?.requiredExpertise || [];
+      if (reqExp.length > 0) {
+        reqExp.forEach((req) => {
+          const matched = t.skills.some(
+            (s) => s.toLowerCase().includes(req.toLowerCase()) || req.toLowerCase().includes(s.toLowerCase())
+          );
+          if (matched) {
+            matchedExpertise.push(req);
+          }
+        });
+        expertiseScore = Math.round((matchedExpertise.length / reqExp.length) * weights.expertise);
+        if (matchedExpertise.length > 0) {
+          reasons.push(`✓ ${matchedExpertise.length}/${reqExp.length} required skills matched`);
+        }
+      } else {
+        expertiseScore = Math.round(0.7 * weights.expertise);
+      }
+
+      // 2. Team Skills Match (25%)
+      const probText = `${problem.title} ${problem.description}`.toLowerCase();
+      const wordRegex = /[a-zA-Z]{4,}/g;
+      const probWords = Array.from(new Set(probText.match(wordRegex) || []));
+      
+      t.skills.forEach((s) => {
+        const isMatched = probWords.some(
+          (w) => s.toLowerCase().includes(w) || w.includes(s.toLowerCase())
+        );
+        if (isMatched) {
+          matchedSkills.push(s);
+        }
+      });
+      skillsScore = t.skills.length > 0 ? Math.round((matchedSkills.length / t.skills.length) * weights.skills) : Math.round(0.6 * weights.skills);
+      if (matchedSkills.length > 0) {
+        reasons.push(`✓ Matched ${matchedSkills.length} team skills with problem context`);
+      }
+
+      // 3. Research Focus Match (15%)
+      const researchAreas = analysis?.suggestedDomains || [];
+      if (researchAreas.length > 0) {
+        researchAreas.forEach((area) => {
+          const isMatched = t.skills.some(
+            (s) => s.toLowerCase().includes(area.toLowerCase()) || area.toLowerCase().includes(s.toLowerCase())
+          ) || t.department.toLowerCase().includes(area.toLowerCase());
+          
+          if (isMatched) {
+            matchedResearchAreas.push(area);
+          }
+        });
+        researchFocusScore = Math.round((matchedResearchAreas.length / researchAreas.length) * weights.researchFocus);
+        if (matchedResearchAreas.length > 0) {
+          reasons.push(`✓ ${t.department} research focus aligns with ${matchedResearchAreas[0]}`);
+        }
+      } else {
+        researchFocusScore = Math.round(0.6 * weights.researchFocus);
+      }
+
+      // 4. Problem Domain Match (10%)
+      const domainMatch = t.department.toLowerCase().split(" ").some(word => problem.category.toLowerCase().includes(word)) || t.skills.some(s => s.toLowerCase().includes(problem.category.toLowerCase()));
+      domainScore = domainMatch ? weights.domain : Math.round(weights.domain * 0.2);
+      if (domainMatch) {
+        reasons.push(`✓ Aligned with ${problem.category} domain`);
+      }
+
+      // 5. Department Match (10%)
+      const categoryDepts: Record<string, string[]> = {
+        "water management": ["environmental", "civil", "biotechnology", "mechanical"],
+        "water scarcity": ["environmental", "civil", "biotechnology", "mechanical"],
+        "agriculture": ["agricultural", "biotechnology", "chemical", "biological"],
+        "soil health": ["agricultural", "biotechnology", "chemical", "biological"],
+        "renewable energy": ["electrical", "power", "energy", "mechanical"],
+        "education": ["social work", "education", "humanities", "computer science"],
+        "waste management": ["mechanical", "civil", "environmental", "biotechnology"],
+      };
+
+      const key = problem.category.toLowerCase();
+      const expectedDepts = categoryDepts[key] || ["science", "engineering", "technology"];
+      const departmentMatch = expectedDepts.some((d) => t.department.toLowerCase().includes(d));
+      departmentScore = departmentMatch ? weights.department : Math.round(weights.department * 0.6);
+      if (departmentMatch) {
+        reasons.push(`✓ Relevant ${t.department} department`);
+      }
+
+      // 6. Previous Experience (5%)
+      const cleanKeywords = [problem.category, ...(problem.requiredExpertise || [])].map((kw) => kw.toLowerCase());
+      const matchedPrev = t.previousWork.filter((proj) => 
+        cleanKeywords.some((k) => proj.toLowerCase().includes(k)) || 
+        proj.toLowerCase().includes("water") && problem.category.toLowerCase().includes("water") ||
+        proj.toLowerCase().includes("soil") && problem.category.toLowerCase().includes("soil") ||
+        proj.toLowerCase().includes("solar") && problem.category.toLowerCase().includes("solar")
+      );
+      if (matchedPrev.length > 0) {
+        previousExperienceScore = weights.previousExperience;
+        previousExperience.push(...matchedPrev);
+        reasons.push(`✓ Previous relevant project: ${matchedPrev[0]}`);
+      } else {
+        previousExperienceScore = 0;
+      }
+
+      // 7. Location Relevance (5%)
+      const univ = universities.find((u) => u.id === t.universityId);
+      let locationMatch: "SAME_DISTRICT" | "SAME_STATE" | "OUT_OF_STATE" = "OUT_OF_STATE";
+      if (univ) {
+        if (univ.district.toLowerCase() === problem.district.toLowerCase() && univ.state.toLowerCase() === problem.state.toLowerCase()) {
+          locationScore = weights.location;
+          locationMatch = "SAME_DISTRICT";
+          reasons.push(`✓ Located in the same district (${univ.district})`);
+        } else if (univ.state.toLowerCase() === problem.state.toLowerCase()) {
+          locationScore = Math.round(weights.location * 0.6);
+          locationMatch = "SAME_STATE";
+          reasons.push(`✓ Located in the same state (${univ.state})`);
+        } else {
+          locationScore = Math.round(weights.location * 0.2);
+          locationMatch = "OUT_OF_STATE";
+        }
+      } else {
+        locationScore = Math.round(weights.location * 0.2);
+      }
+
+      const score = expertiseScore + skillsScore + researchFocusScore + domainScore + departmentScore + previousExperienceScore + locationScore;
+      const normalizedScore = Math.min(Math.max(score, 0), 100);
+      const matchLevel: "HIGH" | "MEDIUM" | "LOW" = normalizedScore >= thresholds.HIGH ? "HIGH" : normalizedScore >= thresholds.MEDIUM ? "MEDIUM" : "LOW";
+
+      return {
+        teamId: t.id,
+        teamName: t.name,
+        universityId: t.universityId,
+        score: normalizedScore,
+        matchLevel,
+        matchedSkills,
+        matchedExpertise,
+        matchedResearchAreas,
+        departmentMatch,
+        domainMatch,
+        previousExperience,
+        locationMatch,
+        reasons,
+        breakdown: {
+          expertiseScore,
+          skillsScore,
+          researchFocusScore,
+          domainScore,
+          departmentScore,
+          previousExperienceScore,
+          locationScore
+        },
+        algorithmVersion: TEAM_MATCHING_ALGORITHM_VERSION
+      };
+    })
+    .sort((a, b) => b.score - a.score);
 }
