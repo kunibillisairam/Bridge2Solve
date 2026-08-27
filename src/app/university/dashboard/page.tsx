@@ -164,45 +164,63 @@ export default function DashboardPage() {
               </Card>
             ) : (
               <div className="space-y-4">
-                {recommendedProblems.slice(0, 2).map((problem) => (
-                  <Card key={problem.id} className="border-brandgray-border shadow-subtle hover:border-primary/30 transition-all">
-                    <CardContent className="p-5">
-                      <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
-                        <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider">
-                            {problem.category}
-                          </span>
-                          <h4 className="text-base font-bold text-primary">
-                            {problem.title}
-                          </h4>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-150 px-2 py-0.5 rounded font-bold">
-                            {problem.matchScore}% Match
-                          </span>
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${PRIORITY_BADGES[problem.priority]}`}>
-                            {problem.priority} Priority
-                          </span>
-                        </div>
-                      </div>
+                {recommendedProblems.slice(0, 2).map((problem) => {
+                  const rec = universityMockService.getRecommendationForUniversity(problem.id, "univ-1");
+                  const matchScore = rec ? rec.score : problem.matchScore;
 
-                      <p className="text-xs text-brandgray-text leading-relaxed line-clamp-2 mb-3">
-                        {problem.description}
-                      </p>
+                  return (
+                    <Card key={problem.id} className="border-brandgray-border shadow-subtle hover:border-primary/30 transition-all">
+                      <CardContent className="p-5">
+                        <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider">
+                              {problem.category}
+                            </span>
+                            <h4 className="text-base font-bold text-primary">
+                              {problem.title}
+                            </h4>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-150 px-2 py-0.5 rounded font-bold">
+                              {matchScore}% Match
+                            </span>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${PRIORITY_BADGES[problem.priority as "High" | "Medium" | "Low"]}`}>
+                              {problem.priority} Priority
+                            </span>
+                          </div>
+                        </div>
 
-                      <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-brandgray-border/40">
-                        <span className="flex items-center gap-1 text-xs text-brandgray-muted">
-                          <MapPin className="h-3.5 w-3.5" /> {problem.location}
-                        </span>
-                        <Link href={`/university/problems/${problem.id}`}>
-                          <Button variant="outline" size="sm" className="h-8 text-xs font-semibold">
-                            View & Express Interest
-                          </Button>
-                        </Link>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        <p className="text-xs text-brandgray-text leading-relaxed line-clamp-2 mb-3">
+                          {problem.description}
+                        </p>
+
+                        {rec && (
+                          <div className="text-[11px] text-indigo-950 bg-indigo-50/40 p-2.5 rounded border border-indigo-150/60 mb-3 space-y-1">
+                            <span className="font-bold uppercase text-[9.5px] block text-indigo-900">Why this matches your university:</span>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-slate-700">
+                              {rec.reasons.slice(0, 3).map((reason, idx) => (
+                                <span key={idx} className="flex items-center gap-1 font-medium text-[10.5px]">
+                                  <span className="text-emerald-600 font-extrabold">✓</span> {reason.replace("✓ ", "")}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-brandgray-border/40">
+                          <span className="flex items-center gap-1 text-xs text-brandgray-muted">
+                            <MapPin className="h-3.5 w-3.5" /> {problem.location}
+                          </span>
+                          <Link href={`/university/problems/${problem.id}`}>
+                            <Button variant="outline" size="sm" className="h-8 text-xs font-semibold">
+                              View Details & Express Interest
+                            </Button>
+                          </Link>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>

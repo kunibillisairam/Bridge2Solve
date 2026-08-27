@@ -242,6 +242,8 @@ export default function ProblemsPage() {
           {filteredProblems.map((problem) => {
             const interest = universityMockService.getInterestForProblem(problem.id, "univ-1");
             const isRegistered = !!interest && interest.status !== "WITHDRAWN";
+            const rec = universityMockService.getRecommendationForUniversity(problem.id, "univ-1");
+            const matchScore = rec ? rec.score : problem.matchScore;
 
             return (
               <Card key={problem.id} className="border-brandgray-border shadow-subtle hover:border-primary/30 transition-all bg-white flex flex-col justify-between">
@@ -261,13 +263,26 @@ export default function ProblemsPage() {
                       <h4 className="text-base font-bold text-primary">{problem.title}</h4>
                     </div>
                     <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-150 px-2 py-0.5 rounded font-bold shrink-0">
-                      {problem.matchScore}% Match
+                      {matchScore}% Match
                     </span>
                   </div>
 
                   <p className="text-xs text-brandgray-text leading-relaxed line-clamp-2">
                     {problem.description}
                   </p>
+
+                  {rec && (
+                    <div className="text-[11px] text-indigo-955 bg-indigo-50/40 p-2.5 rounded border border-indigo-150/60 space-y-0.5">
+                      <span className="font-bold uppercase text-[9.5px] block text-indigo-900">Why this matches:</span>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-slate-700">
+                        {rec.reasons.slice(0, 3).map((reason, idx) => (
+                          <span key={idx} className="flex items-center gap-1 font-medium text-[10.5px]">
+                            <span className="text-emerald-600 font-extrabold">✓</span> {reason.replace("✓ ", "")}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-brandgray-border/40 text-xs">
                     <span className="flex items-center gap-1 text-brandgray-muted">
@@ -276,7 +291,7 @@ export default function ProblemsPage() {
 
                     <Link href={`/university/problems/${problem.id}`}>
                       <Button variant={isRegistered ? "outline" : "primary"} size="sm" className="h-8 text-xs font-semibold">
-                        {isRegistered ? "View Problem" : "View Details"}
+                        {isRegistered ? "View Problem" : "View Details & Apply"}
                       </Button>
                     </Link>
                   </div>

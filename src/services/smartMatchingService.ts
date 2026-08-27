@@ -12,6 +12,7 @@ export interface UniversityProfile {
   expertise: string[];
   facilities: string[];
   previousProjects: string[];
+  status?: "ACTIVE" | "SUSPENDED" | "INACTIVE";
 }
 
 export interface ResearchTeamProfile {
@@ -29,7 +30,7 @@ export interface ResearchTeamProfile {
 export interface IndustryProfile {
   id: string;
   name: string;
-  orgType: string; // e.g. "Corporate CSR", "CleanTech Enterprise", "AgriTech NGO"
+  orgType: string;
   location: string;
   state: string;
   district: string;
@@ -44,7 +45,7 @@ export interface EntityRecommendation {
   entityId: string;
   entityName: string;
   entityType: "UNIVERSITY" | "TEAM" | "INDUSTRY";
-  matchScore: number; // 0 - 100
+  matchScore: number;
   matchLevel: "HIGH" | "MEDIUM" | "LOW";
   reasons: string[];
   matchedExpertise: string[];
@@ -62,8 +63,52 @@ export interface ProblemMatchResult {
 }
 
 // ----------------------------------------------------
+// Smart University Match Result Structure
+// ----------------------------------------------------
+export interface UniversityMatchResult {
+  universityId: string;
+  universityName: string;
+  score: number;
+  matchLevel: "HIGH" | "MEDIUM" | "LOW";
+  matchedCategories: string[];
+  matchedDepartments: string[];
+  matchedExpertise: string[];
+  matchedResearchAreas: string[];
+  locationMatch: "SAME_DISTRICT" | "SAME_STATE" | "OUT_OF_STATE";
+  previousExperience: string[];
+  reasons: string[];
+  algorithmVersion: string;
+  breakdown: {
+    domainScore: number;
+    departmentScore: number;
+    expertiseScore: number;
+    researchFocusScore: number;
+    locationScore: number;
+    previousExperienceScore: number;
+  };
+}
+
+// ----------------------------------------------------
 // Configurable Thresholds & Scoring Weights
 // ----------------------------------------------------
+export const MATCHING_ALGORITHM_VERSION = "v1";
+
+export const MATCH_CONFIG = {
+  version: MATCHING_ALGORITHM_VERSION,
+  thresholds: {
+    HIGH: 80,
+    MEDIUM: 60,
+  },
+  weights: {
+    domain: 25,
+    expertise: 25,
+    department: 15,
+    researchFocus: 15,
+    location: 10,
+    previousExperience: 10,
+  }
+};
+
 export class MatchThresholds {
   static readonly HIGH = 80;
   static readonly MEDIUM = 60;
@@ -93,6 +138,7 @@ export const DEMO_UNIVERSITIES: UniversityProfile[] = [
     expertise: ["Groundwater mapping", "Gravity filtration", "Community water management", "Solar microgrid design", "Soil chemistry analysis"],
     facilities: ["Advanced Water Quality Lab", "Solar Microgrid Testbed", "Bio-remediation Cultivation Facility"],
     previousProjects: ["Rural Water Filtration in Chota Nagpur", "Solar Microgrids for Tribal Schools"],
+    status: "ACTIVE"
   },
   {
     id: "univ-2",
@@ -105,6 +151,7 @@ export const DEMO_UNIVERSITIES: UniversityProfile[] = [
     expertise: ["Soil chemistry analysis", "Halophilic microbes", "Sustainable farming outreach", "Salinity mapping"],
     facilities: ["Soil Salinity Testing Lab", "Crop Genetic Research Farm"],
     previousProjects: ["Sangrur Soil Salinity Recovery Campaign", "Halophilic Bio-fertilizer Deployment"],
+    status: "ACTIVE"
   },
   {
     id: "univ-3",
@@ -117,6 +164,7 @@ export const DEMO_UNIVERSITIES: UniversityProfile[] = [
     expertise: ["Object detection (YOLO)", "Conveyor belt mechanics", "Routing optimization", "Automated waste sorting"],
     facilities: ["Computer Vision Lab", "Automated Sorting Prototype Conveyor"],
     previousProjects: ["Pune Municipal Waste Sorting Pilot", "Automated Material Recovery Center"],
+    status: "ACTIVE"
   },
   {
     id: "univ-4",
@@ -129,6 +177,7 @@ export const DEMO_UNIVERSITIES: UniversityProfile[] = [
     expertise: ["Solar panel sizing", "Inverter load calculation", "LiFePO4 battery configuration", "Microgrid controllers"],
     facilities: ["Solar PV Characterization Lab", "Battery Energy Storage Testbed"],
     previousProjects: ["Gaya Rural Electrification Initiative", "Solar Powering Bihar Secondary Schools"],
+    status: "ACTIVE"
   },
   {
     id: "univ-5",
@@ -141,7 +190,34 @@ export const DEMO_UNIVERSITIES: UniversityProfile[] = [
     expertise: ["Curriculum design", "Tribal dialect translation", "Offline learning tablets", "Community facilitation"],
     facilities: ["Vernacular Content Studio", "Tribal Community Resource Center"],
     previousProjects: ["Mayurbhanj Tribal Literacy Drive", "Offline Digital Tablet Pilot"],
+    status: "ACTIVE"
   },
+  {
+    id: "univ-suspended",
+    name: "Suspended State University",
+    location: "Gaya, Bihar",
+    state: "Bihar",
+    district: "Gaya",
+    departments: ["Environmental Science"],
+    researchAreas: ["Rainwater Harvesting"],
+    expertise: ["Groundwater mapping"],
+    facilities: ["Basic Lab"],
+    previousProjects: [],
+    status: "SUSPENDED"
+  },
+  {
+    id: "univ-inactive",
+    name: "Inactive Technical Institute",
+    location: "Pune, Maharashtra",
+    state: "Maharashtra",
+    district: "Pune",
+    departments: ["Civil Engineering"],
+    researchAreas: ["Hydrogeology"],
+    expertise: ["Gravity filtration"],
+    facilities: ["Closed lab"],
+    previousProjects: [],
+    status: "INACTIVE"
+  }
 ];
 
 export const DEMO_RESEARCH_TEAMS: ResearchTeamProfile[] = [
@@ -277,6 +353,178 @@ export const DEMO_INDUSTRIES: IndustryProfile[] = [
 /**
  * Calculates a transparent, explainable match score for a University profile against a problem.
  */
+export function getUniversityRecommendations(
+  problem: CommunityProblem,
+  analysis?: ProblemAnalysis,
+  registeredUniversityIds = new Set<string>(),
+  universities = DEMO_UNIVERSITIES
+): UniversityMatchResult[] {
+  const { weights, thresholds } = MATCH_CONFIG;
+
+  return universities
+    .filter((u) => {
+      // Rule 10: Exclude suspended/inactive universities
+      if (u.status === "SUSPENDED" || u.status === "INACTIVE") return false;
+      // Exclude already registered interest
+      if (registeredUniversityIds.has(u.id)) return false;
+      return true;
+    })
+    .map((u) => {
+      let domainScore = 0;
+      let departmentScore = 0;
+      let expertiseScore = 0;
+      let researchFocusScore = 0;
+      let locationScore = 0;
+      let previousExperienceScore = 0;
+
+      const reasons: string[] = [];
+      const matchedCategories: string[] = [];
+      const matchedDepartments: string[] = [];
+      const matchedExpertise: string[] = [];
+      const matchedResearchAreas: string[] = [];
+      const previousExperience: string[] = [];
+
+      // 1. Domain / Category Match (25%)
+      const catLower = problem.category.toLowerCase();
+      
+      const domainKeywords: Record<string, string[]> = {
+        "water & sanitation": ["water", "sanitation", "hydro", "environmental", "waste"],
+        "agriculture & food tech": ["agri", "food", "soil", "crop", "microb"],
+        "waste management": ["waste", "recycle", "sorting", "compost", "mechanical"],
+        "renewable energy": ["energy", "solar", "photovoltaic", "battery", "electrical"],
+        "education & social impact": ["education", "social", "pedagogy", "literacy", "learning", "linguistics"]
+      };
+
+      const keywords = domainKeywords[catLower] || [catLower];
+      
+      const isDomainAligned = u.departments.some(d => keywords.some(k => d.toLowerCase().includes(k))) ||
+                              u.researchAreas.some(r => keywords.some(k => r.toLowerCase().includes(k)));
+      
+      if (isDomainAligned) {
+        domainScore = weights.domain;
+        matchedCategories.push(problem.category);
+        reasons.push(`✓ Aligned with ${problem.category} domain`);
+      }
+
+      // 2. Department Match (15%)
+      const matchingDept = u.departments.find(d => {
+        const dLower = d.toLowerCase();
+        if (catLower.includes("water") && (dLower.includes("environmental") || dLower.includes("civil") || dLower.includes("biotechnology"))) return true;
+        if (catLower.includes("agri") && (dLower.includes("agricultural") || dLower.includes("soil") || dLower.includes("agronomy") || dLower.includes("biotechnology"))) return true;
+        if (catLower.includes("waste") && (dLower.includes("mechanical") || dLower.includes("civil") || dLower.includes("environmental"))) return true;
+        if (catLower.includes("energy") && (dLower.includes("electrical") || dLower.includes("renewable") || dLower.includes("physics"))) return true;
+        if (catLower.includes("education") && (dLower.includes("social") || dLower.includes("education") || dLower.includes("linguistics") || dLower.includes("psychology"))) return true;
+        return false;
+      });
+
+      if (matchingDept) {
+        departmentScore = weights.department;
+        matchedDepartments.push(matchingDept);
+        reasons.push(`✓ Strong ${matchingDept} department`);
+      }
+
+      // 3. Required Expertise Match (25%)
+      const reqExp = problem.requiredExpertise || analysis?.requiredExpertise || [];
+      if (reqExp.length > 0) {
+        let matchedExpCount = 0;
+        reqExp.forEach((req) => {
+          const hasExpertise = u.expertise.some((exp) => exp.toLowerCase().includes(req.toLowerCase()) || req.toLowerCase().includes(exp.toLowerCase()));
+          if (hasExpertise) {
+            matchedExpCount++;
+            matchedExpertise.push(req);
+          }
+        });
+        const expRatio = matchedExpCount / reqExp.length;
+        expertiseScore = Math.round(expRatio * weights.expertise);
+        if (matchedExpertise.length > 0) {
+          reasons.push(`✓ Expertise in ${matchedExpertise.slice(0, 3).join(", ")}`);
+        }
+      }
+
+      // 4. Research Focus Match (15%)
+      const suggestedAreas = analysis?.suggestedDomains || problem.researchAreas || [];
+      if (suggestedAreas.length > 0) {
+        let matchedAreaCount = 0;
+        suggestedAreas.forEach((area) => {
+          const hasArea = u.researchAreas.some((ra) => ra.toLowerCase().includes(area.toLowerCase()) || area.toLowerCase().includes(ra.toLowerCase()));
+          if (hasArea) {
+            matchedAreaCount++;
+            matchedResearchAreas.push(area);
+          }
+        });
+        const areaRatio = matchedAreaCount / suggestedAreas.length;
+        researchFocusScore = Math.round(areaRatio * weights.researchFocus);
+        if (matchedResearchAreas.length > 0) {
+          reasons.push(`✓ Active research in ${matchedResearchAreas.slice(0, 2).join(", ")}`);
+        }
+      }
+
+      // 5. Location Relevance (10%)
+      let locationMatch: "SAME_DISTRICT" | "SAME_STATE" | "OUT_OF_STATE" = "OUT_OF_STATE";
+      if (u.district.toLowerCase() === problem.district.toLowerCase() && u.state.toLowerCase() === problem.state.toLowerCase()) {
+        locationScore = weights.location;
+        locationMatch = "SAME_DISTRICT";
+        reasons.push(`✓ Located in the same district (${u.district})`);
+      } else if (u.state.toLowerCase() === problem.state.toLowerCase()) {
+        locationScore = Math.round(weights.location * 0.6);
+        locationMatch = "SAME_STATE";
+        reasons.push(`✓ Located in the same state (${u.state})`);
+      } else {
+        locationScore = Math.round(weights.location * 0.2);
+        locationMatch = "OUT_OF_STATE";
+      }
+
+      // 6. Previous Experience (10%)
+      const matchingProj = u.previousProjects.find(pProj => 
+        keywords.some(k => pProj.toLowerCase().includes(k)) ||
+        pProj.toLowerCase().includes(problem.category.toLowerCase())
+      );
+
+      if (matchingProj) {
+        previousExperienceScore = weights.previousExperience;
+        previousExperience.push(matchingProj);
+        reasons.push(`✓ Previous relevant experience: ${matchingProj}`);
+      }
+
+      const score = domainScore + departmentScore + expertiseScore + researchFocusScore + locationScore + previousExperienceScore;
+      const normalizedScore = Math.min(Math.max(score, 0), 100);
+
+      const matchLevel: "HIGH" | "MEDIUM" | "LOW" = normalizedScore >= thresholds.HIGH ? "HIGH" : normalizedScore >= thresholds.MEDIUM ? "MEDIUM" : "LOW";
+
+      return {
+        universityId: u.id,
+        universityName: u.name,
+        score: normalizedScore,
+        matchLevel,
+        matchedCategories,
+        matchedDepartments,
+        matchedExpertise,
+        matchedResearchAreas,
+        locationMatch,
+        previousExperience,
+        reasons,
+        algorithmVersion: MATCHING_ALGORITHM_VERSION,
+        breakdown: {
+          domainScore,
+          departmentScore,
+          expertiseScore,
+          researchFocusScore,
+          locationScore,
+          previousExperienceScore
+        }
+      };
+    })
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      if (b.matchedExpertise.length !== a.matchedExpertise.length) return b.matchedExpertise.length - a.matchedExpertise.length;
+      const locPriority = { SAME_DISTRICT: 3, SAME_STATE: 2, OUT_OF_STATE: 1 };
+      if (locPriority[b.locationMatch] !== locPriority[a.locationMatch]) {
+        return locPriority[b.locationMatch] - locPriority[a.locationMatch];
+      }
+      return b.previousExperience.length - a.previousExperience.length;
+    });
+}
+
 function scoreUniversity(problem: CommunityProblem, uni: UniversityProfile, analysis?: ProblemAnalysis): EntityRecommendation {
   let score = 0;
   const reasons: string[] = [];
@@ -287,7 +535,6 @@ function scoreUniversity(problem: CommunityProblem, uni: UniversityProfile, anal
   const reqExp = problem.requiredExpertise || analysis?.requiredExpertise || [];
   const reqDomains = analysis?.suggestedDomains || problem.researchAreas || [];
 
-  // A. Category Match (25 Points)
   const categoryMatch = uni.departments.some((d) => 
     problem.category.toLowerCase().includes(d.toLowerCase()) || 
     d.toLowerCase().includes(problem.category.toLowerCase()) ||
@@ -303,7 +550,6 @@ function scoreUniversity(problem: CommunityProblem, uni: UniversityProfile, anal
     missingCapabilities.push(`Direct ${problem.category} department alignment is limited`);
   }
 
-  // B. Expertise Match (30 Points)
   let expCount = 0;
   reqExp.forEach((req) => {
     const matched = uni.expertise.some((e) => e.toLowerCase().includes(req.toLowerCase()) || req.toLowerCase().includes(e.toLowerCase()));
@@ -327,7 +573,6 @@ function scoreUniversity(problem: CommunityProblem, uni: UniversityProfile, anal
     missingCapabilities.push(`Lacks direct lab coverage for: ${unMatchedExp.slice(0, 2).join(", ")}`);
   }
 
-  // C. Research Area Match (20 Points)
   const matchedAreas = uni.researchAreas.filter((ra) => 
     reqDomains.some((rd) => rd.toLowerCase().includes(ra.toLowerCase()) || ra.toLowerCase().includes(rd.toLowerCase())) ||
     textLower.includes(ra.toLowerCase())
@@ -339,7 +584,6 @@ function scoreUniversity(problem: CommunityProblem, uni: UniversityProfile, anal
     reasons.push(`Active research focus areas in ${matchedAreas.slice(0, 2).join(", ")}`);
   }
 
-  // D. Location Relevance (10 Points)
   if (uni.district.toLowerCase() === problem.district.toLowerCase() && uni.state.toLowerCase() === problem.state.toLowerCase()) {
     score += MatchWeights.LOCATION;
     reasons.push(`Local campus in target district (${uni.district}, ${uni.state})`);
@@ -350,13 +594,11 @@ function scoreUniversity(problem: CommunityProblem, uni: UniversityProfile, anal
     missingCapabilities.push(`Out-of-state campus (${uni.location})`);
   }
 
-  // E. Previous Experience (10 Points)
   if (uni.previousProjects.length > 0) {
     score += MatchWeights.PREVIOUS_EXPERIENCE;
     reasons.push(`Proven track record in ${uni.previousProjects[0]}`);
   }
 
-  // F. Facilities (5 Points)
   if (uni.facilities.length > 0) {
     score += MatchWeights.RESOURCES;
     reasons.push(`Equipped with ${uni.facilities[0]}`);
@@ -377,9 +619,6 @@ function scoreUniversity(problem: CommunityProblem, uni: UniversityProfile, anal
   };
 }
 
-/**
- * Calculates a match score for a Research Team against a problem.
- */
 function scoreResearchTeam(problem: CommunityProblem, team: ResearchTeamProfile, analysis?: ProblemAnalysis): EntityRecommendation {
   let score = 0;
   const reasons: string[] = [];
@@ -388,7 +627,6 @@ function scoreResearchTeam(problem: CommunityProblem, team: ResearchTeamProfile,
 
   const reqExp = problem.requiredExpertise || analysis?.requiredExpertise || [];
 
-  // A. Skills Match (45 Points)
   let matchedSkillsCount = 0;
   reqExp.forEach((req) => {
     const hasSkill = team.skills.some((s) => s.toLowerCase().includes(req.toLowerCase()) || req.toLowerCase().includes(s.toLowerCase()));
@@ -405,7 +643,6 @@ function scoreResearchTeam(problem: CommunityProblem, team: ResearchTeamProfile,
     reasons.push(`Team skills directly overlap in ${matchedExpertise.join(", ")}`);
   }
 
-  // B. Department & Mentor Expertise (25 Points)
   if (problem.category.toLowerCase().includes(team.department.toLowerCase()) || team.department.includes("Environmental") || team.department.includes("Biotechnology")) {
     score += 25;
     reasons.push(`Guided by mentor ${team.facultyMentor} (${team.department})`);
@@ -413,7 +650,6 @@ function scoreResearchTeam(problem: CommunityProblem, team: ResearchTeamProfile,
     missingCapabilities.push(`Faculty mentor is outside primary ${problem.category} department`);
   }
 
-  // C. Team Availability (15 Points)
   if (team.status === "Available") {
     score += 15;
     reasons.push("Team is currently available for new research projects");
@@ -422,7 +658,6 @@ function scoreResearchTeam(problem: CommunityProblem, team: ResearchTeamProfile,
     missingCapabilities.push("Team is currently active on another project");
   }
 
-  // D. Previous Work (15 Points)
   if (team.previousWork.length > 0) {
     score += 15;
     reasons.push(`Demonstrated field success in ${team.previousWork[0]}`);
@@ -443,9 +678,6 @@ function scoreResearchTeam(problem: CommunityProblem, team: ResearchTeamProfile,
   };
 }
 
-/**
- * Calculates a match score for an Industry Organization against a problem.
- */
 function scoreIndustry(problem: CommunityProblem, ind: IndustryProfile, analysis?: ProblemAnalysis): EntityRecommendation {
   let score = 0;
   const reasons: string[] = [];
@@ -454,7 +686,6 @@ function scoreIndustry(problem: CommunityProblem, ind: IndustryProfile, analysis
 
   const reqExp = problem.requiredExpertise || analysis?.requiredExpertise || [];
 
-  // A. CSR Focus Alignment (30 Points)
   const csrMatch = ind.csrFocusAreas.some((csr) => 
     problem.category.toLowerCase().includes(csr.toLowerCase()) || 
     csr.toLowerCase().includes(problem.category.toLowerCase()) ||
@@ -469,7 +700,6 @@ function scoreIndustry(problem: CommunityProblem, ind: IndustryProfile, analysis
     missingCapabilities.push(`Primary CSR budget target is outside ${problem.category}`);
   }
 
-  // B. Technology Capabilities (25 Points)
   const matchedTech = ind.technologyCapabilities.filter((tc) => 
     reqExp.some((re) => tc.toLowerCase().includes(re.toLowerCase()) || re.toLowerCase().includes(tc.toLowerCase())) ||
     problem.description.toLowerCase().includes(tc.toLowerCase())
@@ -484,7 +714,6 @@ function scoreIndustry(problem: CommunityProblem, ind: IndustryProfile, analysis
     reasons.push(`Industrial hardware availability (${ind.technologyCapabilities[0]})`);
   }
 
-  // C. Location Relevance (20 Points)
   if (ind.district.toLowerCase() === problem.district.toLowerCase() && ind.state.toLowerCase() === problem.state.toLowerCase()) {
     score += 20;
     reasons.push(`Local field operations in target district (${ind.district})`);
@@ -495,13 +724,11 @@ function scoreIndustry(problem: CommunityProblem, ind: IndustryProfile, analysis
     missingCapabilities.push(`Remote corporate headquarters (${ind.location})`);
   }
 
-  // D. Resource Commitment (15 Points)
   if (ind.resources.length > 0) {
     score += 15;
     reasons.push(`Resource availability: ${ind.resources[0]}`);
   }
 
-  // E. Previous Projects (10 Points)
   if (ind.previousProjects.length > 0) {
     score += 10;
     reasons.push(`Successful previous implementation: ${ind.previousProjects[0]}`);
@@ -522,10 +749,6 @@ function scoreIndustry(problem: CommunityProblem, ind: IndustryProfile, analysis
   };
 }
 
-/**
- * Main Smart Matching Engine Entrypoint.
- * Pre-filters candidates, runs transparent scoring, and returns ranked recommendations.
- */
 export function matchProblem(
   problem: CommunityProblem,
   analysis?: ProblemAnalysis,
@@ -533,19 +756,16 @@ export function matchProblem(
   teams = DEMO_RESEARCH_TEAMS,
   industries = DEMO_INDUSTRIES
 ): ProblemMatchResult {
-  // Pre-filter & Score Universities
   const uniRecommendations = universities
     .map((u) => scoreUniversity(problem, u, analysis))
     .sort((a, b) => b.matchScore - a.matchScore)
     .slice(0, 5);
 
-  // Pre-filter & Score Teams
   const teamRecommendations = teams
     .map((t) => scoreResearchTeam(problem, t, analysis))
     .sort((a, b) => b.matchScore - a.matchScore)
     .slice(0, 5);
 
-  // Pre-filter & Score Industries
   const industryRecommendations = industries
     .map((i) => scoreIndustry(problem, i, analysis))
     .sort((a, b) => b.matchScore - a.matchScore)

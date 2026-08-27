@@ -2,9 +2,23 @@
 
 import { ProblemAnalysis } from "./aiService";
 import { ProblemCluster, DuplicateMatchCandidate } from "./duplicateDetectionService";
-import { matchProblem, ProblemMatchResult, EntityRecommendation, DEMO_UNIVERSITIES } from "./smartMatchingService";
+import { 
+  matchProblem, 
+  ProblemMatchResult, 
+  EntityRecommendation, 
+  DEMO_UNIVERSITIES, 
+  getUniversityRecommendations, 
+  UniversityMatchResult 
+} from "./smartMatchingService";
 
-export type { ProblemAnalysis, ProblemCluster, DuplicateMatchCandidate, ProblemMatchResult, EntityRecommendation };
+export type { 
+  ProblemAnalysis, 
+  ProblemCluster, 
+  DuplicateMatchCandidate, 
+  ProblemMatchResult, 
+  EntityRecommendation, 
+  UniversityMatchResult 
+};
 
 export interface CommunityProblem {
   id: string;
@@ -1069,6 +1083,31 @@ export const universityMockService = {
 
     const analysis = this.getProblemAnalysis(problemId);
     return matchProblem(problem, analysis);
+  },
+
+  getUniversityRecommendations(problemId: string): UniversityMatchResult[] {
+    const problem = this.getProblemById(problemId);
+    if (!problem) return [];
+
+    const analysis = this.getProblemAnalysis(problemId);
+    const interests = this.getInterests().filter(
+      (i) => i.problemId === problemId && i.status !== "WITHDRAWN"
+    );
+    const registeredUniversityIds = new Set(interests.map((i) => i.universityId));
+    
+    return getUniversityRecommendations(problem, analysis, registeredUniversityIds);
+  },
+
+  getRecommendationForUniversity(problemId: string, universityId: string): UniversityMatchResult | undefined {
+    // We want to calculate the score even if the university has registered interest
+    // because why-matches displays for registered problems too.
+    // So we call getUniversityRecommendations with an empty set of registeredUniversityIds to bypass filtering
+    const problem = this.getProblemById(problemId);
+    if (!problem) return undefined;
+
+    const analysis = this.getProblemAnalysis(problemId);
+    const recommendations = getUniversityRecommendations(problem, analysis, new Set<string>());
+    return recommendations.find(r => r.universityId === universityId);
   },
 
   saveMatchRecommendationAction(

@@ -32,7 +32,8 @@ import {
   ProblemAnalysis,
   ActivityLog,
   SolutionProposal,
-  UniversityProject
+  UniversityProject,
+  UniversityMatchResult
 } from "@/services/universityMockService";
 import { industryService, IndustrySupportRequest } from "@/services/industryService";
 import { findSimilarProblems } from "@/services/duplicateDetectionService";
@@ -60,6 +61,8 @@ export default function AdminProblemDetailPage() {
   const [associatedProject, setAssociatedProject] = useState<UniversityProject | null>(null);
   const [industryRequests, setIndustryRequests] = useState<IndustrySupportRequest[]>([]);
   const [activityHistory, setActivityHistory] = useState<ActivityLog[]>([]);
+  const [recommendations, setRecommendations] = useState<UniversityMatchResult[]>([]);
+  const [expandedRecId, setExpandedRecId] = useState<string | null>(null);
 
   // Action State
   const [actionSuccess, setActionSuccess] = useState("");
@@ -113,6 +116,10 @@ export default function AdminProblemDetailPage() {
           act.text.toLowerCase().includes(p.title.toLowerCase())
       );
       setActivityHistory(probActivities);
+
+      // Load university recommendations
+      const recs = universityMockService.getUniversityRecommendations(problemId);
+      setRecommendations(recs);
     }
   };
 
@@ -463,6 +470,112 @@ export default function AdminProblemDetailPage() {
                             </Button>
                           </Link>
                         </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* SMART UNIVERSITY RECOMMENDATIONS */}
+          <Card className="border-indigo-200 shadow-subtle bg-white">
+            <CardHeader className="p-4 border-b border-indigo-150 bg-indigo-50/40">
+              <CardTitle className="text-xs font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-indigo-700 shrink-0" /> Smart University Recommendations
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4 text-xs">
+              {recommendations.length === 0 ? (
+                <p className="text-brandgray-muted text-center py-3">No recommended active universities meet the criteria for this problem.</p>
+              ) : (
+                <div className="space-y-4">
+                  {recommendations.map((rec) => {
+                    const isExpanded = expandedRecId === rec.universityId;
+                    return (
+                      <div key={rec.universityId} className="p-4 bg-white border border-slate-200 rounded-lg space-y-3">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="space-y-0.5">
+                            <h4 className="text-sm font-bold text-primary">{rec.universityName}</h4>
+                            <p className="text-[10px] text-brandgray-muted">University ID: <span className="font-mono font-bold text-slate-700">{rec.universityId}</span></p>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-sm font-extrabold text-indigo-700">{rec.score}% Match</span>
+                            <span className={`text-[9.5px] font-bold block border px-1.5 py-0.5 rounded mt-1 ${
+                              rec.matchLevel === "HIGH" 
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-200" 
+                                : rec.matchLevel === "MEDIUM" 
+                                ? "bg-amber-50 text-amber-800 border-amber-200" 
+                                : "bg-slate-50 text-slate-800 border-slate-200"
+                            }`}>
+                              {rec.matchLevel} MATCH
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5 bg-slate-50 p-3 rounded border border-slate-150">
+                          <span className="text-[9.5px] font-bold text-slate-500 uppercase block mb-0.5">Scoring Explanations</span>
+                          {rec.reasons.map((r, idx) => (
+                            <div key={idx} className="flex items-center gap-1.5 text-xs text-brandgray-text font-medium">
+                              <span className="text-emerald-600 shrink-0 font-extrabold">✓</span>
+                              <span>{r.replace("✓ ", "")}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-7 text-[10.5px] font-semibold text-slate-700 flex items-center gap-1"
+                            onClick={() => setExpandedRecId(isExpanded ? null : rec.universityId)}
+                          >
+                            {isExpanded ? "Hide Matching Breakdown" : "View Matching Breakdown"}
+                          </Button>
+                          
+                          <Button variant="outline" size="sm" className="h-7 text-[10.5px] pointer-events-none opacity-50">
+                            View Profile
+                          </Button>
+                        </div>
+
+                        {/* MATCHING BREAKDOWN */}
+                        {isExpanded && (
+                          <div className="bg-slate-50 border border-slate-200 rounded p-3 text-xs space-y-2 mt-2">
+                            <span className="font-bold text-primary uppercase text-[9.5px] block border-b border-slate-200 pb-1">
+                              Matching Breakdown (Algorithm {rec.algorithmVersion})
+                            </span>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px]">
+                              <div className="flex justify-between">
+                                <span className="text-brandgray-muted">Domain Match:</span>
+                                <span className="font-semibold">{rec.breakdown.domainScore} / 25</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-brandgray-muted">Expertise Match:</span>
+                                <span className="font-semibold">{rec.breakdown.expertiseScore} / 25</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-brandgray-muted">Department Match:</span>
+                                <span className="font-semibold">{rec.breakdown.departmentScore} / 15</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-brandgray-muted">Research Focus:</span>
+                                <span className="font-semibold">{rec.breakdown.researchFocusScore} / 15</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-brandgray-muted">Location Relevance:</span>
+                                <span className="font-semibold">{rec.breakdown.locationScore} / 10</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-brandgray-muted">Previous Experience:</span>
+                                <span className="font-semibold">{rec.breakdown.previousExperienceScore} / 10</span>
+                              </div>
+                            </div>
+                            <div className="flex justify-between border-t border-slate-250 pt-1.5 font-bold text-primary">
+                              <span>Total Score:</span>
+                              <span>{rec.score} / 100</span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
