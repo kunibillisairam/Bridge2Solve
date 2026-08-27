@@ -15,12 +15,18 @@ import {
   ArrowRight,
   Clock,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  GraduationCap,
+  Briefcase,
+  FolderKanban
 } from "lucide-react";
 import { 
   universityMockService, 
-  CommunityProblem 
+  CommunityProblem,
+  SolutionProposal,
+  UniversityProject
 } from "@/services/universityMockService";
+import { findSimilarProblems } from "@/services/duplicateDetectionService";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
@@ -39,6 +45,9 @@ function AdminProblemsContent() {
 
   const [problems, setProblems] = useState<CommunityProblem[]>([]);
   const [filteredProblems, setFilteredProblems] = useState<CommunityProblem[]>([]);
+  const [projects, setProjects] = useState<UniversityProject[]>([]);
+  const [proposals, setProposals] = useState<SolutionProposal[]>([]);
+  const [interests, setInterests] = useState<any[]>([]);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,6 +64,9 @@ function AdminProblemsContent() {
     const data = universityMockService.getProblems();
     setProblems(data);
     setFilteredProblems(data);
+    setProjects(universityMockService.getProjects());
+    setProposals(universityMockService.getAllProposalsForAdmin());
+    setInterests(universityMockService.getInterests());
   };
 
   useEffect(() => {
@@ -89,7 +101,10 @@ function AdminProblemsContent() {
     }
 
     if (showDuplicatesOnly) {
-      result = result.filter((p) => p.matchScore >= 85);
+      result = result.filter((p) => {
+        const candidates = findSimilarProblems(p, problems, (id) => universityMockService.getProblemAnalysis(id));
+        return candidates.length > 0;
+      });
     }
 
     setFilteredProblems(result);
@@ -125,7 +140,7 @@ function AdminProblemsContent() {
           <input
             type="text"
             placeholder="Search by Problem ID (e.g. prob-1), title, description, or location..."
-            className="w-full text-xs pl-9 pr-4 py-2 border border-brandgray-border rounded focus:outline-none focus:border-primary"
+            className="w-full text-xs pl-9 pr-4 py-2 border border-brandgray-border rounded focus:outline-none focus:border-primary font-medium"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -176,7 +191,7 @@ function AdminProblemsContent() {
               checked={showDuplicatesOnly} 
               onChange={(e) => setShowDuplicatesOnly(e.target.checked)} 
             />
-            <span>Potential Duplicates Only (&gt;85%)</span>
+            <span>Potential Duplicates Only</span>
           </label>
 
           {(searchQuery || selectedCategory !== "All" || selectedStatus !== "All" || selectedPriority !== "All" || showDuplicatesOnly) && (
@@ -202,66 +217,105 @@ function AdminProblemsContent() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {filteredProblems.map((problem) => (
-            <Card key={problem.id} className="border-brandgray-border shadow-subtle bg-white hover:border-primary/30 transition-all">
-              <CardContent className="p-5 space-y-4">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-extrabold text-primary uppercase bg-primary-light border border-primary/10 px-2.5 py-0.5 rounded">
-                        {problem.id}
-                      </span>
-                      <span className="text-xs font-bold text-brandgray-muted uppercase tracking-wider">
-                        {problem.category}
-                      </span>
-                      {problem.matchScore >= 85 && (
-                        <span className="text-[9.5px] font-bold bg-amber-50 text-amber-800 border border-amber-300 px-2 py-0.5 rounded">
-                          POTENTIAL DUPLICATE RISK ({problem.matchScore}%)
+          {filteredProblems.map((problem) => {
+            // Resolve pipeline relationships
+            const associatedProject = projects.find((pj) => pj.problemId === problem.id) || null;
+            const associatedProposal = proposals.find((pr) => pr.problemId === problem.id) || null;
+            const associatedInterest = interests.find((i) => i.problemId === problem.id) || null;
+
+            const university = associatedProject?.collaboration.university || associatedProposal?.universityId || associatedInterest?.universityId || "None";
+            const team = associatedProject?.teamId || "None";
+            const proposal = associatedProposal?.id || "None";
+            const project = associatedProject?.id || "None";
+
+            // Resolve duplicate risk
+            const candidates = findSimilarProblems(problem, problems, (id) => universityMockService.getProblemAnalysis(id));
+            const duplicateRisk = candidates.length > 0
+              ? (candidates.some(c => c.similarityScore >= 80) ? "HIGH" : "MEDIUM")
+              : "LOW";
+
+            return (
+              <Card key={problem.id} className="border-brandgray-border shadow-subtle bg-white hover:border-primary/30 transition-all">
+                <CardContent className="p-5 space-y-4">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[10px] font-extrabold text-primary uppercase bg-primary-light border border-primary/10 px-2.5 py-0.5 rounded">
+                          {problem.id}
                         </span>
-                      )}
+                        <span className="text-xs font-bold text-brandgray-muted uppercase tracking-wider">
+                          {problem.category}
+                        </span>
+                        {duplicateRisk !== "LOW" && (
+                          <span className={`text-[9.5px] font-bold border px-2 py-0.5 rounded ${
+                            duplicateRisk === "HIGH" ? "bg-red-50 text-red-800 border-red-300 animate-pulse" : "bg-amber-50 text-amber-800 border-amber-300"
+                          }`}>
+                            DUPLICATE RISK: {duplicateRisk}
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="text-base font-bold text-primary">{problem.title}</h3>
                     </div>
-                    <h3 className="text-base font-bold text-primary">{problem.title}</h3>
+
+                    <span className={`text-xs font-bold px-3 py-1 rounded border uppercase ${STATUS_BADGES[problem.status] || "bg-slate-100 text-slate-700"}`}>
+                      {problem.status}
+                    </span>
                   </div>
 
-                  <span className={`text-xs font-bold px-3 py-1 rounded border uppercase ${STATUS_BADGES[problem.status] || "bg-slate-100 text-slate-700"}`}>
-                    {problem.status}
-                  </span>
-                </div>
+                  <p className="text-xs text-brandgray-text leading-relaxed line-clamp-2">
+                    {problem.description}
+                  </p>
 
-                <p className="text-xs text-brandgray-text leading-relaxed line-clamp-2">
-                  {problem.description}
-                </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-50 p-3 rounded border border-slate-150">
+                    <div>
+                      <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none mb-1">Location</span>
+                      <span className="font-semibold text-brandgray-text">{problem.location}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none mb-1">Reported Date</span>
+                      <span className="font-medium text-brandgray-text">{problem.submissionDate}</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none mb-1">AI Match Score</span>
+                      <span className="font-extrabold text-indigo-700">{problem.matchScore}% Match</span>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none mb-1">Priority</span>
+                      <span className="font-bold text-red-700">{problem.priority} Priority</span>
+                    </div>
+                  </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs bg-slate-50 p-3 rounded border border-slate-150">
-                  <div>
-                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Location</span>
-                    <span className="font-semibold text-brandgray-text">{problem.location}</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-brandgray-border/40 text-[11px]">
+                    <div className="flex items-center gap-1.5 text-brandgray-muted font-medium">
+                      <GraduationCap className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span>Univ: <span className="font-semibold text-brandgray-text">{university}</span></span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-brandgray-muted font-medium">
+                      <Users className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span>Team: <span className="font-semibold text-brandgray-text">{team}</span></span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-brandgray-muted font-medium">
+                      <Briefcase className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span>Proposal: <span className="font-semibold text-brandgray-text">{proposal}</span></span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-brandgray-muted font-medium">
+                      <FolderKanban className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <span>Project: <span className="font-semibold text-brandgray-text">{project}</span></span>
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Reported Date</span>
-                    <span className="font-medium text-brandgray-text">{problem.submissionDate}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block">AI Match Score</span>
-                    <span className="font-extrabold text-indigo-700">{problem.matchScore}% Match</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Priority</span>
-                    <span className="font-bold text-red-700">{problem.priority} Priority</span>
-                  </div>
-                </div>
 
-                <div className="flex items-center justify-between pt-1 text-xs">
-                  <span className="text-[11px] text-brandgray-muted">Submitted by: <span className="font-semibold text-brandgray-text">Citizen Field Report</span></span>
-                  <Link href={`/admin/problems/${problem.id}`}>
-                    <Button variant="primary" size="sm" className="h-8 text-xs font-bold flex items-center gap-1.5">
-                      Review & Validate <ArrowRight className="h-3.5 w-3.5" />
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="flex items-center justify-between pt-2 border-t border-brandgray-border/40 text-xs">
+                    <span className="text-[11px] text-brandgray-muted">Submitted by: <span className="font-semibold text-brandgray-text">Citizen Field Report</span></span>
+                    <Link href={`/admin/problems/${problem.id}`}>
+                      <Button variant="primary" size="sm" className="h-8 text-xs font-bold flex items-center gap-1.5">
+                        Review & Validate <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

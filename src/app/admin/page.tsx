@@ -28,9 +28,11 @@ import {
   CommunityProblem, 
   ActivityLog, 
   SolutionProposal, 
-  UniversityProject 
+  UniversityProject,
+  getProjectHealth
 } from "@/services/universityMockService";
 import { industryService, IndustrySupportRequest } from "@/services/industryService";
+import { findSimilarProblems } from "@/services/duplicateDetectionService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
@@ -64,55 +66,66 @@ export default function AdminControlCenterPage() {
     setActivities(universityMockService.getActivities());
   };
 
-  // PROBLEM MANAGEMENT METRICS
+  // Resolve projects for monitoring
+  const resolvedProjects = projects.map(pj => universityMockService.resolveProject(pj)).filter(Boolean) as any[];
+
+  // 1. PROBLEMS METRICS
   const totalProblemsCount = problems.length;
   const pendingValidationCount = problems.filter((p) => p.status === "Unassigned").length;
-  const aiAnalyzedCount = problems.filter((p) => p.status !== "Unassigned").length;
-  const potentialDuplicatesCount = problems.filter((p) => p.matchScore >= 85).length;
-  const verifiedProblemsCount = problems.filter((p) => p.status === "Interested" || p.status === "Under Review" || p.status === "Active Project").length;
-  const rejectedProblemsCount = problems.filter((p) => (p.status as string) === "Rejected").length;
+  const aiAnalyzedCount = problems.filter((p) => p.status !== "Unassigned" && p.status !== "Rejected").length;
+  const potentialDuplicatesCount = problems.filter((p) => {
+    const candidates = findSimilarProblems(p, problems, (id) => universityMockService.getProblemAnalysis(id));
+    return candidates.length > 0;
+  }).length;
+  const verifiedProblemsCount = problems.filter((p) => ["Interested", "Under Review", "Active Project"].includes(p.status)).length;
+  const rejectedProblemsCount = problems.filter((p) => p.status === "Rejected").length;
 
-  // UNIVERSITY PIPELINE METRICS
-  const universityRegistrationsCount = universityMockService.getInterests().length;
-  const awaitingTeamAssignmentCount = universityMockService.getInterestedProblemsForTeams().length;
+  // 2. UNIVERSITIES PIPELINE METRICS
+  const registeredInterestsCount = universityMockService.getInterests().length;
+  const awaitingTeamAssignmentCount = problems.filter((p) => p.status === "Interested").length;
   const proposalsUnderReviewCount = proposals.filter((pr) => pr.status === "SUBMITTED" || pr.status === "UNDER_REVIEW").length;
   const approvedProposalsCount = proposals.filter((pr) => pr.status === "ACCEPTED").length;
-  const rejectedProposalsCount = proposals.filter((pr) => pr.status === "REJECTED").length;
 
-  // PROJECT MANAGEMENT METRICS
+  // 3. PROJECTS METRICS
   const totalProjectsCount = projects.length;
-  const projectsUnderImplementationCount = projects.filter((pj) => pj.stage === "IMPLEMENTATION" || pj.stage === "PROPOSAL_APPROVED").length;
-  const projectsPendingActionCount = projects.filter((pj) => pj.stage === "TEAM_FORMED" || pj.stage === "PROPOSAL_SUBMITTED").length;
+  const activeProjectsCount = projects.filter((pj) => !["COMPLETED", "AWAITING_ADMIN_VERIFICATION"].includes(pj.stage)).length;
+  const projectsPendingActionCount = projects.filter((pj) => 
+    ["PROBLEM_REPORTED", "VALIDATED", "UNIVERSITY_MATCHED", "TEAM_FORMED", "PROPOSAL_SUBMITTED"].includes(pj.stage)
+  ).length;
+  const delayedProjectsCount = resolvedProjects.filter((pj) => getProjectHealth(pj) === "DELAYED").length;
   const projectsAwaitingVerificationCount = projects.filter((pj) => pj.stage === "AWAITING_ADMIN_VERIFICATION").length;
   const completedProjectsCount = projects.filter((pj) => pj.stage === "COMPLETED").length;
 
-  // INDUSTRY / CSR METRICS
+  // 4. INDUSTRY / CSR METRICS
   const pendingIndustryRequestsCount = industryRequests.filter((r) => r.status === "PENDING").length;
   const industryUnderReviewCount = industryRequests.filter((r) => r.status === "UNDER_REVIEW").length;
   const acceptedIndustryRequestsCount = industryRequests.filter((r) => r.status === "ACCEPTED").length;
-  const activePartnershipsCount = industryService.getAcceptedSupportRequestsForProject("PB-2026-001").length > 0 ? 1 + acceptedIndustryRequestsCount : acceptedIndustryRequestsCount;
+  const activePartnershipsCount = industryRequests.filter((r) => r.status === "ACCEPTED").length;
 
   // Filtered Validation Queue problems
   let queueProblems = problems;
   if (activeTab === "pending") {
     queueProblems = problems.filter((p) => p.status === "Unassigned");
   } else if (activeTab === "analyzed") {
-    queueProblems = problems.filter((p) => p.status === "Interested" || p.status === "Under Review");
+    queueProblems = problems.filter((p) => p.status !== "Unassigned" && p.status !== "Rejected");
   } else if (activeTab === "duplicates") {
-    queueProblems = problems.filter((p) => p.matchScore >= 85);
+    queueProblems = problems.filter((p) => {
+      const candidates = findSimilarProblems(p, problems, (id) => universityMockService.getProblemAnalysis(id));
+      return candidates.length > 0;
+    });
   } else if (activeTab === "approved") {
     queueProblems = problems.filter((p) => p.status === "Active Project");
   } else if (activeTab === "rejected") {
-    queueProblems = problems.filter((p) => (p.status as string) === "Rejected");
+    queueProblems = problems.filter((p) => p.status === "Rejected");
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Title Banner */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-brandgray-border/60 pb-5">
         <div>
-          <h1 className="text-2xl font-extrabold text-primary uppercase tracking-wide flex items-center gap-2.5">
-            <ShieldCheck className="h-7 w-7 text-amber-500" /> ADMIN VALIDATION DASHBOARD & CONTROL CENTER
+          <h1 className="text-xl font-bold text-primary uppercase tracking-wide flex items-center gap-2.5">
+            <ShieldCheck className="h-6 w-6 text-amber-500 shrink-0" /> ADMIN VALIDATION DASHBOARD & CONTROL CENTER
           </h1>
           <p className="text-xs text-brandgray-muted mt-1 font-medium">
             Monitor, validate, approve, coordinate, and verify completion across the complete ProblemBridge ecosystem.
@@ -135,7 +148,7 @@ export default function AdminControlCenterPage() {
             { label: "Rejected Problems", value: rejectedProblemsCount, href: "/admin/problems?status=Rejected", color: "bg-slate-100 text-slate-700 border-slate-300" },
           ].map((stat, i) => (
             <Link key={i} href={stat.href} className="block group">
-              <Card className="border shadow-subtle hover:border-primary transition-all bg-white p-3 space-y-1">
+              <Card className="border border-brandgray-border shadow-subtle hover:border-primary transition-all bg-white p-3 space-y-1">
                 <span className="text-xl font-extrabold text-primary block leading-none">{stat.value}</span>
                 <span className="text-[11px] font-bold text-brandgray-text block truncate">{stat.label}</span>
               </Card>
@@ -149,13 +162,12 @@ export default function AdminControlCenterPage() {
         <span className="text-[11px] font-bold text-purple-950 uppercase tracking-wider block">
           UNIVERSITY PIPELINE
         </span>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "Registered Interests", value: universityRegistrationsCount, href: "/admin/problems" },
+            { label: "Registered Interests", value: registeredInterestsCount, href: "/admin/problems" },
             { label: "Awaiting Team Assignment", value: awaitingTeamAssignmentCount, href: "/admin/problems" },
             { label: "Proposals Under Review", value: proposalsUnderReviewCount, href: "/admin/proposals" },
             { label: "Approved Proposals", value: approvedProposalsCount, href: "/admin/proposals" },
-            { label: "Rejected Proposals", value: rejectedProposalsCount, href: "/admin/proposals" },
           ].map((stat, i) => (
             <Link key={i} href={stat.href} className="block group">
               <Card className="border border-purple-150 shadow-subtle hover:border-purple-600 transition-all bg-purple-50/30 p-3 space-y-1">
@@ -172,16 +184,17 @@ export default function AdminControlCenterPage() {
         <span className="text-[11px] font-bold text-emerald-950 uppercase tracking-wider block">
           PROJECT MANAGEMENT & GOVERNMENT VERIFICATION
         </span>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
             { label: "Total Projects", value: totalProjectsCount, href: "/admin/projects" },
-            { label: "Under Implementation", value: projectsUnderImplementationCount, href: "/admin/projects?stage=IMPLEMENTATION" },
+            { label: "Active Projects", value: activeProjectsCount, href: "/admin/projects?stage=Active" },
             { label: "Pending Action", value: projectsPendingActionCount, href: "/admin/projects" },
+            { label: "Delayed Projects", value: delayedProjectsCount, href: "/admin/projects?stage=Delayed" },
             { label: "Awaiting Verification", value: projectsAwaitingVerificationCount, href: "/admin/projects?stage=AWAITING_ADMIN_VERIFICATION", highlight: true },
             { label: "Completed Projects", value: completedProjectsCount, href: "/admin/projects?stage=COMPLETED" },
           ].map((stat, i) => (
             <Link key={i} href={stat.href} className="block group">
-              <Card className={`border shadow-subtle hover:border-emerald-600 transition-all p-3 space-y-1 ${stat.highlight ? "bg-amber-100/70 border-amber-300 ring-2 ring-amber-400" : "bg-emerald-50/30 border-emerald-150"}`}>
+              <Card className={`border shadow-subtle hover:border-emerald-600 transition-all p-3 space-y-1 ${stat.highlight ? "bg-amber-100/75 border-amber-300 ring-1 ring-amber-400" : "bg-emerald-50/30 border-emerald-150"}`}>
                 <span className={`text-xl font-extrabold block leading-none ${stat.highlight ? "text-amber-950" : "text-emerald-950"}`}>{stat.value}</span>
                 <span className={`text-[11px] font-bold block truncate ${stat.highlight ? "text-amber-950 font-extrabold" : "text-emerald-950"}`}>{stat.label}</span>
               </Card>
@@ -199,7 +212,7 @@ export default function AdminControlCenterPage() {
           {[
             { label: "Pending Support Requests", value: pendingIndustryRequestsCount, href: "/admin/industry-support" },
             { label: "Under Review", value: industryUnderReviewCount, href: "/admin/industry-support" },
-            { label: "Accepted Requests", value: acceptedIndustryRequestsCount, href: "/admin/industry-support" },
+            { label: "Accepted Support Requests", value: acceptedIndustryRequestsCount, href: "/admin/industry-support" },
             { label: "Active Partnerships", value: activePartnershipsCount, href: "/admin/industry-support" },
           ].map((stat, i) => (
             <Link key={i} href={stat.href} className="block group">
@@ -214,16 +227,16 @@ export default function AdminControlCenterPage() {
 
       {/* ACTION REQUIRED QUEUE (High Priority Section) */}
       <Card className="border-amber-300 bg-amber-50/40 shadow-subtle">
-        <CardHeader className="p-4 border-b border-amber-200/80 bg-amber-100/40 flex flex-row items-center justify-between">
+        <CardHeader className="p-4 border-b border-amber-250 bg-amber-100/40 flex flex-row items-center justify-between">
           <CardTitle className="text-xs font-bold text-amber-950 uppercase tracking-wider flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-amber-600" /> Action Required Queue
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" /> Action Required Queue
           </CardTitle>
           <span className="text-[11px] font-bold text-amber-900 bg-amber-200/60 px-2.5 py-0.5 rounded">
-            Immediate Admin Tasks
+            Immediate Platform Tasks
           </span>
         </CardHeader>
         <CardContent className="p-4 space-y-2.5">
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {[
               {
                 title: "Validation Needed",
@@ -235,7 +248,7 @@ export default function AdminControlCenterPage() {
               },
               {
                 title: "Potential Duplicates",
-                desc: `${potentialDuplicatesCount} reports with >85% match similarity`,
+                desc: `${potentialDuplicatesCount} clusters awaiting duplication review`,
                 count: potentialDuplicatesCount,
                 href: "/admin/problems?duplicates=true",
                 badge: "REVIEW NEEDED",
@@ -258,24 +271,32 @@ export default function AdminControlCenterPage() {
                 badgeColor: "bg-indigo-100 text-indigo-800 border-indigo-300",
               },
               {
+                title: "Overdue Milestones",
+                desc: `${delayedProjectsCount} projects with overdue milestones`,
+                count: delayedProjectsCount,
+                href: "/admin/projects?stage=Delayed",
+                badge: "DELAYED",
+                badgeColor: "bg-red-50 text-red-700 border-red-200 font-extrabold",
+              },
+              {
                 title: "Awaiting Verification",
-                desc: `${projectsAwaitingVerificationCount} completed projects awaiting final sign-off`,
+                desc: `${projectsAwaitingVerificationCount} projects awaiting completion sign-off`,
                 count: projectsAwaitingVerificationCount,
                 href: "/admin/projects?stage=AWAITING_ADMIN_VERIFICATION",
-                badge: "VERIFICATION NEEDED",
+                badge: "VERIFICATION",
                 badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-300 font-extrabold",
               },
             ].map((item, idx) => (
               <div key={idx} className="bg-white p-3.5 rounded border border-amber-200/80 space-y-2.5 flex flex-col justify-between">
                 <div className="space-y-1">
                   <div className="flex justify-between items-center">
-                    <span className={`text-[9.5px] font-extrabold px-2 py-0.5 border rounded uppercase ${item.badgeColor}`}>
+                    <span className={`text-[9px] font-extrabold px-1.5 py-0.5 border rounded uppercase ${item.badgeColor}`}>
                       {item.badge}
                     </span>
                     <span className="text-base font-extrabold text-primary">{item.count}</span>
                   </div>
                   <h4 className="text-xs font-bold text-primary">{item.title}</h4>
-                  <p className="text-[11px] text-brandgray-muted leading-tight">{item.desc}</p>
+                  <p className="text-[10px] text-brandgray-muted leading-tight">{item.desc}</p>
                 </div>
                 <Link href={item.href}>
                   <Button variant="primary" size="sm" className="w-full h-7 text-[11px] font-bold">
@@ -306,7 +327,8 @@ export default function AdminControlCenterPage() {
             { key: "pending", label: `Pending Validation (${pendingValidationCount})` },
             { key: "analyzed", label: `AI Analyzed (${aiAnalyzedCount})` },
             { key: "duplicates", label: `Potential Duplicates (${potentialDuplicatesCount})` },
-            { key: "approved", label: `Approved Projects (${projects.length})` },
+            { key: "approved", label: `Active Projects (${projects.length})` },
+            { key: "rejected", label: `Rejected (${rejectedProblemsCount})` },
           ].map((t) => (
             <button
               key={t.key}
@@ -364,8 +386,8 @@ export default function AdminControlCenterPage() {
                     </div>
                     <div>
                       <span className="text-[9.5px] font-bold text-brandgray-muted uppercase block">Duplicate Risk</span>
-                      <span className={`font-bold ${problem.matchScore >= 85 ? "text-amber-700" : "text-emerald-700"}`}>
-                        {problem.matchScore >= 85 ? "MEDIUM/HIGH" : "LOW"}
+                      <span className={`font-bold ${problem.matchScore >= 80 ? "text-red-700" : problem.matchScore >= 60 ? "text-amber-700" : "text-emerald-700"}`}>
+                        {problem.matchScore >= 80 ? "HIGH" : problem.matchScore >= 60 ? "MEDIUM" : "LOW"}
                       </span>
                     </div>
                   </div>
@@ -389,7 +411,7 @@ export default function AdminControlCenterPage() {
       <Card className="border-brandgray-border bg-white shadow-subtle">
         <CardHeader className="p-4 border-b border-brandgray-border/60 flex items-center justify-between">
           <CardTitle className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
-            <Activity className="h-4 w-4 text-primary" /> Recent Platform Activity Stream
+            <Activity className="h-4 w-4 text-primary shrink-0" /> Recent Platform Activity Stream
           </CardTitle>
           <span className="text-[10px] text-brandgray-muted font-medium">Real-time system events</span>
         </CardHeader>

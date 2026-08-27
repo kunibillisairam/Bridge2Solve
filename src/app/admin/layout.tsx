@@ -156,7 +156,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <div className="space-y-1">
                           <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Projects</span>
                           {searchResults.projects.map((pj) => (
-                            <Link key={pj.id} href={`/admin/projects`} onClick={() => setIsSearchOpen(false)} className="block p-2 hover:bg-emerald-50/50 rounded border border-emerald-100 space-y-0.5">
+                            <Link key={pj.id} href={`/admin/projects/${pj.id}`} onClick={() => setIsSearchOpen(false)} className="block p-2 hover:bg-emerald-50/50 rounded border border-emerald-100 space-y-0.5">
                               <p className="font-bold text-emerald-900 truncate">{pj.title}</p>
                               <p className="text-[10px] text-brandgray-muted">ID: {pj.id} · Univ: {pj.collaboration.university}</p>
                             </Link>

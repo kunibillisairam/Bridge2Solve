@@ -147,6 +147,16 @@ export interface ProjectActivityLog {
 }
 
 // Stored Project Structure (Normalized Database-style)
+export interface ProjectImpactAssessment {
+  peopleBenefited?: number;
+  villagesCovered?: number;
+  schoolsReached?: number;
+  farmersSupported?: number;
+  problemImprovement?: string;
+  outcomes?: string;
+  actualResult?: string;
+}
+
 export interface UniversityProject {
   id: string;
   title: string;
@@ -162,6 +172,7 @@ export interface UniversityProject {
   activities: ProjectActivityLog[];
   completionVerificationNote?: string;
   verificationEvidenceStatus?: "PENDING" | "SUBMITTED" | "VERIFIED" | "NEEDS_REVISION";
+  impactAssessment?: ProjectImpactAssessment;
 }
 
 // Resolved project for UI display
@@ -708,6 +719,13 @@ const INITIAL_PROJECTS: UniversityProject[] = [
       { text: "Project submitted for final government verification & sign-off", performedBy: "Dr. Sanjay Dutt", date: "26 Aug 2026", time: "16:45", type: "verification" },
       { text: "Halophilic bio-fertilizer pilot deployed in 50 test plots", performedBy: "Soil Remediation Taskforce", date: "25 Aug 2026", time: "10:00", type: "milestone" },
     ],
+    impactAssessment: {
+      farmersSupported: 1200,
+      villagesCovered: 5,
+      problemImprovement: "40% reduction in soil salinity in trial plots",
+      outcomes: "Halophilic bio-fertilizers successfully applied across 50 test plots",
+      actualResult: "Crop yield increased by 22% in trial farming fields."
+    },
   },
   {
     id: "PB-2026-004",
@@ -743,6 +761,13 @@ const INITIAL_PROJECTS: UniversityProject[] = [
       { text: "150 offline learning tablets deployed in Mayurbhanj schools", performedBy: "Tribal Education Hub", date: "30 Apr 2026", time: "11:00", type: "deployment" },
       { text: "First field testing report uploaded with positive feedback", performedBy: "Alok Das", date: "28 Feb 2026", time: "10:15", type: "testing" },
     ],
+    impactAssessment: {
+      peopleBenefited: 1800,
+      schoolsReached: 20,
+      problemImprovement: "Significant increase in school attendance and digital literacy",
+      outcomes: "150 offline learning tablets deployed across rural Gaya/Mayurbhanj districts",
+      actualResult: "Reduced tribal dropout rates by 25% over one academic year."
+    },
   },
 ];
 
@@ -855,6 +880,12 @@ export function getProjectMilestones(stage: ProjectStage, projectStartDate: stri
       if (milestonesList[firstUncompletedIndex]?.name === m.name) {
         status = "Current";
       }
+      if (m.dueDate) {
+        const remaining = getDaysRemainingText(m.dueDate);
+        if (remaining && remaining.isOverdue) {
+          status = "Overdue";
+        }
+      }
     }
 
     return {
@@ -884,6 +915,40 @@ export function getDaysRemainingText(dueDateString?: string): { text: string; is
     const overdueDays = Math.abs(diffDays);
     return { text: `Overdue by ${overdueDays} day${overdueDays > 1 ? "s" : ""}`, isOverdue: true };
   }
+}
+
+// Deterministic Project Health Utility
+export function getProjectHealth(project: ResolvedProject): "ON TRACK" | "AT RISK" | "DELAYED" | "AWAITING VERIFICATION" | "COMPLETED" {
+  if (project.stage === "COMPLETED") return "COMPLETED";
+  if (project.stage === "AWAITING_ADMIN_VERIFICATION") return "AWAITING VERIFICATION";
+
+  const hasOverdue = project.milestones.some(m => {
+    if (m.status === "Completed") return false;
+    if (m.dueDate) {
+      const remaining = getDaysRemainingText(m.dueDate);
+      return remaining?.isOverdue === true;
+    }
+    return false;
+  });
+
+  if (hasOverdue) return "DELAYED";
+
+  const currentMilestone = project.milestones.find(m => m.status === "Current");
+  if (currentMilestone && currentMilestone.dueDate) {
+    const remaining = getDaysRemainingText(currentMilestone.dueDate);
+    if (remaining && !remaining.isOverdue) {
+      const current = new Date("2026-08-26");
+      const due = new Date(currentMilestone.dueDate);
+      const diffTime = due.getTime() - current.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      // Under 7 days and project progress is low
+      if (diffDays >= 0 && diffDays <= 7 && project.progress < 80) {
+        return "AT RISK";
+      }
+    }
+  }
+
+  return "ON TRACK";
 }
 
 export const universityMockService = {
@@ -1610,6 +1675,36 @@ export const universityMockService = {
 
     setStoredData("uni_projects", projects);
     this.addActivity(`Additional verification evidence requested for project "${projects[idx].title}" (${projectId}).`);
+
+    return projects[idx];
+  },
+
+  returnProjectForCorrection(projectId: string, note: string, userRole = "ADMIN"): UniversityProject {
+    if (userRole !== "ADMIN") {
+      throw new Error("Unauthorized: Only platform administrators can return projects for correction.");
+    }
+
+    const projects = this.getProjects();
+    const idx = projects.findIndex((p) => p.id === projectId);
+    if (idx === -1) {
+      throw new Error("Project not found.");
+    }
+
+    projects[idx].stage = "IMPLEMENTATION";
+    projects[idx].verificationEvidenceStatus = "NEEDS_REVISION";
+    projects[idx].completionVerificationNote = note.trim();
+
+    const today = new Date().toISOString().split("T")[0];
+    projects[idx].activities.unshift({
+      text: `Project returned for correction: ${note.trim()}`,
+      performedBy: "Platform Administration",
+      date: today,
+      time: "12:00",
+      type: "verification_revision",
+    });
+
+    setStoredData("uni_projects", projects);
+    this.addActivity(`Project "${projects[idx].title}" (${projectId}) returned for correction by Platform Administration.`);
 
     return projects[idx];
   },

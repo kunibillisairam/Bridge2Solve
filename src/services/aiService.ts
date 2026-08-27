@@ -11,6 +11,7 @@ export interface ProblemAnalysis {
   suggestedDomains: string[];
   analyzedAt: string;
   reviewStatus?: "PENDING" | "ACCEPTED" | "MODIFIED";
+  engineUsed?: "Gemini" | "Fallback Rule-Based Engine";
 }
 
 interface ProblemInput {
@@ -36,15 +37,25 @@ export async function analyzeProblem(input: ProblemInput): Promise<ProblemAnalys
     const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     if (apiKey) {
       const apiResult = await callExternalAIService(input, apiKey);
-      if (apiResult) return apiResult;
+      if (apiResult) {
+        return {
+          ...apiResult,
+          engineUsed: "Gemini",
+        };
+      }
     }
   } catch (error) {
     console.warn("Gemini AI call failed or timed out. Falling back to deterministic analysis engine:", error);
   }
 
-  // ----------------------------------------------------
-  // Deterministic Fallback Analysis Engine
-  // ----------------------------------------------------
+  const fallbackResult = getFallbackAnalysis(input, text, today);
+  return {
+    ...fallbackResult,
+    engineUsed: "Fallback Rule-Based Engine",
+  };
+}
+
+function getFallbackAnalysis(input: ProblemInput, text: string, today: string): ProblemAnalysis {
 
   // 1. Water & Sanitation Domain
   if (

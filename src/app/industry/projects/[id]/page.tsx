@@ -36,6 +36,7 @@ import {
 } from "@/services/universityMockService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { impactService } from "@/services/impactService";
 
 export default function IndustryProjectDetailPage() {
   const params = useParams();
@@ -269,6 +270,54 @@ export default function IndustryProjectDetailPage() {
                   </div>
                 </div>
               )}
+
+              {/* VERIFIED PROJECT OUTCOME & IMPACT (FOR INDUSTRY) */}
+              {(() => {
+                const impact = impactService.getImpactAssessmentForProject(project.id);
+                if (!impact || impact.status !== "VERIFIED") return null;
+
+                return (
+                  <div className="p-4 bg-emerald-50/90 border border-emerald-200 rounded-lg space-y-3">
+                    <div className="flex justify-between items-center border-b border-emerald-200 pb-2">
+                      <span className="font-extrabold text-emerald-950 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-700" /> Verified Project Outcome & Impact
+                      </span>
+                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 rounded">
+                        ✓ Admin Verified ({impact.verifiedAt})
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 text-xs bg-white p-3 rounded border border-emerald-150">
+                      <div>
+                        <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Beneficiaries Reached</span>
+                        <span className="font-extrabold text-emerald-950 text-sm">{impact.beneficiariesReached.toLocaleString('en-IN')} people</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Locations Covered</span>
+                        <span className="font-bold text-emerald-950">{impact.locationsCovered}</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-emerald-900 uppercase block">Measurable Community Improvement</span>
+                      <p className="text-xs text-emerald-950 bg-white p-2.5 rounded border border-emerald-150 font-medium leading-relaxed">
+                        {impact.problemImprovement}
+                      </p>
+                    </div>
+
+                    {impact.keyOutcomes && impact.keyOutcomes.length > 0 && (
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-emerald-900 uppercase block">Key Outcomes Delivered</span>
+                        <ul className="list-disc list-inside space-y-1 text-xs text-emerald-950 bg-white p-2.5 rounded border border-emerald-150 font-medium">
+                          {impact.keyOutcomes.map((k, i) => (
+                            <li key={i}>{k}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
 

@@ -17,7 +17,8 @@ import {
   ArrowRight,
   AlertTriangle,
   Clock,
-  Award
+  Award,
+  HeartHandshake
 } from "lucide-react";
 import { 
   industryService 
@@ -26,10 +27,19 @@ import {
   universityMockService, 
   ResolvedProject, 
   STAGE_CONFIG,
-  getDaysRemainingText
+  getDaysRemainingText,
+  getProjectHealth
 } from "@/services/universityMockService";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+
+const HEALTH_COLORS: Record<string, string> = {
+  "ON TRACK": "bg-emerald-50 text-emerald-800 border-emerald-300",
+  "AT RISK": "bg-amber-50 text-amber-800 border-amber-300 animate-pulse",
+  DELAYED: "bg-red-50 text-red-800 border-red-300 ring-2 ring-red-400 font-extrabold",
+  "AWAITING VERIFICATION": "bg-blue-50 text-blue-800 border-blue-300 animate-pulse",
+  COMPLETED: "bg-slate-100 text-slate-700 border-slate-300",
+};
 
 function AdminProjectsContent() {
   const searchParams = useSearchParams();
@@ -68,25 +78,26 @@ function AdminProjectsContent() {
           p.title.toLowerCase().includes(q) ||
           p.collaboration.university.toLowerCase().includes(q) ||
           p.originalProblem.district.toLowerCase().includes(q) ||
+          p.originalProblem.title.toLowerCase().includes(q) ||
           (p.assignedTeam && p.assignedTeam.name.toLowerCase().includes(q))
       );
     }
 
     if (selectedFilter !== "All") {
-      if (selectedFilter === "AWAITING_ADMIN_VERIFICATION") {
-        result = result.filter((p) => p.stage === "AWAITING_ADMIN_VERIFICATION");
-      } else if (selectedFilter === "COMPLETED") {
-        result = result.filter((p) => p.stage === "COMPLETED");
-      } else if (selectedFilter === "IMPLEMENTATION") {
+      if (selectedFilter === "Active") {
+        // Active stages of execution
         result = result.filter((p) => p.stage === "IMPLEMENTATION" || p.stage === "PROPOSAL_APPROVED");
-      } else if (selectedFilter === "Under Review") {
-        result = result.filter((p) => p.status === "UNDER_REVIEW");
-      } else if (selectedFilter === "Active") {
-        result = result.filter((p) => p.status === "ACTIVE");
-      } else if (selectedFilter === "Overdue") {
-        result = result.filter((p) => p.milestones.some((m) => m.status === "Overdue"));
-      } else {
-        result = result.filter((p) => p.stage === selectedFilter);
+      } else if (selectedFilter === "Pending Action") {
+        // Pending setup/approval stages
+        result = result.filter((p) => 
+          ["PROBLEM_REPORTED", "VALIDATED", "UNIVERSITY_MATCHED", "TEAM_FORMED", "PROPOSAL_SUBMITTED"].includes(p.stage)
+        );
+      } else if (selectedFilter === "Delayed") {
+        result = result.filter((p) => getProjectHealth(p) === "DELAYED");
+      } else if (selectedFilter === "Awaiting Verification") {
+        result = result.filter((p) => p.stage === "AWAITING_ADMIN_VERIFICATION");
+      } else if (selectedFilter === "Completed") {
+        result = result.filter((p) => p.stage === "COMPLETED");
       }
     }
 
@@ -134,12 +145,11 @@ function AdminProjectsContent() {
             onChange={(e) => setSelectedFilter(e.target.value)}
           >
             <option value="All">All Projects ({projects.length})</option>
-            <option value="AWAITING_ADMIN_VERIFICATION">Awaiting Government Verification</option>
-            <option value="Active">Active Projects</option>
-            <option value="IMPLEMENTATION">Under Implementation</option>
-            <option value="Under Review">Under Review</option>
-            <option value="COMPLETED">Completed Projects</option>
-            <option value="Overdue">Overdue Milestones</option>
+            <option value="Active">Active (Under Implementation)</option>
+            <option value="Pending Action">Pending Action (Planning / Endorsement)</option>
+            <option value="Delayed">Delayed Projects (Overdue)</option>
+            <option value="Awaiting Verification">Awaiting Government Verification</option>
+            <option value="Completed">Completed Projects</option>
           </select>
 
           {(searchQuery || selectedFilter !== "All") && (
@@ -168,10 +178,11 @@ function AdminProjectsContent() {
           {filteredProjects.map((project) => {
             const stageConfig = STAGE_CONFIG[project.stage];
             const acceptedRequests = industryService.getAcceptedSupportRequestsForProject(project.id);
-            const currentMilestone = project.milestones.find((m) => m.status === "Current") || project.milestones[project.milestones.length - 1];
-            const deadlineInfo = getDaysRemainingText(currentMilestone?.dueDate);
+            const currentMilestone = project.milestones.find((m) => m.status === "Current" || m.status === "Overdue") || project.milestones[project.milestones.length - 1];
+            const deadlineInfo = currentMilestone?.dueDate ? getDaysRemainingText(currentMilestone.dueDate) : null;
 
             const isAwaitingVerification = project.stage === "AWAITING_ADMIN_VERIFICATION";
+            const projectHealth = getProjectHealth(project);
 
             return (
               <Card key={project.id} className={`border shadow-subtle bg-white hover:border-primary/30 transition-all flex flex-col justify-between ${
@@ -180,26 +191,34 @@ function AdminProjectsContent() {
                 <CardContent className="p-5 space-y-4">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[10px] font-extrabold text-primary uppercase tracking-wider bg-primary-light border border-primary/10 px-2 py-0.5 rounded">
                           {project.id}
                         </span>
                         <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider">
                           {project.originalProblem.category}
                         </span>
+                        <span className={`text-[9.5px] font-extrabold px-2 py-0.5 rounded border ${HEALTH_COLORS[projectHealth]}`}>
+                          HEALTH: {projectHealth}
+                        </span>
                       </div>
                       <h3 className="text-base font-bold text-primary">{project.title}</h3>
                     </div>
 
-                    <span className={`text-xs px-2.5 py-0.5 rounded font-bold border ${
+                    <span className={`text-xs px-2.5 py-0.5 rounded font-bold border uppercase ${
                       isAwaitingVerification
-                        ? "bg-amber-100 text-amber-900 border-amber-300 font-extrabold animate-pulse"
+                        ? "bg-amber-100 text-amber-900 border-amber-300 font-extrabold"
                         : project.stage === "COMPLETED"
                         ? "bg-emerald-100 text-emerald-900 border-emerald-300"
                         : "bg-indigo-50 text-indigo-700 border-indigo-150"
                     }`}>
                       {stageConfig?.label || project.stage} ({project.progress}%)
                     </span>
+                  </div>
+
+                  <div className="text-xs text-brandgray-muted bg-slate-50 p-2 border border-slate-100 rounded">
+                    <span className="text-[9.5px] font-bold uppercase block mb-0.5 text-slate-500">Target Problem ID & Title</span>
+                    <span className="font-semibold text-primary">{project.problemId}</span>: {project.originalProblem.title}
                   </div>
 
                   <p className="text-xs text-brandgray-text leading-relaxed line-clamp-2">
@@ -223,9 +242,9 @@ function AdminProjectsContent() {
                   </div>
 
                   {acceptedRequests.length > 0 && (
-                    <div className="p-2.5 bg-emerald-50 text-emerald-900 border border-emerald-200 rounded text-xs flex justify-between items-center">
+                    <div className="p-2.5 bg-emerald-50/70 text-emerald-900 border border-emerald-250 rounded text-xs flex justify-between items-center">
                       <div>
-                        <span className="font-bold text-[10px] uppercase block text-emerald-800">Accepted CSR Partner</span>
+                        <span className="font-bold text-[10px] uppercase block text-emerald-800">CSR Funding Partner</span>
                         <p className="font-bold text-emerald-950">{acceptedRequests[0].industryName}</p>
                       </div>
                       <span className="text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 rounded">
