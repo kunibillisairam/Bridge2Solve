@@ -4,6 +4,10 @@ import { setSessionCookie } from '@/lib/auth-server';
 
 export async function POST(req: NextRequest) {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json({ error: 'Role switching is disabled in production' }, { status: 403 });
+    }
+
     const { role } = await req.json();
 
     if (!role || !['CITIZEN', 'UNIVERSITY', 'INDUSTRY', 'ADMIN'].includes(role)) {

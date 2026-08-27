@@ -13,6 +13,15 @@ export async function POST(
     }
 
     const projectId = params.id;
+    
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) {
+      return NextResponse.json({ error: 'Project not found.' }, { status: 404 });
+    }
+    if (project.universityId !== user.id && user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden. You do not own this project.' }, { status: 403 });
+    }
+
     const { title, description, budget, timeline } = await req.json();
 
     if (!title || !description || !budget || !timeline) {

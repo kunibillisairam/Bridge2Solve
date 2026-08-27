@@ -368,23 +368,41 @@ export default function AdminControlCenterPage() {
               <p className="text-sm font-bold text-primary">
                 {activeTab === "pending" 
                   ? "No Submissions Awaiting Action" 
-                  : activeTab === "active" 
+                  : activeTab === "approved" 
                   ? "No Active Collaborations" 
-                  : "No Rejected Submissions"}
+                  : activeTab === "analyzed"
+                  ? "No AI Analyzed Submissions"
+                  : activeTab === "duplicates"
+                  ? "No Potential Duplicates"
+                  : activeTab === "rejected"
+                  ? "No Rejected Submissions"
+                  : "No Problems Found"}
               </p>
               <p className="text-xs text-brandgray-muted leading-relaxed">
                 {activeTab === "pending"
                   ? "There are currently no community issues reported by citizens awaiting administrative validation or AI analysis verification."
-                  : activeTab === "active"
+                  : activeTab === "approved"
                   ? "There are no community challenges that have active research teams or CSR partners assigned to them."
-                  : "No community problems have been rejected by the platform administrators."}
+                  : activeTab === "analyzed"
+                  ? "There are no community challenges with completed AI analysis waiting for team assignment."
+                  : activeTab === "duplicates"
+                  ? "No localized reports have been clustered as duplicate citizen entries at this time."
+                  : activeTab === "rejected"
+                  ? "No community problems have been rejected by the platform administrators."
+                  : "There are no community problems matching the current filters in the registry."}
               </p>
               <p className="text-[11px] font-bold text-primary">
                 {activeTab === "pending"
                   ? "What next: You are all caught up. Check back later when citizens report new localized issues."
-                  : activeTab === "active"
+                  : activeTab === "approved"
                   ? "What next: Visit the proposals review dashboard to approve pending university drafts and launch projects."
-                  : "What next: Keep validating submitted problems. Incorrect or duplicate entries will appear here when rejected."}
+                  : activeTab === "analyzed"
+                  ? "What next: Guide universities to search for problems and express interest."
+                  : activeTab === "duplicates"
+                  ? "What next: All reports are verified as unique. No duplicate verification is required."
+                  : activeTab === "rejected"
+                  ? "What next: Keep validating submitted problems. Incorrect or duplicate entries will appear here when rejected."
+                  : "What next: Try selecting a different filter tab or checking other workflow sections."}
               </p>
             </CardContent>
           </Card>

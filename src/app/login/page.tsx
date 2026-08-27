@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { Lock, Mail, AlertCircle, Building2, User, Landmark, Shield } from 'lucide-react';
+import { Lock, Mail, AlertCircle, Building2, User, Landmark, Shield, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -51,7 +52,7 @@ export default function LoginPage() {
     {
       role: 'Government Admin',
       email: 'admin@gov.in',
-      pass: 'admin123',
+      pass: 'password123',
       desc: 'Validate problems and assign matches',
       icon: Shield,
       color: 'border-rose-200 bg-rose-50 text-rose-800',
@@ -65,7 +66,7 @@ export default function LoginPage() {
         {/* Left Column: Login Form */}
         <div className="flex flex-col justify-center">
           <div className="mb-6">
-            <h2 className="text-xl font-bold text-primary uppercase tracking-tight">Portal Login</h2>
+            <h1 className="text-xl font-bold text-primary uppercase tracking-tight">Portal Login</h1>
             <p className="text-xs text-brandgray-muted mt-1">
               Access the National Societal Innovation Collaboration Platform.
             </p>
@@ -116,19 +117,27 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary hover:bg-primary-hover text-white font-semibold py-2 rounded text-sm transition-colors shadow-subtle border border-primary disabled:bg-primary/50"
+              className="w-full bg-primary hover:bg-primary-hover text-white font-semibold py-2 rounded text-sm transition-colors shadow-subtle border border-primary disabled:bg-primary/50 flex items-center justify-center space-x-1.5"
             >
-              {loading ? 'Authenticating...' : 'Sign In'}
+              <span>{loading ? 'Authenticating...' : 'Sign In'}</span>
+              {!loading && <ArrowRight className="h-3.5 w-3.5" />}
             </button>
           </form>
+
+          <div className="mt-6 pt-4 border-t border-brandgray-border text-center text-xs text-brandgray-muted">
+            Don&apos;t have an account yet?{' '}
+            <Link href="/signup" className="font-bold text-primary hover:underline">
+              Create an account
+            </Link>
+          </div>
         </div>
 
         {/* Right Column: Seed Credentials Helper */}
         <div className="border-t md:border-t-0 md:border-l border-brandgray-border pt-6 md:pt-0 md:pl-8 flex flex-col justify-between bg-gray-50 -mx-6 -mb-6 p-6 sm:p-8 md:m-0 rounded-b-lg md:rounded-r-lg md:rounded-bl-none">
           <div>
-            <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-1">
+            <h2 className="text-sm font-bold text-primary uppercase tracking-wider mb-1">
               Evaluator / Seed Credentials
-            </h3>
+            </h2>
             <p className="text-xs text-brandgray-muted mb-4">
               Select a role below to auto-fill the login fields and explore specific dashboard experiences.
             </p>
@@ -143,7 +152,7 @@ export default function LoginPage() {
                       setEmail(su.email);
                       setPassword(su.pass);
                     }}
-                    className={`w-full text-left p-3 border rounded-lg transition-all hover:shadow-subtle flex items-start space-x-3 bg-white hover:border-primary/30`}
+                    className="w-full text-left p-3 border rounded-lg transition-all hover:shadow-subtle flex items-start space-x-3 bg-white hover:border-primary/30"
                   >
                     <div className={`p-1.5 rounded border ${su.color}`}>
                       <Icon className="h-4 w-4" />

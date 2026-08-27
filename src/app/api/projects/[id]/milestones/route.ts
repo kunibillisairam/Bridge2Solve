@@ -23,10 +23,15 @@ export async function PUT(
         id: milestoneId,
         projectId: params.id,
       },
+      include: { project: true }
     });
 
     if (!milestone) {
       return NextResponse.json({ error: 'Milestone not found.' }, { status: 404 });
+    }
+
+    if (user.role !== 'ADMIN' && (user.role !== 'UNIVERSITY' || milestone.project.universityId !== user.id)) {
+      return NextResponse.json({ error: 'Forbidden. You do not own this project.' }, { status: 403 });
     }
 
     const updatedMilestone = await prisma.milestone.update({

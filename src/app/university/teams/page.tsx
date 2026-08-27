@@ -236,7 +236,7 @@ export default function TeamsPage() {
                 Your university has not registered any active academic research taskforces yet. Formed teams are required to coordinate proposals, assign developers, and implement solutions.
               </p>
               <p className="text-[11px] font-bold text-primary">
-                What next: Click the "Create Research Team" button above to add a new team specifying a mentor, members, and skill focus.
+                {"What next: Click the 'Create Research Team' button above to add a new team specifying a mentor, members, and skill focus."}
               </p>
             </CardContent>
           </Card>

@@ -200,7 +200,7 @@ export default function AdminProposalsPage() {
             There are currently no submitted solution proposals matching your selected status filter. This could be because universities are still drafting solutions, or you have already processed all active submissions.
           </p>
           <p className="text-[11px] font-bold text-primary">
-            What next: Try switching your filter criteria to "All", check active university matching queues to identify upcoming drafts, or check back when notified of new proposals.
+            {"What next: Try switching your filter criteria to 'All', check active university matching queues to identify upcoming drafts, or check back when notified of new proposals."}
           </p>
         </div>
       ) : (

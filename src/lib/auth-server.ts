@@ -34,7 +34,7 @@ export function getSessionUser(req?: NextRequest): SessionUser | null {
 
     if (!token) return null;
 
-    const decoded = jwt.verify(token, JWT_SECRET) as SessionUser;
+    const decoded = jwt.verify(token, JWT_SIGNING_SECRET) as SessionUser;
     return decoded;
   } catch (error) {
     return null;
@@ -51,7 +51,7 @@ export function setSessionCookie(res: NextResponse, user: SessionUser) {
       orgName: user.orgName,
       orgDetails: user.orgDetails,
     },
-    JWT_SECRET,
+    JWT_SIGNING_SECRET,
     { expiresIn: '7d' }
   );
 

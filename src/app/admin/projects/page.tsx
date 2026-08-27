@@ -175,7 +175,7 @@ function AdminProjectsContent() {
               No active, pending verification, or completed collaborative research projects match your current search queries or selected status filters.
             </p>
             <p className="text-[11px] font-bold text-primary">
-              What next: Click the "Clear Filters" button to reset the view, search for different terms, or visit the approved proposals board to launch new projects.
+              {"What next: Click the 'Clear Filters' button to reset the view, search for different terms, or visit the approved proposals board to launch new projects."}
             </p>
           </CardContent>
         </Card>

@@ -6,6 +6,9 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const user = getSessionUser(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+    }
     const filter: any = {};
     
     if (user && user.role === 'UNIVERSITY') {

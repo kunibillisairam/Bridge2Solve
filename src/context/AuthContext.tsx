@@ -10,31 +10,55 @@ export interface AuthUser {
   email: string;
   name: string;
   role: UserRole;
+  phone?: string | null;
+  status?: string;
   orgName?: string | null;
   orgDetails?: string | null;
+  profile?: Record<string, any>;
+}
+
+export interface SignupPayload {
+  role: 'CITIZEN' | 'UNIVERSITY' | 'INDUSTRY';
+  email: string;
+  password: string;
+  confirmPassword: string;
+  name: string;
+  phone?: string;
+  // Citizen
+  state?: string;
+  district?: string;
+  // University
+  universityName?: string;
+  department?: string;
+  designation?: string;
+  // Industry
+  organizationName?: string;
+  organizationType?: string;
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<{ success?: boolean; error?: string }>;
+  signup: (data: SignupPayload) => Promise<{ success?: boolean; error?: string }>;
   logout: () => Promise<void>;
-  switchRole: (role: UserRole) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
-const ROLE_REDIRECT: Record<UserRole, string> = {
-  CITIZEN: '/citizen',
-  UNIVERSITY: '/university',
-  INDUSTRY: '/industry',
-  ADMIN: '/admin',
+export const ROLE_REDIRECT: Record<UserRole, string> = {
+  CITIZEN: '/citizen/dashboard',
+  UNIVERSITY: '/university/dashboard',
+  INDUSTRY: '/industry/dashboard',
+  ADMIN: '/admin/dashboard',
 };
 
 const defaultContext: AuthContextValue = {
   user: null,
   loading: true,
   login: async () => ({ success: false, error: 'Not initialized' }),
+  signup: async () => ({ success: false, error: 'Not initialized' }),
   logout: async () => {},
-  switchRole: async () => {},
+  refreshUser: async () => {},
 };
 
 const AuthContext = createContext<AuthContextValue>(defaultContext);
@@ -44,15 +68,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    fetch('/api/auth/session')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.user) setUser(data.user);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await fetch('/api/auth/me');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          setUser(data.user);
+          return;
+        }
+      }
+      setUser(null);
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
 
   const login = useCallback(async (email: string, password: string) => {
     try {
@@ -63,39 +99,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       const data = await res.json();
       if (!res.ok) return { success: false, error: data.error || 'Login failed' };
-      setUser(data.user);
-      router.push(ROLE_REDIRECT[data.user.role as UserRole] || '/');
+      
+      // Refresh user to get full profile
+      await refreshUser();
+      
+      const role = data.user.role as UserRole;
+      router.push(ROLE_REDIRECT[role] || '/');
       return { success: true };
     } catch {
       return { success: false, error: 'Network error. Please try again.' };
     }
-  }, [router]);
+  }, [router, refreshUser]);
+
+  const signup = useCallback(async (signupData: SignupPayload) => {
+    try {
+      const res = await fetch('/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(signupData),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Registration failed' };
+      }
+
+      await refreshUser();
+
+      const role = data.user.role as UserRole;
+      router.push(ROLE_REDIRECT[role] || '/');
+      return { success: true };
+    } catch {
+      return { success: false, error: 'Network error. Please try again.' };
+    }
+  }, [router, refreshUser]);
 
   const logout = useCallback(async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
     setUser(null);
     router.push('/login');
   }, [router]);
 
-  const switchRole = useCallback(async (role: UserRole) => {
-    try {
-      const res = await fetch('/api/auth/role-switch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role }),
-      });
-      const data = await res.json();
-      if (res.ok && data.user) {
-        setUser(data.user);
-        router.push(ROLE_REDIRECT[role]);
-      }
-    } catch {
-      // silently fail in dev mode
-    }
-  }, [router]);
-
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, switchRole }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

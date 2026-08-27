@@ -223,7 +223,7 @@ export default function ProposalsPage() {
                 Your university has not drafted or submitted any solution proposals yet. Technical proposals containing budget estimates and research approaches are required before projects can be approved and executed by administrators.
               </p>
               <p className="text-[11px] font-bold text-primary">
-                What next: Register interest in a community problem first, assign an active research team, and then click "Draft Proposal" below to start.
+                {"What next: Register interest in a community problem first, assign an active research team, and then click 'Draft Proposal' below to start."}
               </p>
               <div className="pt-2">
                 <Button variant="outline" size="sm" onClick={handleOpenCreate} className="h-8">
