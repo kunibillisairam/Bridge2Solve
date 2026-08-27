@@ -447,7 +447,11 @@ export default function AdminProposalDetailsPage() {
                 disabled={actionLoading}
                 className={confirmAction === "reject" ? "bg-red-50 border-red-200 text-red-700 hover:bg-red-100" : ""}
               >
-                {actionLoading ? "Processing..." : "Confirm Action"}
+                {actionLoading ? (
+                  confirmAction === "approve" ? "Approving..." : confirmAction === "reject" ? "Rejecting..." : "Requesting..."
+                ) : (
+                  confirmAction === "approve" ? "Approve & Launch Project" : confirmAction === "reject" ? "Reject Proposal" : "Send Request"
+                )}
               </Button>
             </div>
           </div>

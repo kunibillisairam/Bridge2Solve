@@ -63,6 +63,8 @@ export default function ProposalsPage() {
   const [resourceRequirements, setResourceRequirements] = useState("");
   const [formError, setFormError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [isFormSubmitting, setIsFormSubmitting] = useState(false);
+  const [formActionType, setFormActionType] = useState<"draft" | "submit" | null>(null);
 
   useEffect(() => {
     loadData();
@@ -133,6 +135,9 @@ export default function ProposalsPage() {
       return;
     }
 
+    setIsFormSubmitting(true);
+    setFormActionType(isSubmit ? "submit" : "draft");
+
     try {
       universityMockService.saveProposal(
         {
@@ -161,6 +166,9 @@ export default function ProposalsPage() {
       loadData();
     } catch (err: any) {
       setFormError(err.message || "Failed to save proposal.");
+    } finally {
+      setIsFormSubmitting(false);
+      setFormActionType(null);
     }
   };
 
@@ -461,7 +469,7 @@ export default function ProposalsPage() {
 
               {/* Action Buttons */}
               <div className="pt-4 flex justify-between gap-3 border-t border-brandgray-border/60">
-                <Button variant="outline" size="sm" type="button" onClick={handleBackToList}>
+                <Button variant="outline" size="sm" type="button" onClick={handleBackToList} disabled={isFormSubmitting}>
                   Cancel
                 </Button>
                 <div className="flex gap-3">
@@ -470,18 +478,20 @@ export default function ProposalsPage() {
                     size="sm" 
                     type="button" 
                     onClick={() => handleSaveProposal(false)}
+                    disabled={isFormSubmitting}
                     className="h-9 font-semibold text-xs border-brandgray-border hover:bg-brandgray-light"
                   >
-                    Save Draft
+                    {isFormSubmitting && formActionType === "draft" ? "Saving..." : "Save Draft"}
                   </Button>
                   <Button 
                     variant="primary" 
                     size="sm" 
                     type="button" 
                     onClick={() => handleSaveProposal(true)}
+                    disabled={isFormSubmitting}
                     className="h-9 font-semibold text-xs"
                   >
-                    Submit Proposal
+                    {isFormSubmitting && formActionType === "submit" ? "Submitting..." : "Submit Proposal"}
                   </Button>
                 </div>
               </div>
