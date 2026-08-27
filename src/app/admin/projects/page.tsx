@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { 
   Search, 
   MapPin, 
@@ -13,7 +14,10 @@ import {
   Building2,
   FolderKanban,
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
+  AlertTriangle,
+  Clock,
+  Award
 } from "lucide-react";
 import { 
   industryService 
@@ -21,18 +25,22 @@ import {
 import { 
   universityMockService, 
   ResolvedProject, 
-  STAGE_CONFIG 
+  STAGE_CONFIG,
+  getDaysRemainingText
 } from "@/services/universityMockService";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
-export default function AdminProjectsPage() {
+function AdminProjectsContent() {
+  const searchParams = useSearchParams();
+  const initialStage = searchParams.get("stage") || "All";
+
   const [projects, setProjects] = useState<ResolvedProject[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<ResolvedProject[]>([]);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStage, setSelectedStage] = useState("All");
+  const [selectedFilter, setSelectedFilter] = useState(initialStage);
 
   useEffect(() => {
     loadProjects();
@@ -64,16 +72,30 @@ export default function AdminProjectsPage() {
       );
     }
 
-    if (selectedStage !== "All") {
-      result = result.filter((p) => p.stage === selectedStage);
+    if (selectedFilter !== "All") {
+      if (selectedFilter === "AWAITING_ADMIN_VERIFICATION") {
+        result = result.filter((p) => p.stage === "AWAITING_ADMIN_VERIFICATION");
+      } else if (selectedFilter === "COMPLETED") {
+        result = result.filter((p) => p.stage === "COMPLETED");
+      } else if (selectedFilter === "IMPLEMENTATION") {
+        result = result.filter((p) => p.stage === "IMPLEMENTATION" || p.stage === "PROPOSAL_APPROVED");
+      } else if (selectedFilter === "Under Review") {
+        result = result.filter((p) => p.status === "UNDER_REVIEW");
+      } else if (selectedFilter === "Active") {
+        result = result.filter((p) => p.status === "ACTIVE");
+      } else if (selectedFilter === "Overdue") {
+        result = result.filter((p) => p.milestones.some((m) => m.status === "Overdue"));
+      } else {
+        result = result.filter((p) => p.stage === selectedFilter);
+      }
     }
 
     setFilteredProjects(result);
-  }, [searchQuery, selectedStage, projects]);
+  }, [searchQuery, selectedFilter, projects]);
 
   const clearFilters = () => {
     setSearchQuery("");
-    setSelectedStage("All");
+    setSelectedFilter("All");
   };
 
   return (
@@ -81,10 +103,10 @@ export default function AdminProjectsPage() {
       {/* Header Banner */}
       <div className="border-b border-brandgray-border/60 pb-5">
         <h1 className="text-xl font-bold text-primary uppercase tracking-wide">
-          PROJECTS CONTROL CENTER
+          PROJECTS CONTROL & MONITORING CENTER
         </h1>
         <p className="text-xs text-brandgray-muted mt-1 font-medium">
-          Monitor all active and completed community research projects across university partners.
+          Monitor active, pending, verification-ready, and completed community research projects across university partners.
         </p>
       </div>
 
@@ -95,7 +117,7 @@ export default function AdminProjectsPage() {
           <input
             type="text"
             placeholder="Search by Project ID (e.g. PB-2026-001), title, university, team, or location..."
-            className="w-full text-xs pl-9 pr-4 py-2 border border-brandgray-border rounded focus:outline-none focus:border-primary"
+            className="w-full text-xs pl-9 pr-4 py-2 border border-brandgray-border rounded focus:outline-none focus:border-primary font-medium"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -108,19 +130,19 @@ export default function AdminProjectsPage() {
 
           <select
             className="text-xs border border-brandgray-border rounded px-2.5 py-1.5 bg-white text-brandgray-text font-medium"
-            value={selectedStage}
-            onChange={(e) => setSelectedStage(e.target.value)}
+            value={selectedFilter}
+            onChange={(e) => setSelectedFilter(e.target.value)}
           >
-            <option value="All">All Stages</option>
-            <option value="TEAM_FORMED">Team Formed</option>
-            <option value="PROPOSAL_SUBMITTED">Proposal Submitted</option>
-            <option value="PROPOSAL_APPROVED">Proposal Approved</option>
-            <option value="IMPLEMENTATION">Implementation</option>
-            <option value="IMPACT_ASSESSMENT">Impact Assessment</option>
-            <option value="COMPLETED">Completed</option>
+            <option value="All">All Projects ({projects.length})</option>
+            <option value="AWAITING_ADMIN_VERIFICATION">Awaiting Government Verification</option>
+            <option value="Active">Active Projects</option>
+            <option value="IMPLEMENTATION">Under Implementation</option>
+            <option value="Under Review">Under Review</option>
+            <option value="COMPLETED">Completed Projects</option>
+            <option value="Overdue">Overdue Milestones</option>
           </select>
 
-          {(searchQuery || selectedStage !== "All") && (
+          {(searchQuery || selectedFilter !== "All") && (
             <Button
               variant="outline"
               size="sm"
@@ -146,9 +168,15 @@ export default function AdminProjectsPage() {
           {filteredProjects.map((project) => {
             const stageConfig = STAGE_CONFIG[project.stage];
             const acceptedRequests = industryService.getAcceptedSupportRequestsForProject(project.id);
+            const currentMilestone = project.milestones.find((m) => m.status === "Current") || project.milestones[project.milestones.length - 1];
+            const deadlineInfo = getDaysRemainingText(currentMilestone?.dueDate);
+
+            const isAwaitingVerification = project.stage === "AWAITING_ADMIN_VERIFICATION";
 
             return (
-              <Card key={project.id} className="border-brandgray-border shadow-subtle bg-white hover:border-primary/30 transition-all flex flex-col justify-between">
+              <Card key={project.id} className={`border shadow-subtle bg-white hover:border-primary/30 transition-all flex flex-col justify-between ${
+                isAwaitingVerification ? "border-amber-300 ring-1 ring-amber-200" : "border-brandgray-border"
+              }`}>
                 <CardContent className="p-5 space-y-4">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="space-y-1">
@@ -163,7 +191,13 @@ export default function AdminProjectsPage() {
                       <h3 className="text-base font-bold text-primary">{project.title}</h3>
                     </div>
 
-                    <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-150 px-2.5 py-0.5 rounded font-bold">
+                    <span className={`text-xs px-2.5 py-0.5 rounded font-bold border ${
+                      isAwaitingVerification
+                        ? "bg-amber-100 text-amber-900 border-amber-300 font-extrabold animate-pulse"
+                        : project.stage === "COMPLETED"
+                        ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                        : "bg-indigo-50 text-indigo-700 border-indigo-150"
+                    }`}>
                       {stageConfig?.label || project.stage} ({project.progress}%)
                     </span>
                   </div>
@@ -172,22 +206,40 @@ export default function AdminProjectsPage() {
                     {project.originalProblem.description}
                   </p>
 
-                  <div className="p-3 bg-slate-50 rounded border border-slate-150 text-xs space-y-1">
-                    <div className="flex items-center gap-1.5 font-bold text-primary">
-                      <GraduationCap className="h-4 w-4 text-primary shrink-0" />
-                      <span>{project.collaboration.university}</span>
+                  <div className="p-3 bg-slate-50 rounded border border-slate-150 text-xs space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-primary">
+                        <GraduationCap className="h-4 w-4 text-primary shrink-0" />
+                        <span>{project.collaboration.university}</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-500">{project.startDate} — {project.expectedCompletionDate}</span>
                     </div>
+
                     {project.assignedTeam && (
                       <p className="text-[11px] text-brandgray-muted flex items-center gap-1 pl-5">
-                        <Users className="h-3.5 w-3.5 shrink-0" /> Team: {project.assignedTeam.name} ({project.assignedTeam.facultyMentor})
+                        <Users className="h-3.5 w-3.5 shrink-0" /> Team: <span className="font-semibold text-brandgray-text">{project.assignedTeam.name}</span> ({project.assignedTeam.facultyMentor})
                       </p>
                     )}
                   </div>
 
                   {acceptedRequests.length > 0 && (
-                    <div className="p-2.5 bg-emerald-50 text-emerald-900 border border-emerald-200 rounded text-xs space-y-0.5">
-                      <span className="font-bold text-[10px] uppercase block text-emerald-800">CSR Industry Partner</span>
-                      <p className="font-bold text-emerald-950">{acceptedRequests[0].industryName}</p>
+                    <div className="p-2.5 bg-emerald-50 text-emerald-900 border border-emerald-200 rounded text-xs flex justify-between items-center">
+                      <div>
+                        <span className="font-bold text-[10px] uppercase block text-emerald-800">Accepted CSR Partner</span>
+                        <p className="font-bold text-emerald-950">{acceptedRequests[0].industryName}</p>
+                      </div>
+                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300 px-2 py-0.5 rounded">
+                        {acceptedRequests[0].supportType}
+                      </span>
+                    </div>
+                  )}
+
+                  {deadlineInfo && (
+                    <div className={`p-2 rounded text-[11px] font-semibold flex items-center gap-1.5 ${
+                      deadlineInfo.isOverdue ? "bg-red-50 text-red-700 border border-red-200" : "bg-slate-100 text-slate-700"
+                    }`}>
+                      <Clock className="h-3.5 w-3.5 shrink-0" />
+                      <span>Target Milestone: <span className="font-bold">{currentMilestone?.name}</span> ({deadlineInfo.text})</span>
                     </div>
                   )}
 
@@ -195,9 +247,17 @@ export default function AdminProjectsPage() {
                     <span className="flex items-center gap-1 text-brandgray-muted">
                       <MapPin className="h-3.5 w-3.5" /> {project.originalProblem.district}, {project.originalProblem.state}
                     </span>
-                    <Link href={`/university/projects/${project.id}`}>
-                      <Button variant="primary" size="sm" className="h-8 text-xs font-bold">
-                        View Project Details <ArrowRight className="h-3.5 w-3.5" />
+                    <Link href={`/admin/projects/${project.id}`}>
+                      <Button variant="primary" size="sm" className="h-8 text-xs font-bold flex items-center gap-1">
+                        {isAwaitingVerification ? (
+                          <>
+                            <Award className="h-3.5 w-3.5 text-amber-300" /> Verify Project Completion
+                          </>
+                        ) : (
+                          <>
+                            View Project Details <ArrowRight className="h-3.5 w-3.5" />
+                          </>
+                        )}
                       </Button>
                     </Link>
                   </div>
@@ -208,5 +268,13 @@ export default function AdminProjectsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminProjectsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-xs text-brandgray-muted">Loading Projects Control...</div>}>
+      <AdminProjectsContent />
+    </Suspense>
   );
 }

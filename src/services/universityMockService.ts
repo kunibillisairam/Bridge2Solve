@@ -107,11 +107,12 @@ export type ProjectStage =
   | "PROPOSAL_APPROVED"
   | "IMPLEMENTATION"
   | "IMPACT_ASSESSMENT"
+  | "AWAITING_ADMIN_VERIFICATION"
   | "COMPLETED";
 
 export interface ProjectMilestone {
   name: string;
-  status: "Completed" | "Current" | "Upcoming";
+  status: "Completed" | "Current" | "Upcoming" | "Overdue" | "Blocked";
   date?: string;
   description: string;
   dueDate?: string;
@@ -159,6 +160,8 @@ export interface UniversityProject {
   collaboration: ProjectCollaboration;
   documents: ProjectDocument[];
   activities: ProjectActivityLog[];
+  completionVerificationNote?: string;
+  verificationEvidenceStatus?: "PENDING" | "SUBMITTED" | "VERIFIED" | "NEEDS_REVISION";
 }
 
 // Resolved project for UI display
@@ -201,6 +204,7 @@ export const LIFECYCLE_STAGES: ProjectStage[] = [
   "PROPOSAL_APPROVED",
   "IMPLEMENTATION",
   "IMPACT_ASSESSMENT",
+  "AWAITING_ADMIN_VERIFICATION",
   "COMPLETED"
 ];
 
@@ -269,14 +273,22 @@ export const STAGE_CONFIG: Record<ProjectStage, {
     label: "Impact Assessment",
     defaultProgress: 90,
     status: "ACTIVE",
-    nextAction: "Conduct community survey and upload impact report",
+    nextAction: "Submit impact report for final government verification",
     actionText: "Submit Impact Report",
+  },
+  AWAITING_ADMIN_VERIFICATION: {
+    label: "Awaiting Government Verification",
+    defaultProgress: 95,
+    status: "UNDER_REVIEW",
+    nextAction: "Awaiting final verification and sign-off by Platform Administration",
+    actionText: "Review Verification Evidence",
+    actionHref: "/admin/projects",
   },
   COMPLETED: {
     label: "Completed",
     defaultProgress: 100,
     status: "COMPLETED",
-    nextAction: "Project finalized and closed by administration",
+    nextAction: "Project verified and closed by administration",
     actionText: "View Final Report",
   },
 };
@@ -599,10 +611,10 @@ const INITIAL_PROPOSALS: SolutionProposal[] = [
     expectedImpact: "Increase crop yield by 20% in the first season, reduce reliance on chemical inputs.",
     resourceRequirements: "Microbial strains, lab cultivation equipment, field trial materials.",
     timeline: "6 months",
-    status: "DRAFT",
+    status: "ACCEPTED",
     createdAt: "2026-08-25",
     updatedAt: "2026-08-25",
-    submittedAt: undefined,
+    submittedAt: "2026-08-25",
   },
 ];
 
@@ -641,15 +653,15 @@ const INITIAL_PROJECTS: UniversityProject[] = [
     startDate: "12 August 2026",
     expectedCompletionDate: "30 November 2026",
     collaboration: {
-      university: "Ranchi Technical Institute",
-      industryPartner: "Tata Steel CSR Division",
+      university: "Indian Institute of Science",
+      industryPartner: "Tata Steel CSR Foundation",
       governmentAuthority: "Jharkhand Water Supply & Sanitation Dept",
       agreementStatus: "Active",
       agreementType: "Tripartite MoU",
       startDate: "12 August 2026",
       endDate: "30 November 2026",
       funding: "₹7,50,000",
-      coordinator: "Prof. S. K. Mahapatra",
+      coordinator: "Dr. Ramesh Kumar",
     },
     documents: [
       { name: "Collaboration Agreement", type: "PDF", status: "Active", size: "2.4 MB", uploadedDate: "12 Aug 2026" },
@@ -666,14 +678,48 @@ const INITIAL_PROJECTS: UniversityProject[] = [
     ],
   },
   {
+    id: "PB-2026-002",
+    title: "Crop Yield Reduction due to Soil Salinity",
+    problemId: "prob-2",
+    teamId: "team-3",
+    proposalId: "prop-2",
+    stage: "AWAITING_ADMIN_VERIFICATION",
+    customProgress: 95,
+    startDate: "25 August 2026",
+    expectedCompletionDate: "30 December 2026",
+    completionVerificationNote: "Field trial report and soil microbiota remediation evidence submitted by Soil Remediation Taskforce.",
+    verificationEvidenceStatus: "SUBMITTED",
+    collaboration: {
+      university: "Punjab Agricultural University",
+      industryPartner: "IFFCO AgriTech CSR",
+      governmentAuthority: "Punjab Dept of Agriculture",
+      agreementStatus: "Under Review",
+      agreementType: "Research MoU",
+      startDate: "25 August 2026",
+      endDate: "30 December 2026",
+      funding: "₹6,00,000",
+      coordinator: "Dr. Sanjay Dutt",
+    },
+    documents: [
+      { name: "Field Trial Impact Report", type: "PDF", status: "Under Review", size: "3.1 MB", uploadedDate: "26 Aug 2026" },
+      { name: "Soil Microbe Analysis", type: "PDF", status: "Completed", size: "1.5 MB", uploadedDate: "25 Aug 2026" },
+    ],
+    activities: [
+      { text: "Project submitted for final government verification & sign-off", performedBy: "Dr. Sanjay Dutt", date: "26 Aug 2026", time: "16:45", type: "verification" },
+      { text: "Halophilic bio-fertilizer pilot deployed in 50 test plots", performedBy: "Soil Remediation Taskforce", date: "25 Aug 2026", time: "10:00", type: "milestone" },
+    ],
+  },
+  {
     id: "PB-2026-004",
     title: "Vernacular E-Learning Kits",
     problemId: "prob-5",
     teamId: "team-4",
     proposalId: null,
     stage: "COMPLETED",
+    customProgress: 100,
     startDate: "01 September 2025",
     expectedCompletionDate: "30 June 2026",
+    verificationEvidenceStatus: "VERIFIED",
     collaboration: {
       university: "Odisha State University",
       industryPartner: "Vedanta Foundation CSR",
@@ -700,10 +746,8 @@ const INITIAL_PROJECTS: UniversityProject[] = [
   },
 ];
 
-// Helper to check environment
 const isClient = typeof window !== "undefined";
 
-// Safe Storage Wrappers
 function getStoredData<T>(key: string, defaultValue: T): T {
   if (!isClient) return defaultValue;
   try {
@@ -730,7 +774,13 @@ function setStoredData<T>(key: string, value: T): void {
 export function getProjectMilestones(stage: ProjectStage, projectStartDate: string): ProjectMilestone[] {
   const stageIndex = LIFECYCLE_STAGES.indexOf(stage);
 
-  const milestonesList = [
+  const milestonesList: Array<{
+    name: string;
+    stageLimit: number;
+    date?: string;
+    dueDate?: string;
+    description: string;
+  }> = [
     {
       name: "Problem Validation",
       stageLimit: 1, // VALIDATED
@@ -774,22 +824,29 @@ export function getProjectMilestones(stage: ProjectStage, projectStartDate: stri
     },
     {
       name: "Impact Assessment",
-      stageLimit: 8, // COMPLETED
+      stageLimit: 7, // IMPACT_ASSESSMENT
       date: stageIndex >= 8 ? "15 Jun 2026" : undefined,
-      dueDate: stageIndex === 7 ? "2026-09-10" : stageIndex < 7 ? "2026-11-10" : undefined,
+      dueDate: stageIndex < 8 ? "2026-11-10" : undefined,
       description: "Measurement of water safety indicators and public health tracking.",
     },
     {
+      name: "Government Verification",
+      stageLimit: 8, // AWAITING_ADMIN_VERIFICATION
+      date: stageIndex >= 9 ? "30 Jun 2026" : undefined,
+      dueDate: stageIndex < 9 ? "2026-11-20" : undefined,
+      description: "Final verification and sign-off by Platform Administration.",
+    },
+    {
       name: "Final Completion",
-      stageLimit: 8, // COMPLETED
-      date: stageIndex >= 8 ? "30 Jun 2026" : undefined,
-      dueDate: stageIndex < 8 ? "2026-11-30" : undefined,
+      stageLimit: 9, // COMPLETED
+      date: stageIndex >= 9 ? "30 Jun 2026" : undefined,
+      dueDate: stageIndex < 9 ? "2026-11-30" : undefined,
       description: "Formal project sign-off and transfer of operations to local panchayat.",
     },
   ];
 
   return milestonesList.map((m) => {
-    let status: "Completed" | "Current" | "Upcoming" = "Upcoming";
+    let status: "Completed" | "Current" | "Upcoming" | "Overdue" | "Blocked" = "Upcoming";
     
     if (stageIndex >= m.stageLimit) {
       status = "Completed";
@@ -864,7 +921,6 @@ export const universityMockService = {
     const registeredProblemIds = new Set(interests.map((i) => i.problemId));
 
     const allProblems = this.getProblems();
-    // Exclude problems already registered by this university
     return allProblems.filter((p) => !registeredProblemIds.has(p.id));
   },
 
@@ -900,7 +956,7 @@ export const universityMockService = {
   },
 
   // ----------------------------------------------------
-  // Server-Validated Team Assignment (No Project Creation)
+  // Server-Validated Team Assignment
   // ----------------------------------------------------
   assignTeamToProblem(teamId: string, problemId: string, universityId = "univ-1"): void {
     const teams = this.getTeams();
@@ -909,13 +965,11 @@ export const universityMockService = {
       throw new Error("Team not found.");
     }
 
-    // 1. Verify team belongs to current university
     const team = teams[teamIndex];
     if (team.universityId && team.universityId !== universityId) {
       throw new Error("Unauthorized: Cannot assign a team belonging to another university.");
     }
 
-    // 2. Verify problem is registered by current university
     const interest = this.getInterestForProblem(problemId, universityId);
     if (!interest) {
       throw new Error("Unauthorized: This problem has not been registered by your university.");
@@ -927,13 +981,11 @@ export const universityMockService = {
       throw new Error("Problem not found.");
     }
 
-    // Update Team Assignment (Does NOT create project or proposal)
     teams[teamIndex].assignedProblemId = problemId;
     teams[teamIndex].assignedProblemTitle = problems[probIndex].title;
     teams[teamIndex].status = "Active";
     setStoredData("uni_teams", teams);
 
-    // Update Interest Status
     const interests = this.getInterests();
     const intIdx = interests.findIndex((i) => i.problemId === problemId && i.universityId === universityId);
     if (intIdx !== -1) {
@@ -945,9 +997,7 @@ export const universityMockService = {
     this.addActivity(`Team "${teams[teamIndex].name}" assigned to "${problems[probIndex].title}".`);
   },
 
-  // ----------------------------------------------------
   // Smart Matching Recommendations API
-  // ----------------------------------------------------
   getProblemMatches(problemId: string): ProblemMatchResult | undefined {
     const problem = this.getProblemById(problemId);
     if (!problem) return undefined;
@@ -971,9 +1021,7 @@ export const universityMockService = {
     return data ? data.status : null;
   },
 
-  // ----------------------------------------------------
-  // Problem Clusters API (No Auto-Merge)
-  // ----------------------------------------------------
+  // Problem Clusters API
   getClusters(): ProblemCluster[] {
     return getStoredData<ProblemCluster[]>("uni_problem_clusters", INITIAL_CLUSTERS);
   },
@@ -1045,9 +1093,7 @@ export const universityMockService = {
     return independentPairs.includes(key);
   },
 
-  // ----------------------------------------------------
   // Problem Analysis AI API
-  // ----------------------------------------------------
   getProblemAnalysis(problemId: string): ProblemAnalysis | undefined {
     const analyses = getStoredData<ProblemAnalysis[]>("uni_problem_analyses", INITIAL_ANALYSES);
     return analyses.find((a) => a.problemId === problemId);
@@ -1490,7 +1536,7 @@ export const universityMockService = {
       timestamp: "Just now",
     };
     activities.unshift(newActivity);
-    setStoredData("uni_activities", activities.slice(0, 10));
+    setStoredData("uni_activities", activities.slice(0, 15));
   },
 
   // Projects API
@@ -1500,6 +1546,72 @@ export const universityMockService = {
 
   getProjectById(id: string): UniversityProject | undefined {
     return this.getProjects().find((p) => p.id === id);
+  },
+
+  // ----------------------------------------------------
+  // Government Completion Verification API (Only Admin)
+  // ----------------------------------------------------
+  verifyProjectCompletion(projectId: string, note?: string, userRole = "ADMIN"): UniversityProject {
+    if (userRole !== "ADMIN") {
+      throw new Error("Unauthorized: Only platform administrators can verify and complete projects.");
+    }
+
+    const projects = this.getProjects();
+    const idx = projects.findIndex((p) => p.id === projectId);
+    if (idx === -1) {
+      throw new Error("Project not found.");
+    }
+
+    projects[idx].stage = "COMPLETED";
+    projects[idx].customProgress = 100;
+    projects[idx].verificationEvidenceStatus = "VERIFIED";
+    if (note) {
+      projects[idx].completionVerificationNote = note.trim();
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    projects[idx].activities.unshift({
+      text: "Project completion verified and signed off by Platform Administration",
+      performedBy: "Platform Administration",
+      date: today,
+      time: "12:00",
+      type: "completion",
+    });
+
+    setStoredData("uni_projects", projects);
+    this.addActivity(`Project "${projects[idx].title}" (${projectId}) verified and completed by Platform Administration.`);
+
+    return projects[idx];
+  },
+
+  requestVerificationEvidence(projectId: string, note: string, userRole = "ADMIN"): UniversityProject {
+    if (userRole !== "ADMIN") {
+      throw new Error("Unauthorized: Only platform administrators can request verification evidence.");
+    }
+
+    const projects = this.getProjects();
+    const idx = projects.findIndex((p) => p.id === projectId);
+    if (idx === -1) {
+      throw new Error("Project not found.");
+    }
+
+    projects[idx].stage = "IMPACT_ASSESSMENT";
+    projects[idx].verificationEvidenceStatus = "NEEDS_REVISION";
+    projects[idx].completionVerificationNote = note.trim();
+
+    const today = new Date().toISOString().split("T")[0];
+    projects[idx].activities.unshift({
+      text: `Verification evidence requested: ${note.trim()}`,
+      performedBy: "Platform Administration",
+      date: today,
+      time: "12:00",
+      type: "verification_revision",
+    });
+
+    setStoredData("uni_projects", projects);
+    this.addActivity(`Additional verification evidence requested for project "${projects[idx].title}" (${projectId}).`);
+
+    return projects[idx];
   },
 
   resolveProject(project: UniversityProject): ResolvedProject | undefined {

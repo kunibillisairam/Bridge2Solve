@@ -20,7 +20,8 @@ import {
   Eye,
   ChevronRight,
   Filter,
-  Search
+  Search,
+  Award
 } from "lucide-react";
 import { 
   universityMockService, 
@@ -32,12 +33,6 @@ import {
 import { industryService, IndustrySupportRequest } from "@/services/industryService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-
-const PRIORITY_BADGES = {
-  High: "bg-red-50 text-red-700 border-red-200",
-  Medium: "bg-amber-50 text-amber-700 border-amber-200",
-  Low: "bg-slate-50 text-slate-700 border-slate-200",
-};
 
 const STATUS_BADGES: Record<string, string> = {
   Unassigned: "bg-blue-50 text-blue-700 border-blue-150",
@@ -69,16 +64,33 @@ export default function AdminControlCenterPage() {
     setActivities(universityMockService.getActivities());
   };
 
-  // Top-Level Dynamic Platform Statistics
+  // PROBLEM MANAGEMENT METRICS
   const totalProblemsCount = problems.length;
   const pendingValidationCount = problems.filter((p) => p.status === "Unassigned").length;
   const aiAnalyzedCount = problems.filter((p) => p.status !== "Unassigned").length;
   const potentialDuplicatesCount = problems.filter((p) => p.matchScore >= 85).length;
+  const verifiedProblemsCount = problems.filter((p) => p.status === "Interested" || p.status === "Under Review" || p.status === "Active Project").length;
+  const rejectedProblemsCount = problems.filter((p) => (p.status as string) === "Rejected").length;
+
+  // UNIVERSITY PIPELINE METRICS
   const universityRegistrationsCount = universityMockService.getInterests().length;
-  const pendingProposalsCount = proposals.filter((pr) => pr.status === "SUBMITTED" || pr.status === "UNDER_REVIEW").length;
-  const activeProjectsCount = projects.filter((pj) => pj.stage !== "COMPLETED").length;
-  const pendingIndustryRequestsCount = industryRequests.filter((r) => r.status === "PENDING" || r.status === "UNDER_REVIEW").length;
+  const awaitingTeamAssignmentCount = universityMockService.getInterestedProblemsForTeams().length;
+  const proposalsUnderReviewCount = proposals.filter((pr) => pr.status === "SUBMITTED" || pr.status === "UNDER_REVIEW").length;
+  const approvedProposalsCount = proposals.filter((pr) => pr.status === "ACCEPTED").length;
+  const rejectedProposalsCount = proposals.filter((pr) => pr.status === "REJECTED").length;
+
+  // PROJECT MANAGEMENT METRICS
+  const totalProjectsCount = projects.length;
+  const projectsUnderImplementationCount = projects.filter((pj) => pj.stage === "IMPLEMENTATION" || pj.stage === "PROPOSAL_APPROVED").length;
+  const projectsPendingActionCount = projects.filter((pj) => pj.stage === "TEAM_FORMED" || pj.stage === "PROPOSAL_SUBMITTED").length;
+  const projectsAwaitingVerificationCount = projects.filter((pj) => pj.stage === "AWAITING_ADMIN_VERIFICATION").length;
   const completedProjectsCount = projects.filter((pj) => pj.stage === "COMPLETED").length;
+
+  // INDUSTRY / CSR METRICS
+  const pendingIndustryRequestsCount = industryRequests.filter((r) => r.status === "PENDING").length;
+  const industryUnderReviewCount = industryRequests.filter((r) => r.status === "UNDER_REVIEW").length;
+  const acceptedIndustryRequestsCount = industryRequests.filter((r) => r.status === "ACCEPTED").length;
+  const activePartnershipsCount = industryService.getAcceptedSupportRequestsForProject("PB-2026-001").length > 0 ? 1 + acceptedIndustryRequestsCount : acceptedIndustryRequestsCount;
 
   // Filtered Validation Queue problems
   let queueProblems = problems;
@@ -91,7 +103,7 @@ export default function AdminControlCenterPage() {
   } else if (activeTab === "approved") {
     queueProblems = problems.filter((p) => p.status === "Active Project");
   } else if (activeTab === "rejected") {
-    queueProblems = problems.filter((p) => p.status === "Rejected");
+    queueProblems = problems.filter((p) => (p.status as string) === "Rejected");
   }
 
   return (
@@ -100,51 +112,104 @@ export default function AdminControlCenterPage() {
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-brandgray-border/60 pb-5">
         <div>
           <h1 className="text-2xl font-extrabold text-primary uppercase tracking-wide flex items-center gap-2.5">
-            <ShieldCheck className="h-7 w-7 text-amber-500" /> ADMINISTRATION CONTROL CENTER
+            <ShieldCheck className="h-7 w-7 text-amber-500" /> ADMIN VALIDATION DASHBOARD & CONTROL CENTER
           </h1>
           <p className="text-xs text-brandgray-muted mt-1 font-medium">
-            Monitor, validate, approve, and coordinate the complete ProblemBridge lifecycle.
+            Monitor, validate, approve, coordinate, and verify completion across the complete ProblemBridge ecosystem.
           </p>
         </div>
       </div>
 
-      {/* TOP-LEVEL PLATFORM STATISTICS GRID (9 Dynamic Responsive Cards) */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
-        {[
-          { label: "Total Problems", value: totalProblemsCount, href: "/admin/problems", icon: Layers, color: "bg-blue-50 text-blue-700 border-blue-200" },
-          { label: "Pending Validation", value: pendingValidationCount, href: "/admin/problems?status=Unassigned", icon: Clock, color: "bg-amber-50 text-amber-800 border-amber-250" },
-          { label: "AI Analyzed", value: aiAnalyzedCount, href: "/admin/problems?status=Analyzed", icon: Sparkles, color: "bg-purple-50 text-purple-800 border-purple-200" },
-          { label: "Potential Duplicates", value: potentialDuplicatesCount, href: "/admin/problems?duplicates=true", icon: Copy, color: "bg-rose-50 text-rose-800 border-rose-200" },
-          { label: "Univ Registrations", value: universityRegistrationsCount, href: "/admin/problems", icon: Users, color: "bg-emerald-50 text-emerald-800 border-emerald-250" },
-          { label: "Pending Proposals", value: pendingProposalsCount, href: "/admin/proposals", icon: FileText, color: "bg-indigo-50 text-indigo-800 border-indigo-200" },
-          { label: "Active Projects", value: activeProjectsCount, href: "/admin/projects", icon: FolderKanban, color: "bg-primary-light text-primary border-primary/20" },
-          { label: "Industry Requests", value: pendingIndustryRequestsCount, href: "/admin/industry-support", icon: Building2, color: "bg-amber-50 text-amber-900 border-amber-300" },
-          { label: "Completed Projects", value: completedProjectsCount, href: "/admin/projects?stage=COMPLETED", icon: CheckCircle2, color: "bg-slate-100 text-slate-800 border-slate-300" },
-        ].map((stat, i) => {
-          const Icon = stat.icon;
-          return (
+      {/* DOMAIN 1: PROBLEM MANAGEMENT STATISTICS */}
+      <div className="space-y-2">
+        <span className="text-[11px] font-bold text-primary uppercase tracking-wider block">
+          PROBLEM MANAGEMENT
+        </span>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {[
+            { label: "Total Problems", value: totalProblemsCount, href: "/admin/problems", color: "bg-blue-50 text-blue-700 border-blue-200" },
+            { label: "Pending Validation", value: pendingValidationCount, href: "/admin/problems?status=Unassigned", color: "bg-amber-50 text-amber-800 border-amber-300" },
+            { label: "AI Analyzed", value: aiAnalyzedCount, href: "/admin/problems?status=Analyzed", color: "bg-purple-50 text-purple-800 border-purple-200" },
+            { label: "Potential Duplicates", value: potentialDuplicatesCount, href: "/admin/problems?duplicates=true", color: "bg-rose-50 text-rose-800 border-rose-200" },
+            { label: "Verified Problems", value: verifiedProblemsCount, href: "/admin/problems", color: "bg-emerald-50 text-emerald-800 border-emerald-250" },
+            { label: "Rejected Problems", value: rejectedProblemsCount, href: "/admin/problems?status=Rejected", color: "bg-slate-100 text-slate-700 border-slate-300" },
+          ].map((stat, i) => (
             <Link key={i} href={stat.href} className="block group">
-              <Card className={`border shadow-subtle hover:border-primary transition-all bg-white flex flex-col justify-between h-full`}>
-                <CardContent className="p-3.5 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className={`h-7 w-7 rounded flex items-center justify-center border text-xs ${stat.color}`}>
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <ChevronRight className="h-3.5 w-3.5 text-brandgray-muted group-hover:text-primary transition-colors" />
-                  </div>
-                  <div>
-                    <span className="text-2xl font-extrabold text-primary block leading-none">
-                      {stat.value}
-                    </span>
-                    <span className="text-[11px] font-bold text-brandgray-text mt-1 block truncate">
-                      {stat.label}
-                    </span>
-                  </div>
-                </CardContent>
+              <Card className="border shadow-subtle hover:border-primary transition-all bg-white p-3 space-y-1">
+                <span className="text-xl font-extrabold text-primary block leading-none">{stat.value}</span>
+                <span className="text-[11px] font-bold text-brandgray-text block truncate">{stat.label}</span>
               </Card>
             </Link>
-          );
-        })}
+          ))}
+        </div>
+      </div>
+
+      {/* DOMAIN 2: UNIVERSITY PIPELINE STATISTICS */}
+      <div className="space-y-2">
+        <span className="text-[11px] font-bold text-purple-950 uppercase tracking-wider block">
+          UNIVERSITY PIPELINE
+        </span>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[
+            { label: "Registered Interests", value: universityRegistrationsCount, href: "/admin/problems" },
+            { label: "Awaiting Team Assignment", value: awaitingTeamAssignmentCount, href: "/admin/problems" },
+            { label: "Proposals Under Review", value: proposalsUnderReviewCount, href: "/admin/proposals" },
+            { label: "Approved Proposals", value: approvedProposalsCount, href: "/admin/proposals" },
+            { label: "Rejected Proposals", value: rejectedProposalsCount, href: "/admin/proposals" },
+          ].map((stat, i) => (
+            <Link key={i} href={stat.href} className="block group">
+              <Card className="border border-purple-150 shadow-subtle hover:border-purple-600 transition-all bg-purple-50/30 p-3 space-y-1">
+                <span className="text-xl font-extrabold text-purple-900 block leading-none">{stat.value}</span>
+                <span className="text-[11px] font-bold text-purple-950 block truncate">{stat.label}</span>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* DOMAIN 3: PROJECT MANAGEMENT & VERIFICATION STATISTICS */}
+      <div className="space-y-2">
+        <span className="text-[11px] font-bold text-emerald-950 uppercase tracking-wider block">
+          PROJECT MANAGEMENT & GOVERNMENT VERIFICATION
+        </span>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[
+            { label: "Total Projects", value: totalProjectsCount, href: "/admin/projects" },
+            { label: "Under Implementation", value: projectsUnderImplementationCount, href: "/admin/projects?stage=IMPLEMENTATION" },
+            { label: "Pending Action", value: projectsPendingActionCount, href: "/admin/projects" },
+            { label: "Awaiting Verification", value: projectsAwaitingVerificationCount, href: "/admin/projects?stage=AWAITING_ADMIN_VERIFICATION", highlight: true },
+            { label: "Completed Projects", value: completedProjectsCount, href: "/admin/projects?stage=COMPLETED" },
+          ].map((stat, i) => (
+            <Link key={i} href={stat.href} className="block group">
+              <Card className={`border shadow-subtle hover:border-emerald-600 transition-all p-3 space-y-1 ${stat.highlight ? "bg-amber-100/70 border-amber-300 ring-2 ring-amber-400" : "bg-emerald-50/30 border-emerald-150"}`}>
+                <span className={`text-xl font-extrabold block leading-none ${stat.highlight ? "text-amber-950" : "text-emerald-950"}`}>{stat.value}</span>
+                <span className={`text-[11px] font-bold block truncate ${stat.highlight ? "text-amber-950 font-extrabold" : "text-emerald-950"}`}>{stat.label}</span>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* DOMAIN 4: INDUSTRY / CSR STATISTICS */}
+      <div className="space-y-2">
+        <span className="text-[11px] font-bold text-indigo-950 uppercase tracking-wider block">
+          INDUSTRY / CSR PARTNERSHIPS
+        </span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "Pending Support Requests", value: pendingIndustryRequestsCount, href: "/admin/industry-support" },
+            { label: "Under Review", value: industryUnderReviewCount, href: "/admin/industry-support" },
+            { label: "Accepted Requests", value: acceptedIndustryRequestsCount, href: "/admin/industry-support" },
+            { label: "Active Partnerships", value: activePartnershipsCount, href: "/admin/industry-support" },
+          ].map((stat, i) => (
+            <Link key={i} href={stat.href} className="block group">
+              <Card className="border border-indigo-150 shadow-subtle hover:border-indigo-600 transition-all bg-indigo-50/30 p-3 space-y-1">
+                <span className="text-xl font-extrabold text-indigo-900 block leading-none">{stat.value}</span>
+                <span className="text-[11px] font-bold text-indigo-950 block truncate">{stat.label}</span>
+              </Card>
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* ACTION REQUIRED QUEUE (High Priority Section) */}
@@ -158,11 +223,11 @@ export default function AdminControlCenterPage() {
           </span>
         </CardHeader>
         <CardContent className="p-4 space-y-2.5">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
             {[
               {
                 title: "Validation Needed",
-                desc: `${pendingValidationCount} problem reports awaiting initial validation`,
+                desc: `${pendingValidationCount} problem reports awaiting validation`,
                 count: pendingValidationCount,
                 href: "/admin/problems?status=Unassigned",
                 badge: "HIGH PRIORITY",
@@ -178,19 +243,27 @@ export default function AdminControlCenterPage() {
               },
               {
                 title: "Proposals Pending",
-                desc: `${pendingProposalsCount} academic research proposals awaiting decision`,
-                count: pendingProposalsCount,
+                desc: `${proposalsUnderReviewCount} research proposals awaiting decision`,
+                count: proposalsUnderReviewCount,
                 href: "/admin/proposals",
                 badge: "DECISION NEEDED",
-                badgeColor: "bg-indigo-100 text-indigo-800 border-indigo-300",
+                badgeColor: "bg-purple-100 text-purple-800 border-purple-300",
               },
               {
-                title: "Industry CSR Requests",
+                title: "CSR Requests",
                 desc: `${pendingIndustryRequestsCount} support requests awaiting approval`,
                 count: pendingIndustryRequestsCount,
                 href: "/admin/industry-support",
                 badge: "APPROVAL NEEDED",
-                badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-300",
+                badgeColor: "bg-indigo-100 text-indigo-800 border-indigo-300",
+              },
+              {
+                title: "Awaiting Verification",
+                desc: `${projectsAwaitingVerificationCount} completed projects awaiting final sign-off`,
+                count: projectsAwaitingVerificationCount,
+                href: "/admin/projects?stage=AWAITING_ADMIN_VERIFICATION",
+                badge: "VERIFICATION NEEDED",
+                badgeColor: "bg-emerald-100 text-emerald-800 border-emerald-300 font-extrabold",
               },
             ].map((item, idx) => (
               <div key={idx} className="bg-white p-3.5 rounded border border-amber-200/80 space-y-2.5 flex flex-col justify-between">
@@ -310,110 +383,6 @@ export default function AdminControlCenterPage() {
             ))}
           </div>
         )}
-      </div>
-
-      {/* THREE INTEGRATED LIFECYCLE PIPELINES */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-        {/* 1. UNIVERSITY PROPOSAL PIPELINE SUMMARY */}
-        <Card className="border-purple-200 bg-white shadow-subtle">
-          <CardHeader className="p-4 border-b border-purple-100 bg-purple-50/50 flex flex-row items-center justify-between">
-            <CardTitle className="text-xs font-bold text-purple-900 uppercase tracking-wider flex items-center gap-1.5">
-              <FileText className="h-4 w-4 text-purple-700" /> Proposal Pipeline
-            </CardTitle>
-            <Link href="/admin/proposals">
-              <span className="text-[10px] font-bold text-purple-800 hover:underline">View All →</span>
-            </Link>
-          </CardHeader>
-          <CardContent className="p-4 space-y-3 text-xs">
-            <div className="space-y-2">
-              <div className="flex justify-between p-2 bg-purple-50/40 rounded border border-purple-100">
-                <span className="font-medium text-brandgray-text">Pending Reviews</span>
-                <span className="font-bold text-purple-900">{pendingProposalsCount}</span>
-              </div>
-              <div className="flex justify-between p-2 bg-emerald-50/40 rounded border border-emerald-100">
-                <span className="font-medium text-brandgray-text">Accepted Proposals</span>
-                <span className="font-bold text-emerald-900">{proposals.filter((p) => p.status === "ACCEPTED").length}</span>
-              </div>
-              <div className="flex justify-between p-2 bg-slate-50 rounded border border-slate-150">
-                <span className="font-medium text-brandgray-text">Projects Created</span>
-                <span className="font-bold text-primary">{projects.length}</span>
-              </div>
-            </div>
-            <Link href="/admin/proposals" className="block pt-1">
-              <Button variant="outline" size="sm" className="w-full h-8 text-xs font-bold border-purple-200 text-purple-900 hover:bg-purple-50">
-                Open Proposal Review
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        {/* 2. INDUSTRY / CSR PARTNERSHIP PIPELINE SUMMARY */}
-        <Card className="border-indigo-200 bg-white shadow-subtle">
-          <CardHeader className="p-4 border-b border-indigo-100 bg-indigo-50/50 flex flex-row items-center justify-between">
-            <CardTitle className="text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
-              <Building2 className="h-4 w-4 text-indigo-700" /> Industry CSR Pipeline
-            </CardTitle>
-            <Link href="/admin/industry-support">
-              <span className="text-[10px] font-bold text-indigo-800 hover:underline">View All →</span>
-            </Link>
-          </CardHeader>
-          <CardContent className="p-4 space-y-3 text-xs">
-            <div className="space-y-2">
-              <div className="flex justify-between p-2 bg-amber-50/40 rounded border border-amber-100">
-                <span className="font-medium text-brandgray-text">Pending Support Requests</span>
-                <span className="font-bold text-amber-900">{pendingIndustryRequestsCount}</span>
-              </div>
-              <div className="flex justify-between p-2 bg-emerald-50/40 rounded border border-emerald-100">
-                <span className="font-medium text-brandgray-text">Accepted CSR Partnerships</span>
-                <span className="font-bold text-emerald-900">{industryRequests.filter((r) => r.status === "ACCEPTED").length}</span>
-              </div>
-              <div className="flex justify-between p-2 bg-indigo-50/40 rounded border border-indigo-100">
-                <span className="font-medium text-brandgray-text">Total Requests Received</span>
-                <span className="font-bold text-indigo-900">{industryRequests.length}</span>
-              </div>
-            </div>
-            <Link href="/admin/industry-support" className="block pt-1">
-              <Button variant="outline" size="sm" className="w-full h-8 text-xs font-bold border-indigo-200 text-indigo-900 hover:bg-indigo-50">
-                Review Support Requests
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        {/* 3. PROJECT MONITORING SUMMARY */}
-        <Card className="border-emerald-200 bg-white shadow-subtle">
-          <CardHeader className="p-4 border-b border-emerald-100 bg-emerald-50/50 flex flex-row items-center justify-between">
-            <CardTitle className="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
-              <FolderKanban className="h-4 w-4 text-emerald-700" /> Project Execution
-            </CardTitle>
-            <Link href="/admin/projects">
-              <span className="text-[10px] font-bold text-emerald-800 hover:underline">View All →</span>
-            </Link>
-          </CardHeader>
-          <CardContent className="p-4 space-y-3 text-xs">
-            <div className="space-y-2">
-              <div className="flex justify-between p-2 bg-emerald-50/40 rounded border border-emerald-100">
-                <span className="font-medium text-brandgray-text">Active Implementation</span>
-                <span className="font-bold text-emerald-900">{activeProjectsCount}</span>
-              </div>
-              <div className="flex justify-between p-2 bg-slate-50 rounded border border-slate-150">
-                <span className="font-medium text-brandgray-text">Completed Projects</span>
-                <span className="font-bold text-slate-800">{completedProjectsCount}</span>
-              </div>
-              <div className="flex justify-between p-2 bg-primary-light/40 rounded border border-primary/10">
-                <span className="font-medium text-brandgray-text">Total Projects Managed</span>
-                <span className="font-bold text-primary">{projects.length}</span>
-              </div>
-            </div>
-            <Link href="/admin/projects" className="block pt-1">
-              <Button variant="outline" size="sm" className="w-full h-8 text-xs font-bold border-emerald-200 text-emerald-900 hover:bg-emerald-50">
-                Open Projects Control
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-
       </div>
 
       {/* RECENT PLATFORM ACTIVITY STREAM */}
