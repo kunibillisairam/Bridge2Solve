@@ -5,22 +5,25 @@ import { setSessionCookie } from '@/lib/auth-server';
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, password } = await req.json();
+    const body = await req.json();
+    const { email, password } = body;
 
-    if (!email || !password) {
+    if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
       return NextResponse.json(
-        { error: 'Email and password are required' },
+        { error: 'Email and password are required.' },
         { status: 400 }
       );
     }
 
+    const normalizedEmail = email.trim().toLowerCase();
+
     const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
+      where: { email: normalizedEmail },
     });
 
     if (!user) {
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        { error: 'Invalid email or password.' },
         { status: 401 }
       );
     }
@@ -28,7 +31,7 @@ export async function POST(req: NextRequest) {
     const isValid = await bcrypt.compare(password, user.passwordHash);
     if (!isValid) {
       return NextResponse.json(
-        { error: 'Invalid email or password' },
+        { error: 'Invalid email or password.' },
         { status: 401 }
       );
     }
@@ -42,13 +45,13 @@ export async function POST(req: NextRequest) {
       orgDetails: user.orgDetails,
     };
 
-    const response = NextResponse.json({ user: sessionUser });
+    const response = NextResponse.json({ success: true, user: sessionUser });
     setSessionCookie(response, sessionUser);
     return response;
   } catch (error: any) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error.' },
       { status: 500 }
     );
   }

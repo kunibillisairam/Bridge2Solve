@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'sih-2026-societal-innovation-secret-key-12345';
-const COOKIE_NAME = 'sih_session';
+const JWT_SECRET = process.env.JWT_SECRET || 'sih2026-bridge2solve-secret-key-xK9mP2vL8nQ';
+export const COOKIE_NAME = 'sih_session';
 
 export interface SessionUser {
   id: string;
@@ -19,7 +20,6 @@ export function getSessionUser(req?: NextRequest): SessionUser | null {
     if (req) {
       token = req.cookies.get(COOKIE_NAME)?.value || '';
     } else {
-      const { cookies } = require('next/headers');
       const cookieStore = cookies();
       token = cookieStore.get(COOKIE_NAME)?.value || '';
     }
@@ -33,19 +33,23 @@ export function getSessionUser(req?: NextRequest): SessionUser | null {
   }
 }
 
-export function setSessionCookie(res: NextResponse, user: SessionUser) {
-  const token = jwt.sign(
+export function createSessionToken(user: SessionUser): string {
+  return jwt.sign(
     {
       id: user.id,
       email: user.email,
       name: user.name,
       role: user.role,
-      orgName: user.orgName,
-      orgDetails: user.orgDetails,
+      orgName: user.orgName || null,
+      orgDetails: user.orgDetails || null,
     },
     JWT_SECRET,
     { expiresIn: '7d' }
   );
+}
+
+export function setSessionCookie(res: NextResponse, user: SessionUser) {
+  const token = createSessionToken(user);
 
   res.cookies.set(COOKIE_NAME, token, {
     httpOnly: true,

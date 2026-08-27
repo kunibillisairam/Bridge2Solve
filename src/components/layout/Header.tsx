@@ -2,11 +2,13 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut, User as UserIcon, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useAuth, ROLE_REDIRECT } from "@/context/AuthContext";
 
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, loading, logout } = useAuth();
 
   const navigationLinks = [
     { label: "Explore Problems", href: "#" },
@@ -15,6 +17,8 @@ export function Header() {
     { label: "Government", href: "#" },
   ];
 
+  const dashboardUrl = user?.role && ROLE_REDIRECT[user.role] ? ROLE_REDIRECT[user.role] : "/login";
+
   return (
     <header className="sticky top-0 z-50 w-full bg-white border-b border-brandgray-border shadow-subtle">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -22,7 +26,6 @@ export function Header() {
           {/* Logo & Platform Name */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center gap-2.5 group">
-              {/* Professional SVG Logo (Structured Blue Bridge Icon) */}
               <svg
                 width="28"
                 height="28"
@@ -75,13 +78,48 @@ export function Header() {
             ))}
           </nav>
 
-          {/* Header Action Button */}
-          <div className="hidden md:flex items-center">
-            <Link href="/login">
-              <Button variant="outline" size="sm">
-                Access Portal
-              </Button>
-            </Link>
+          {/* Header Action / User Auth State */}
+          <div className="hidden md:flex items-center gap-3">
+            {!loading && user ? (
+              <div className="flex items-center gap-3">
+                <Link href={dashboardUrl}>
+                  <Button variant="outline" size="sm" className="flex items-center gap-1.5 border-primary/30">
+                    <LayoutDashboard className="h-4 w-4 text-primary" />
+                    <span>Dashboard</span>
+                  </Button>
+                </Link>
+                <div className="flex items-center gap-2 pl-2 border-l border-brandgray-border">
+                  <div className="text-right">
+                    <span className="text-xs font-bold text-brandgray-text block leading-tight">
+                      {user.name}
+                    </span>
+                    <span className="text-[10px] uppercase font-bold text-primary bg-primary-light px-1.5 py-0.5 rounded border border-primary/10">
+                      {user.role}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => logout()}
+                    title="Sign Out"
+                    className="p-1.5 text-brandgray-muted hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Link href="/login">
+                  <Button variant="outline" size="sm">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button variant="primary" size="sm">
+                    Register
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -115,12 +153,48 @@ export function Header() {
               {link.label}
             </Link>
           ))}
-          <div className="pt-4 border-t border-brandgray-border mt-3 px-3">
-            <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-              <Button variant="outline" size="md" className="w-full">
-                Access Portal
-              </Button>
-            </Link>
+          <div className="pt-4 border-t border-brandgray-border mt-3 px-3 space-y-2">
+            {!loading && user ? (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <UserIcon className="h-4 w-4 text-primary" />
+                    <div>
+                      <span className="text-xs font-bold text-brandgray-text block">{user.name}</span>
+                      <span className="text-[10px] uppercase font-bold text-primary">{user.role}</span>
+                    </div>
+                  </div>
+                </div>
+                <Link href={dashboardUrl} onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="outline" size="md" className="w-full justify-center mb-2">
+                    Go to Dashboard
+                  </Button>
+                </Link>
+                <button
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    logout();
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 px-3 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded border border-red-200 transition-colors"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="outline" size="md" className="w-full">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/signup" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="primary" size="md" className="w-full">
+                    Register
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}

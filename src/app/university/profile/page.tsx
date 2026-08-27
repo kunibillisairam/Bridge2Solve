@@ -83,7 +83,7 @@ export default function ProfilePage() {
                 <div className="space-y-1 text-xs pt-2 sm:pt-0">
                   <span className="text-brandgray-muted block uppercase tracking-wider">Contact Number</span>
                   <span className="font-medium text-brandgray-text block mt-1 flex items-center gap-1.5">
-                    <Phone className="h-3.5 w-3.5 text-brandgray-muted" /> +91 94311 08260
+                    <Phone className="h-3.5 w-3.5 text-brandgray-muted" /> {user.phone || "+91 94311 08260"}
                   </span>
                 </div>
               </div>

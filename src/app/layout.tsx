@@ -1,14 +1,8 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { AuthProvider } from "@/context/AuthContext";
 import "./globals.css";
-
-const inter = Inter({ 
-  subsets: ["latin"],
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "ProblemBridge - Connecting Community Problems with Resources",
@@ -22,12 +16,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="scroll-smooth">
-      <body className={`${inter.className} min-h-screen flex flex-col bg-brandgray-light text-brandgray-text`}>
+      <body className="min-h-screen flex flex-col bg-brandgray-light text-brandgray-text antialiased">
         <AuthProvider>
           <Header />
           <main className="flex-1 flex flex-col">
             {children}
           </main>
+          <Footer />
         </AuthProvider>
       </body>
     </html>
