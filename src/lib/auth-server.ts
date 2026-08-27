@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'sih-2026-societal-innovation-secret-key-12345';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: JWT_SECRET environment variable is not set. Cannot start in production.');
+  }
+  // Development only: warn loudly but allow startup with a local placeholder
+  console.warn('[SECURITY WARNING] JWT_SECRET is not set. Using insecure development placeholder. Set JWT_SECRET in .env.local before deploying.');
+}
+const JWT_SIGNING_SECRET = JWT_SECRET || 'dev-only-insecure-placeholder-do-not-use-in-production';
 const COOKIE_NAME = 'sih_session';
 
 export interface SessionUser {

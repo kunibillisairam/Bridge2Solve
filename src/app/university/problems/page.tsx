@@ -221,20 +221,27 @@ export default function ProblemsPage() {
 
       {/* Problems Listing */}
       {filteredProblems.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-brandgray-border space-y-2">
-          <p className="text-sm font-semibold text-primary">
+        <div className="text-center py-12 bg-white rounded-lg border border-brandgray-border p-6 space-y-3 shadow-subtle max-w-2xl mx-auto">
+          <p className="text-sm font-bold text-primary">
             {activeTab === "recommended" 
-              ? "You&apos;re all caught up!" 
+              ? "No Recommended Problems Found" 
               : activeTab === "my_problems" 
-              ? "You haven&apos;t registered interest in any problems yet." 
-              : "No problems found."}
+              ? "No Registered Problems Found" 
+              : "No Problems Found"}
           </p>
-          <p className="text-xs text-brandgray-muted">
+          <p className="text-xs text-brandgray-muted leading-relaxed">
             {activeTab === "recommended"
-              ? "No new recommended problems currently matching your university."
+              ? "There are currently no unassigned community problems matching your university profile's research focus or expertise tags. This happens when all matching problems are already assigned or validated under other categories."
               : activeTab === "my_problems"
-              ? "Explore recommended problems to find opportunities relevant to your expertise."
-              : "Try adjusting your search terms or filter criteria."}
+              ? "You have not expressed interest or registered your research team for any community problems yet. A project can only be created once you register interest and submit a proposal."
+              : "No community problems match your active search keyword, category, state, or priority filter combinations."}
+          </p>
+          <p className="text-[11px] font-bold text-primary">
+            {activeTab === "recommended"
+              ? "What next: Try browsing the \"All Problems\" tab to explore other challenges, update your university profile's research expertise tags, or check back later."
+              : activeTab === "my_problems"
+              ? "What next: Visit the \"Recommended\" or \"All Problems\" tabs, choose a challenge matching your research interest, and click \"Register Interest\"."
+              : "What next: Adjust your search terms, select \"All Categories\" / \"All States\", or click the \"Clear Filters\" button above to reset."}
           </p>
         </div>
       ) : (

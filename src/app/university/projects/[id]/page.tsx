@@ -136,7 +136,7 @@ export default function ProjectDetailsPage() {
       setIsEditingImpact(false);
 
       if (isSubmit) {
-        setImpactSuccessMsg("Impact assessment submitted successfully! The project has transitioned to Awaiting Government Verification.");
+        setImpactSuccessMsg("Impact assessment submitted successfully! The project has transitioned to Awaiting Verification.");
       } else {
         setImpactSuccessMsg("Impact assessment draft saved successfully.");
       }

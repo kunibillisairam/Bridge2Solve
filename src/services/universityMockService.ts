@@ -308,7 +308,7 @@ export const STAGE_CONFIG: Record<ProjectStage, {
     actionText: "Submit Impact Report",
   },
   AWAITING_ADMIN_VERIFICATION: {
-    label: "Awaiting Government Verification",
+    label: "Awaiting Verification",
     defaultProgress: 95,
     status: "UNDER_REVIEW",
     nextAction: "Awaiting final verification and sign-off by Platform Administration",

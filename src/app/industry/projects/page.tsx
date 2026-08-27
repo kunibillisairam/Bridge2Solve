@@ -202,12 +202,19 @@ export default function IndustryProjectsPage() {
         </div>
       </div>
 
-      {/* Projects Grid */}
       {filteredProjects.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-brandgray-border space-y-2">
-          <p className="text-sm font-semibold text-primary">No Projects Found</p>
-          <p className="text-xs text-brandgray-muted">Try adjusting your search criteria or selecting a different filter tab.</p>
-        </div>
+        <Card className="border-brandgray-border shadow-subtle bg-white">
+          <CardContent className="p-8 text-center space-y-3 max-w-xl mx-auto">
+            <FolderKanban className="h-8 w-8 mx-auto text-slate-300" />
+            <p className="text-sm font-bold text-primary">No Projects Found</p>
+            <p className="text-xs text-brandgray-muted leading-relaxed">
+              No collaborative research projects currently match your active search terms, category filters, or match suitability preferences.
+            </p>
+            <p className="text-[11px] font-bold text-primary">
+              What next: Click the "Clear Filters" button to reset the search parameters, choose "All Categories", or browse all projects to see upcoming CSR collaboration opportunities.
+            </p>
+          </CardContent>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {filteredProjects.map((project) => {

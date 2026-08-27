@@ -34,7 +34,7 @@ export async function analyzeProblem(input: ProblemInput): Promise<ProblemAnalys
   const today = new Date().toISOString().split("T")[0];
 
   try {
-    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey) {
       const apiResult = await callExternalAIService(input, apiKey);
       if (apiResult) {

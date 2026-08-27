@@ -197,7 +197,12 @@ export default function NotificationsPage() {
           <CardContent className="p-12 text-center space-y-3">
             <Bell className="h-8 w-8 mx-auto text-slate-300" />
             <p className="text-sm font-bold text-primary">No Notifications Found</p>
-            <p className="text-xs text-brandgray-muted">You have no notifications matching this filter.</p>
+            <p className="text-xs text-brandgray-muted max-w-md mx-auto">
+              There are currently no alerts, milestone updates, or action items recorded in this view. This could be because all actions have been cleared, or there are no updates for the selected role context.
+            </p>
+            <p className="text-[11px] font-bold text-primary pt-1">
+              What next: Try switching your filter context to "All", review other role views, or check back later when new actions are triggered.
+            </p>
           </CardContent>
         </Card>
       ) : (

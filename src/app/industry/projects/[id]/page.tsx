@@ -48,6 +48,7 @@ export default function IndustryProjectDetailPage() {
   const [industryMatch, setIndustryMatch] = useState<any | null>(null);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   // Form State
   const [supportType, setSupportType] = useState<SupportType>("CSR_FUNDING");
@@ -74,7 +75,32 @@ export default function IndustryProjectDetailPage() {
       const match = industryService.getMatchForIndustryAndProject(projectId, "ind-1");
       setIndustryMatch(match || null);
     }
+    setLoading(false);
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[300px] space-y-3">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+        <p className="text-xs text-brandgray-muted font-medium">Loading project details...</p>
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="p-8 text-center bg-white border border-brandgray-border rounded-md text-brandgray-muted text-sm space-y-3 max-w-md mx-auto my-12">
+        <AlertCircle className="h-8 w-8 mx-auto text-red-500" />
+        <p className="font-bold text-primary">Project Not Found</p>
+        <p className="text-xs">The requested project ID does not exist or has been removed from the platform registry.</p>
+        <div className="pt-2">
+          <Link href="/industry/projects">
+            <Button variant="outline" size="sm">Back to Projects</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const handleInterestSubmit = (e: React.FormEvent) => {
     e.preventDefault();

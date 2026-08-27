@@ -148,7 +148,7 @@ function AdminProjectsContent() {
             <option value="Active">Active (Under Implementation)</option>
             <option value="Pending Action">Pending Action (Planning / Endorsement)</option>
             <option value="Delayed">Delayed Projects (Overdue)</option>
-            <option value="Awaiting Verification">Awaiting Government Verification</option>
+            <option value="Awaiting Verification">Awaiting Verification</option>
             <option value="Completed">Completed Projects</option>
           </select>
 
@@ -168,9 +168,15 @@ function AdminProjectsContent() {
       {/* Projects Grid */}
       {filteredProjects.length === 0 ? (
         <Card className="border-brandgray-border shadow-subtle bg-white">
-          <CardContent className="p-8 text-center space-y-2">
-            <p className="text-sm font-semibold text-primary">No Projects Found</p>
-            <p className="text-xs text-brandgray-muted">No projects match your current search or filter criteria.</p>
+          <CardContent className="p-8 text-center space-y-3 max-w-xl mx-auto">
+            <FolderKanban className="h-8 w-8 mx-auto text-slate-300" />
+            <p className="text-sm font-bold text-primary">No Projects Found</p>
+            <p className="text-xs text-brandgray-muted leading-relaxed">
+              No active, pending verification, or completed collaborative research projects match your current search queries or selected status filters.
+            </p>
+            <p className="text-[11px] font-bold text-primary">
+              What next: Click the "Clear Filters" button to reset the view, search for different terms, or visit the approved proposals board to launch new projects.
+            </p>
           </CardContent>
         </Card>
       ) : (

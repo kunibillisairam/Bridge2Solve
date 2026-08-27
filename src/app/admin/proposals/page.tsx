@@ -193,9 +193,15 @@ export default function AdminProposalsPage() {
 
       {/* Proposals Deck */}
       {filteredProposals.length === 0 ? (
-        <div className="text-center py-16 bg-white border border-brandgray-border rounded-md text-brandgray-muted text-sm space-y-2 shadow-subtle">
-          <FileText className="h-8 w-8 mx-auto opacity-30 text-brandgray-muted" />
-          <p className="font-semibold text-brandgray-text">No proposals match the filter criteria</p>
+        <div className="text-center py-16 bg-white border border-brandgray-border rounded-md p-6 text-sm space-y-3 shadow-subtle max-w-xl mx-auto">
+          <FileText className="h-8 w-8 mx-auto text-slate-300" />
+          <p className="font-bold text-primary">No Proposals Found</p>
+          <p className="text-xs text-brandgray-muted leading-relaxed">
+            There are currently no submitted solution proposals matching your selected status filter. This could be because universities are still drafting solutions, or you have already processed all active submissions.
+          </p>
+          <p className="text-[11px] font-bold text-primary">
+            What next: Try switching your filter criteria to "All", check active university matching queues to identify upcoming drafts, or check back when notified of new proposals.
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4">
@@ -212,7 +218,7 @@ export default function AdminProposalsPage() {
                         {proposal.id}
                       </span>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STATUS_BADGES[proposal.status]}`}>
-                        {proposal.status === "SUBMITTED" ? "Submitted for Review" : proposal.status}
+                        {proposal.status === "ACCEPTED" ? "Approved" : proposal.status === "UNDER_REVIEW" ? "Under Review" : proposal.status === "SUBMITTED" ? "Submitted" : proposal.status === "REJECTED" ? "Rejected" : "Draft"}
                       </span>
                       <span className="text-[10px] text-brandgray-muted flex items-center gap-1">
                         <Calendar className="h-3.5 w-3.5" /> Submitted: {proposal.submittedAt || proposal.createdAt}

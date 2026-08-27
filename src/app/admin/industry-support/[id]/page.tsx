@@ -139,7 +139,7 @@ export default function AdminSupportRequestDetailPage() {
 
           <div className="flex flex-col items-end gap-2">
             <span className={`text-xs font-bold px-3 py-1 rounded border ${SUPPORT_STATUS_BADGES[request.status]}`}>
-              Status: {request.status}
+              Status: {request.status === "ACCEPTED" ? "Approved" : request.status === "UNDER_REVIEW" ? "Under Review" : request.status === "PENDING" ? "Pending" : "Rejected"}
             </span>
           </div>
         </div>

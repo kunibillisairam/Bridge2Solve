@@ -57,14 +57,22 @@ export default function IndustryInterestsPage() {
       {/* Requests Listing */}
       {requests.length === 0 ? (
         <Card className="border-brandgray-border shadow-subtle bg-white">
-          <CardContent className="p-8 text-center space-y-2">
-            <p className="text-sm font-semibold text-primary">No Support Requests Submitted</p>
-            <p className="text-xs text-brandgray-muted">Your organization has not yet submitted support requests for any community project.</p>
-            <Link href="/industry/projects">
-              <Button variant="primary" size="sm" className="h-8 text-xs font-semibold">
-                Explore Available Projects
-              </Button>
-            </Link>
+          <CardContent className="p-8 text-center space-y-3 max-w-xl mx-auto">
+            <Handshake className="h-8 w-8 mx-auto text-slate-300" />
+            <p className="text-sm font-bold text-primary">No Support Requests Found</p>
+            <p className="text-xs text-brandgray-muted leading-relaxed">
+              Your organization has not yet submitted support requests or funding commitments for any active community research project. A request is generated when you pledge resources or request to mentor a project.
+            </p>
+            <p className="text-[11px] font-bold text-primary">
+              What next: Click the button below to browse active projects, review ranked CSR match recommendations, and submit support requests.
+            </p>
+            <div className="pt-2">
+              <Link href="/industry/projects">
+                <Button variant="primary" size="sm" className="h-8 text-xs font-semibold">
+                  Explore Available Projects
+                </Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       ) : (
@@ -89,7 +97,7 @@ export default function IndustryInterestsPage() {
 
                   <div className="flex items-center gap-2">
                     <span className={`text-xs font-bold px-2.5 py-0.5 rounded border ${SUPPORT_STATUS_BADGES[req.status]}`}>
-                      Status: {req.status}
+                      Status: {req.status === "ACCEPTED" ? "Approved" : req.status === "UNDER_REVIEW" ? "Under Review" : req.status === "PENDING" ? "Pending" : "Rejected"}
                     </span>
                   </div>
                 </div>

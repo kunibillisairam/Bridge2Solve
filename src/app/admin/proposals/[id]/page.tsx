@@ -169,7 +169,7 @@ export default function AdminProposalDetailsPage() {
               PROPOSAL ID: {proposal.id}
             </span>
             <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded border ${STATUS_BADGES[proposal.status]}`}>
-              {proposal.status}
+              {proposal.status === "ACCEPTED" ? "Approved" : proposal.status === "UNDER_REVIEW" ? "Under Review" : proposal.status === "SUBMITTED" ? "Submitted" : proposal.status === "REJECTED" ? "Rejected" : "Draft"}
             </span>
           </div>
           <h1 className="text-xl md:text-2xl font-bold text-primary">

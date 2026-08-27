@@ -363,8 +363,29 @@ export default function AdminControlCenterPage() {
         {/* Queue Cards */}
         {queueProblems.length === 0 ? (
           <Card className="border-brandgray-border bg-white">
-            <CardContent className="p-8 text-center text-xs text-brandgray-muted">
-              No problems found in this queue tab.
+            <CardContent className="p-8 text-center space-y-3 max-w-xl mx-auto">
+              <Layers className="h-8 w-8 mx-auto text-slate-300" />
+              <p className="text-sm font-bold text-primary">
+                {activeTab === "pending" 
+                  ? "No Submissions Awaiting Action" 
+                  : activeTab === "active" 
+                  ? "No Active Collaborations" 
+                  : "No Rejected Submissions"}
+              </p>
+              <p className="text-xs text-brandgray-muted leading-relaxed">
+                {activeTab === "pending"
+                  ? "There are currently no community issues reported by citizens awaiting administrative validation or AI analysis verification."
+                  : activeTab === "active"
+                  ? "There are no community challenges that have active research teams or CSR partners assigned to them."
+                  : "No community problems have been rejected by the platform administrators."}
+              </p>
+              <p className="text-[11px] font-bold text-primary">
+                {activeTab === "pending"
+                  ? "What next: You are all caught up. Check back later when citizens report new localized issues."
+                  : activeTab === "active"
+                  ? "What next: Visit the proposals review dashboard to approve pending university drafts and launch projects."
+                  : "What next: Keep validating submitted problems. Incorrect or duplicate entries will appear here when rejected."}
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -482,7 +503,15 @@ export default function AdminControlCenterPage() {
         </CardHeader>
         <CardContent className="p-4 space-y-3">
           {activities.length === 0 ? (
-            <div className="text-center py-6 text-xs text-brandgray-muted">No activity events recorded yet.</div>
+            <div className="text-center py-6 space-y-2 max-w-md mx-auto">
+              <p className="text-xs font-bold text-primary">No Activity Events Found</p>
+              <p className="text-[11px] text-brandgray-muted leading-relaxed">
+                There are no recent workflow actions, state changes, or user engagements logged in the system activity log.
+              </p>
+              <p className="text-[10px] font-semibold text-primary">
+                What next: Actions like validating problems, submitting proposals, and updating milestones will automatically record events here.
+              </p>
+            </div>
           ) : (
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {activities.map((act) => (

@@ -53,6 +53,7 @@ export default function AdminProjectDetailPage() {
   const [industryRecs, setIndustryRecs] = useState<any[]>([]);
   const [expandedIndRecId, setExpandedIndRecId] = useState<string | null>(null);
   const [viewingIndustry, setViewingIndustry] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
   
   // Verification Modal & Action State
   const [verificationNote, setVerificationNote] = useState("");
@@ -83,7 +84,32 @@ export default function AdminProjectDetailPage() {
     if (imp) {
       setImpact(imp);
     }
+    setLoading(false);
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[300px] space-y-3">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+        <p className="text-xs text-brandgray-muted font-medium">Loading project details...</p>
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="p-8 text-center bg-white border border-brandgray-border rounded-md text-brandgray-muted text-sm space-y-3 max-w-md mx-auto my-12">
+        <AlertCircle className="h-8 w-8 mx-auto text-red-500" />
+        <p className="font-bold text-primary">Project Not Found</p>
+        <p className="text-xs">The requested project ID does not exist or has been removed from the platform registry.</p>
+        <div className="pt-2">
+          <Link href="/admin/projects">
+            <Button variant="outline" size="sm">Back to Projects Monitoring</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const handleVerifyAndComplete = () => {
     setActionError("");

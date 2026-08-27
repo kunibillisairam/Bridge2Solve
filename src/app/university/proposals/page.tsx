@@ -208,13 +208,20 @@ export default function ProposalsPage() {
       {mode === "list" && (
         <div className="space-y-4">
           {proposals.length === 0 ? (
-            <div className="text-center py-16 bg-white border border-brandgray-border rounded-md text-brandgray-muted text-sm space-y-2 shadow-subtle">
-              <FileSpreadsheet className="h-8 w-8 mx-auto opacity-30 text-brandgray-muted" />
-              <p className="font-semibold text-brandgray-text">No proposals drafted yet</p>
-              <p className="text-xs max-w-xs mx-auto">Create a proposal to address any matched community problems.</p>
-              <Button variant="outline" size="sm" onClick={handleOpenCreate} className="mt-2 h-8">
-                Draft Proposal
-              </Button>
+            <div className="text-center py-16 bg-white border border-brandgray-border rounded-md p-6 text-sm space-y-3 shadow-subtle max-w-xl mx-auto">
+              <FileSpreadsheet className="h-8 w-8 mx-auto text-slate-300" />
+              <p className="font-bold text-primary">No Proposals Formulated</p>
+              <p className="text-xs text-brandgray-muted leading-relaxed">
+                Your university has not drafted or submitted any solution proposals yet. Technical proposals containing budget estimates and research approaches are required before projects can be approved and executed by administrators.
+              </p>
+              <p className="text-[11px] font-bold text-primary">
+                What next: Register interest in a community problem first, assign an active research team, and then click "Draft Proposal" below to start.
+              </p>
+              <div className="pt-2">
+                <Button variant="outline" size="sm" onClick={handleOpenCreate} className="h-8">
+                  Draft Proposal
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4">
@@ -224,7 +231,7 @@ export default function ProposalsPage() {
                     <div className="space-y-2 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${STATUS_BADGES[proposal.status]}`}>
-                          {proposal.status}
+                          {proposal.status === "ACCEPTED" ? "Approved" : proposal.status === "UNDER_REVIEW" ? "Under Review" : proposal.status === "SUBMITTED" ? "Submitted" : proposal.status === "REJECTED" ? "Rejected" : "Draft"}
                         </span>
 
                         {proposal.status === "ACCEPTED" && (

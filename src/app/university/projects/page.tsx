@@ -88,26 +88,30 @@ export default function ProjectsPage() {
   const getEmptyStateText = () => {
     if (searchQuery.trim() !== "") {
       return {
-        title: "No search results",
-        desc: `No projects match "${searchQuery}". Try adjusting your keywords or clearing the query.`,
+        title: "No Search Results Found",
+        desc: `There are no projects that match the search query "${searchQuery}" under the selected category or tab.`,
+        nextSteps: "What next: Adjust your search terms, select \"All Categories\", or click \"Reset Filters\" to reset all criteria."
       };
     }
     if (activeTab !== "All") {
       const statusLabel = STATUS_CONFIGS[activeTab].label.toLowerCase();
       return {
-        title: `No ${statusLabel} projects`,
-        desc: `You currently have no projects in the ${statusLabel} state.`,
+        title: `No ${STATUS_CONFIGS[activeTab].label} Projects`,
+        desc: `Your institution has no research collaboration projects currently in the ${statusLabel} phase. This could be because no proposals have reached this stage or they have been transitioned.`,
+        nextSteps: `What next: Browse the "All Projects" tab to review projects in other stages, or check the proposals workspace to submit new proposals.`
       };
     }
     if (selectedCategory !== "All") {
       return {
-        title: "No projects in category",
-        desc: `There are no projects matching the "${selectedCategory}" category.`,
+        title: "No Projects in Selected Category",
+        desc: `No research collaborations match the "${selectedCategory}" domain category.`,
+        nextSteps: "What next: Try selecting a different category, clearing your filters, or registering interest in problems of this category."
       };
     }
     return {
-      title: "No projects found",
-      desc: "There are currently no projects registered for this university portal.",
+      title: "No Active Projects Found",
+      desc: "Your university portal does not have any projects registered. Collaborative projects are generated automatically when a government administrator approves your technical proposal.",
+      nextSteps: "What next: Explore recommended community problems, register interest, form a team, and submit a solution proposal to launch a project."
     };
   };
 
@@ -223,13 +227,16 @@ export default function ProjectsPage() {
       {/* Projects List Deck */}
       <div className="space-y-4">
         {filteredProjects.length === 0 ? (
-          <div className="text-center py-16 bg-white border border-brandgray-border rounded-md text-brandgray-muted text-sm space-y-2 shadow-subtle">
-            <Briefcase className="h-8 w-8 mx-auto opacity-30 text-brandgray-muted" />
-            <p className="font-semibold text-brandgray-text">{emptyState.title}</p>
-            <p className="text-xs max-w-sm mx-auto px-4">{emptyState.desc}</p>
-            <Button variant="outline" size="sm" onClick={() => { setSearchQuery(""); setActiveTab("All"); setSelectedCategory("All"); }} className="mt-2 h-8">
-              Reset Filters
-            </Button>
+          <div className="text-center py-16 bg-white border border-brandgray-border rounded-md p-6 text-sm space-y-3 shadow-subtle max-w-xl mx-auto">
+            <Briefcase className="h-8 w-8 mx-auto text-slate-300" />
+            <p className="font-bold text-primary">{emptyState.title}</p>
+            <p className="text-xs text-brandgray-muted leading-relaxed">{emptyState.desc}</p>
+            <p className="text-[11px] font-bold text-primary">{emptyState.nextSteps}</p>
+            <div className="pt-2">
+              <Button variant="outline" size="sm" onClick={() => { setSearchQuery(""); setActiveTab("All"); setSelectedCategory("All"); }} className="h-8">
+                Reset Filters
+              </Button>
+            </div>
           </div>
         ) : (
           filteredProjects.map((project) => {

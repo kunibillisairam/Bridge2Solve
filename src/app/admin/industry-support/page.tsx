@@ -254,7 +254,7 @@ export default function AdminIndustrySupportPage() {
                   </div>
 
                   <span className={`text-xs font-bold px-3 py-1 rounded border ${SUPPORT_STATUS_BADGES[req.status]}`}>
-                    Status: {req.status}
+                    Status: {req.status === "ACCEPTED" ? "Approved" : req.status === "UNDER_REVIEW" ? "Under Review" : req.status === "PENDING" ? "Pending" : "Rejected"}
                   </span>
                 </div>
 

@@ -227,103 +227,118 @@ export default function TeamsPage() {
           <Users className="h-4 w-4 text-primary" /> Active University Teams ({teams.length})
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {teams.map((team) => (
-            <Card key={team.id} className="border-brandgray-border shadow-subtle bg-white flex flex-col justify-between">
-              <div>
-                <CardHeader className="p-5 border-b border-brandgray-border/60 flex flex-row items-start justify-between gap-2">
-                  <div className="space-y-1">
-                    <CardTitle className="text-base font-bold text-primary">
-                      {team.name}
-                    </CardTitle>
-                    <CardDescription className="text-xs text-brandgray-muted flex items-center gap-1">
-                      <GraduationCap className="h-3.5 w-3.5" /> Mentor: {team.facultyMentor}
-                    </CardDescription>
-                  </div>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase shrink-0 ${
-                    team.status === "Active" 
-                      ? "bg-success-light text-success border-success/15" 
-                      : "bg-blue-50 text-blue-700 border-blue-150"
-                  }`}>
-                    {team.status}
-                  </span>
-                </CardHeader>
-
-                <CardContent className="p-5 space-y-4">
-                  {/* Assigned Problem Context */}
-                  <div className="space-y-1 bg-brandgray-light/50 p-3 rounded border border-brandgray-border/50 text-xs">
-                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
-                      Assigned Problem Challenge
-                    </span>
-                    {team.assignedProblemTitle ? (
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold text-primary">{team.assignedProblemTitle}</span>
-                        {team.assignedProblemId && (
-                          <Link href={`/university/problems/${team.assignedProblemId}`}>
-                            <span className="text-[10px] text-primary font-bold hover:underline">View</span>
-                          </Link>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-brandgray-muted italic">Unassigned (Available for new project)</span>
-                    )}
-                  </div>
-
-                  {/* Student Members */}
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider block">
-                      Student Researchers ({team.studentMembers.length})
-                    </span>
+        {teams.length === 0 ? (
+          <Card className="border-brandgray-border shadow-subtle bg-white">
+            <CardContent className="p-8 text-center space-y-3 max-w-xl mx-auto">
+              <Users className="h-8 w-8 mx-auto text-slate-300" />
+              <p className="text-sm font-bold text-primary">No Active Teams Formed</p>
+              <p className="text-xs text-brandgray-muted leading-relaxed">
+                Your university has not registered any active academic research taskforces yet. Formed teams are required to coordinate proposals, assign developers, and implement solutions.
+              </p>
+              <p className="text-[11px] font-bold text-primary">
+                What next: Click the "Create Research Team" button above to add a new team specifying a mentor, members, and skill focus.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {teams.map((team) => (
+              <Card key={team.id} className="border-brandgray-border shadow-subtle bg-white flex flex-col justify-between">
+                <div>
+                  <CardHeader className="p-5 border-b border-brandgray-border/60 flex flex-row items-start justify-between gap-2">
                     <div className="space-y-1">
-                      {team.studentMembers.map((member, i) => (
-                        <div key={i} className="text-xs text-brandgray-text flex items-center gap-2 bg-white border border-brandgray-border/60 px-2.5 py-1.5 rounded">
-                          <div className="h-1.5 w-1.5 rounded-full bg-primary" />
-                          <span>{member}</span>
-                        </div>
-                      ))}
+                      <CardTitle className="text-base font-bold text-primary">
+                        {team.name}
+                      </CardTitle>
+                      <CardDescription className="text-xs text-brandgray-muted flex items-center gap-1">
+                        <GraduationCap className="h-3.5 w-3.5" /> Mentor: {team.facultyMentor}
+                      </CardDescription>
                     </div>
-
-                    {/* Quick Add Member Input */}
-                    <div className="flex gap-2 pt-1">
-                      <input 
-                        type="text"
-                        placeholder="Add student name..."
-                        className="text-xs border border-brandgray-border rounded px-2.5 py-1.5 flex-1 focus:outline-none focus:border-primary"
-                        value={addMemberName[team.id] || ""}
-                        onChange={(e) => setAddMemberName({ ...addMemberName, [team.id]: e.target.value })}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") handleAddMember(team.id);
-                        }}
-                      />
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-8 text-xs font-semibold px-3"
-                        onClick={() => handleAddMember(team.id)}
-                      >
-                        Add
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Required Skills */}
-                  <div className="space-y-1.5 pt-2">
-                    <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider block">
-                      Domain Capabilities
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase shrink-0 ${
+                      team.status === "Active" 
+                        ? "bg-success-light text-success border-success/15" 
+                        : "bg-blue-50 text-blue-700 border-blue-150"
+                    }`}>
+                      {team.status}
                     </span>
-                    <div className="flex flex-wrap gap-1">
-                      {team.requiredSkills.map((skill, i) => (
-                        <span key={i} className="text-[10.5px] bg-slate-100 text-slate-800 border border-slate-200 px-2 py-0.5 rounded font-medium">
-                          {skill}
-                        </span>
-                      ))}
+                  </CardHeader>
+
+                  <CardContent className="p-5 space-y-4">
+                    {/* Assigned Problem Context */}
+                    <div className="space-y-1 bg-brandgray-light/50 p-3 rounded border border-brandgray-border/50 text-xs">
+                      <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                        Assigned Problem Challenge
+                      </span>
+                      {team.assignedProblemTitle ? (
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-primary">{team.assignedProblemTitle}</span>
+                          {team.assignedProblemId && (
+                            <Link href={`/university/problems/${team.assignedProblemId}`}>
+                              <span className="text-[10px] text-primary font-bold hover:underline">View</span>
+                            </Link>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-brandgray-muted italic">Unassigned (Available for new project)</span>
+                      )}
                     </div>
-                  </div>
-                </CardContent>
-              </div>
-            </Card>
-          ))}
-        </div>
+
+                    {/* Student Members */}
+                    <div className="space-y-2">
+                      <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider block">
+                        Student Researchers ({team.studentMembers.length})
+                      </span>
+                      <div className="space-y-1">
+                        {team.studentMembers.map((member, i) => (
+                          <div key={i} className="text-xs text-brandgray-text flex items-center gap-2 bg-white border border-brandgray-border/60 px-2.5 py-1.5 rounded">
+                            <div className="h-1.5 w-1.5 rounded-full bg-primary" />
+                            <span>{member}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Quick Add Member Input */}
+                      <div className="flex gap-2 pt-1">
+                        <input 
+                          type="text"
+                          placeholder="Add student name..."
+                          className="text-xs border border-brandgray-border rounded px-2.5 py-1.5 flex-1 focus:outline-none focus:border-primary"
+                          value={addMemberName[team.id] || ""}
+                          onChange={(e) => setAddMemberName({ ...addMemberName, [team.id]: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleAddMember(team.id);
+                          }}
+                        />
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 text-xs font-semibold px-3"
+                          onClick={() => handleAddMember(team.id)}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Required Skills */}
+                    <div className="space-y-1.5 pt-2">
+                      <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider block">
+                        Domain Capabilities
+                      </span>
+                      <div className="flex flex-wrap gap-1">
+                        {team.requiredSkills.map((skill, i) => (
+                          <span key={i} className="text-[10.5px] bg-slate-100 text-slate-800 border border-slate-200 px-2 py-0.5 rounded font-medium">
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ASSIGN TEAM MODAL */}

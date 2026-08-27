@@ -63,6 +63,7 @@ export default function AdminProblemDetailPage() {
   const [activityHistory, setActivityHistory] = useState<ActivityLog[]>([]);
   const [recommendations, setRecommendations] = useState<UniversityMatchResult[]>([]);
   const [expandedRecId, setExpandedRecId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Action State
   const [actionSuccess, setActionSuccess] = useState("");
@@ -121,7 +122,34 @@ export default function AdminProblemDetailPage() {
       const recs = universityMockService.getUniversityRecommendations(problemId);
       setRecommendations(recs);
     }
+    setLoading(false);
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[300px] space-y-3">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
+        <p className="text-xs text-brandgray-muted font-medium">Loading problem details...</p>
+      </div>
+    );
+  }
+
+  if (!problem) {
+    return (
+      <div className="p-8 text-center bg-white border border-brandgray-border rounded-md text-brandgray-muted text-sm space-y-3 max-w-md mx-auto my-12">
+        <AlertCircle className="h-8 w-8 mx-auto text-red-500" />
+        <p className="font-bold text-primary">Problem Not Found</p>
+        <p className="text-xs">The requested community problem ID does not exist or has been removed from the platform registry.</p>
+        <div className="pt-2">
+          <Link href="/admin/problems">
+            <Button variant="outline" size="sm">Back to Problems Monitoring</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const p = problem;
 
   const handleApproveProblem = () => {
     setActionError("");
@@ -281,7 +309,7 @@ export default function AdminProblemDetailPage() {
               onClick={handleRejectProblem}
               disabled={isSubmitting || problem.status === "Rejected"}
             >
-              Reject Report
+              {isSubmitting ? "Rejecting..." : "Reject Report"}
             </Button>
             <Button 
               variant="primary" 
@@ -290,7 +318,8 @@ export default function AdminProblemDetailPage() {
               onClick={handleApproveProblem}
               disabled={isSubmitting || problem.status === "Interested" || problem.status === "Active Project"}
             >
-              <Check className="h-4 w-4 mr-1 shrink-0" /> Validate & Approve Problem
+              <Check className="h-4 w-4 mr-1 shrink-0" /> 
+              {isSubmitting ? "Validating..." : "Validate & Approve Problem"}
             </Button>
           </div>
         </CardContent>
