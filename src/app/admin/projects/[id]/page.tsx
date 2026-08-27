@@ -3,16 +3,16 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { 
-  ShieldCheck, 
-  MapPin, 
-  Users, 
-  Calendar, 
-  CheckCircle2, 
-  AlertTriangle, 
-  X, 
-  Sparkles, 
-  Copy, 
+import {
+  ShieldCheck,
+  MapPin,
+  Users,
+  Calendar,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+  Sparkles,
+  Copy,
   ArrowLeft,
   FileText,
   Layers,
@@ -25,20 +25,22 @@ import {
   FolderKanban,
   FileCheck,
   TrendingUp,
-  FileSpreadsheet
+  FileSpreadsheet,
+  History,
 } from "lucide-react";
-import { 
-  universityMockService, 
-  ResolvedProject, 
+import {
+  universityMockService,
+  ResolvedProject,
   STAGE_CONFIG,
   LIFECYCLE_STAGES,
-  getDaysRemainingText
+  getDaysRemainingText,
+  ActivityLog,
 } from "@/services/universityMockService";
-import { industryService, IndustrySupportRequest } from "@/services/industryService";
-import { 
-  impactService, 
-  ImpactAssessment 
-} from "@/services/impactService";
+import {
+  industryService,
+  IndustrySupportRequest,
+} from "@/services/industryService";
+import { impactService, ImpactAssessment } from "@/services/impactService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
@@ -48,17 +50,21 @@ export default function AdminProjectDetailPage() {
   const projectId = params.id as string;
 
   const [project, setProject] = useState<ResolvedProject | null>(null);
-  const [industryPartners, setIndustryPartners] = useState<IndustrySupportRequest[]>([]);
+  const [industryPartners, setIndustryPartners] = useState<
+    IndustrySupportRequest[]
+  >([]);
   const [impact, setImpact] = useState<ImpactAssessment | null>(null);
   const [industryRecs, setIndustryRecs] = useState<any[]>([]);
   const [expandedIndRecId, setExpandedIndRecId] = useState<string | null>(null);
   const [viewingIndustry, setViewingIndustry] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
-  
+
   // Verification Modal & Action State
   const [verificationNote, setVerificationNote] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<"complete" | "request_evidence" | "return_correction">("complete");
+  const [modalMode, setModalMode] = useState<
+    "complete" | "request_evidence" | "return_correction"
+  >("complete");
   const [actionSuccess, setActionSuccess] = useState("");
   const [actionError, setActionError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,20 +79,28 @@ export default function AdminProjectDetailPage() {
     completionReport: false,
   });
 
+  const [activityHistory, setActivityHistory] = useState<ActivityLog[]>([]);
+
   useEffect(() => {
     loadProjectDetails();
   }, [projectId]);
 
   const loadProjectDetails = () => {
     const raw = universityMockService.getProjectById(projectId);
+    let resolvedTitle = "";
     if (raw) {
       const res = universityMockService.resolveProject(raw);
       if (res) {
         setProject(res);
-        const accepted = industryService.getAcceptedSupportRequestsForProject(res.id);
+        resolvedTitle = res.title;
+        const accepted = industryService.getAcceptedSupportRequestsForProject(
+          res.id,
+        );
         setIndustryPartners(accepted);
 
-        const recs = industryService.getIndustryRecommendationsForProject(res.id);
+        const recs = industryService.getIndustryRecommendationsForProject(
+          res.id,
+        );
         setIndustryRecs(recs);
       }
     }
@@ -94,6 +108,18 @@ export default function AdminProjectDetailPage() {
     if (imp) {
       setImpact(imp);
     }
+
+    // Load Project activities
+    const allActivities = universityMockService.getActivities();
+    const projActivities = allActivities.filter(
+      (act) =>
+        act.entityId === projectId ||
+        act.text.toLowerCase().includes(projectId.toLowerCase()) ||
+        (resolvedTitle &&
+          act.text.toLowerCase().includes(resolvedTitle.toLowerCase())),
+    );
+    setActivityHistory(projActivities);
+
     setLoading(false);
   };
 
@@ -101,31 +127,26 @@ export default function AdminProjectDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[300px] space-y-3">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary"></div>
-        <p className="text-xs text-brandgray-muted font-medium">Loading project details...</p>
+        <p className="text-xs text-brandgray-muted font-medium">
+          Loading project details...
+        </p>
       </div>
     );
   }
 
-  if (!project) {
-    return (
-      <div className="p-8 text-center bg-white border border-brandgray-border rounded-md text-brandgray-muted text-sm space-y-3 max-w-md mx-auto my-12">
-        <AlertCircle className="h-8 w-8 mx-auto text-red-500" />
-        <p className="font-bold text-primary">Project Not Found</p>
-        <p className="text-xs">The requested project ID does not exist or has been removed from the platform registry.</p>
-        <div className="pt-2">
-          <Link href="/admin/projects">
-            <Button variant="outline" size="sm">Back to Projects Monitoring</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const isAllEvidenceChecked = checklist.implementationReport && checklist.fieldTestingEvidence && checklist.impactAssessment && checklist.beneficiaryData && checklist.supportingPhotos && checklist.completionReport;
+  const isAllEvidenceChecked =
+    checklist.implementationReport &&
+    checklist.fieldTestingEvidence &&
+    checklist.impactAssessment &&
+    checklist.beneficiaryData &&
+    checklist.supportingPhotos &&
+    checklist.completionReport;
 
   const handleVerifyAndComplete = () => {
     if (!isAllEvidenceChecked) {
-      setActionError("Verification Blocked: All evidence checklist items must be checked before final sign-off.");
+      setActionError(
+        "Verification Blocked: All evidence checklist items must be checked before final sign-off.",
+      );
       return;
     }
     setActionError("");
@@ -133,8 +154,14 @@ export default function AdminProjectDetailPage() {
     setIsSubmitting(true);
 
     try {
-      impactService.verifyImpactAssessment(projectId, verificationNote, "ADMIN");
-      setActionSuccess("Impact assessment verified and project completion signed off successfully!");
+      impactService.verifyImpactAssessment(
+        projectId,
+        verificationNote,
+        "ADMIN",
+      );
+      setActionSuccess(
+        "Impact assessment verified and project completion signed off successfully!",
+      );
       setIsModalOpen(false);
       setVerificationNote("");
       loadProjectDetails();
@@ -147,7 +174,9 @@ export default function AdminProjectDetailPage() {
 
   const handleRequestEvidence = () => {
     if (!verificationNote.trim()) {
-      setActionError("Please provide a note specifying the required revisions or evidence.");
+      setActionError(
+        "Please provide a note specifying the required revisions or evidence.",
+      );
       return;
     }
     setActionError("");
@@ -156,7 +185,9 @@ export default function AdminProjectDetailPage() {
 
     try {
       impactService.requestImpactRevision(projectId, verificationNote, "ADMIN");
-      setActionSuccess("Requested impact assessment revision. Project returned to Impact Assessment stage.");
+      setActionSuccess(
+        "Requested impact assessment revision. Project returned to Impact Assessment stage.",
+      );
       setIsModalOpen(false);
       setVerificationNote("");
       loadProjectDetails();
@@ -169,7 +200,9 @@ export default function AdminProjectDetailPage() {
 
   const handleReturnCorrection = () => {
     if (!verificationNote.trim()) {
-      setActionError("Please provide a note specifying the correction requirements.");
+      setActionError(
+        "Please provide a note specifying the correction requirements.",
+      );
       return;
     }
     setActionError("");
@@ -177,8 +210,14 @@ export default function AdminProjectDetailPage() {
     setIsSubmitting(true);
 
     try {
-      universityMockService.returnProjectForCorrection(projectId, verificationNote, "ADMIN");
-      setActionSuccess("Project returned to university for correction successfully.");
+      universityMockService.returnProjectForCorrection(
+        projectId,
+        verificationNote,
+        "ADMIN",
+      );
+      setActionSuccess(
+        "Project returned to university for correction successfully.",
+      );
       setIsModalOpen(false);
       setVerificationNote("");
       loadProjectDetails();
@@ -189,63 +228,446 @@ export default function AdminProjectDetailPage() {
     }
   };
 
+  const getProjectDocumentsList = () => {
+    if (!project) return [];
+    const list = [];
+
+    // 1. Initial Research Brief / Proposal
+    const brief = project.documents.find(
+      (d) =>
+        d.name.toLowerCase().includes("brief") ||
+        d.name.toLowerCase().includes("proposal"),
+    );
+    list.push({
+      key: "brief",
+      name: brief?.name || "Initial Research Brief",
+      type: brief?.type || "PDF",
+      uploadedBy: brief?.uploadedBy || "Faculty Coordinator",
+      uploadedByRole: brief?.uploadedByRole || "UNIVERSITY",
+      uploadedDate: brief?.uploadedDate || "12 Aug 2026",
+      fileType: brief?.fileType || "PDF",
+      size: brief?.size || "2.1 MB",
+      status: brief ? brief.status : "Verified",
+    });
+
+    // 2. Proposal Document
+    const proposalDoc = project.documents.find((d) =>
+      d.name.toLowerCase().includes("proposal"),
+    );
+    list.push({
+      key: "proposal",
+      name: proposalDoc?.name || "Project Technical Proposal",
+      type: proposalDoc?.type || "PDF",
+      uploadedBy: proposalDoc?.uploadedBy || "Lead Student Researcher",
+      uploadedByRole: proposalDoc?.uploadedByRole || "UNIVERSITY",
+      uploadedDate: proposalDoc?.uploadedDate || "10 Aug 2026",
+      fileType: proposalDoc?.fileType || "PDF",
+      size: proposalDoc?.size || "1.8 MB",
+      status: proposalDoc ? proposalDoc.status : "Verified",
+    });
+
+    // 3. MoU / Agreement
+    const mouDoc = project.documents.find(
+      (d) =>
+        d.name.toLowerCase().includes("agreement") ||
+        d.name.toLowerCase().includes("mou"),
+    );
+    list.push({
+      key: "mou",
+      name: mouDoc?.name || "Tripartite MoU Agreement",
+      type: mouDoc?.type || "PDF",
+      uploadedBy: mouDoc?.uploadedBy || "CSR Grant Officer / Admin",
+      uploadedByRole: mouDoc?.uploadedByRole || "ADMIN",
+      uploadedDate: mouDoc?.uploadedDate || "14 Aug 2026",
+      fileType: mouDoc?.fileType || "PDF",
+      size: mouDoc?.size || "3.4 MB",
+      status: mouDoc ? mouDoc.status : "Verified",
+    });
+
+    // 4. Implementation Report
+    const implDoc = project.documents.find(
+      (d) =>
+        d.name.toLowerCase().includes("implementation") ||
+        d.name.toLowerCase().includes("report"),
+    );
+    list.push({
+      key: "implementation",
+      name: implDoc?.name || "Mid-term & Final Implementation Report",
+      type: implDoc?.type || "PDF",
+      uploadedBy: implDoc?.uploadedBy || "Dr. Ramesh Kumar",
+      uploadedByRole: implDoc?.uploadedByRole || "UNIVERSITY",
+      uploadedDate: implDoc?.uploadedDate || "24 Aug 2026",
+      fileType: implDoc?.fileType || "PDF",
+      size: implDoc?.size || "4.2 MB",
+      status: checklist.implementationReport
+        ? "Verified"
+        : implDoc
+          ? "Awaiting Review"
+          : "Pending Upload",
+    });
+
+    // 5. Photos / Field Evidence
+    const photosDoc = project.documents.find(
+      (d) =>
+        d.name.toLowerCase().includes("photo") ||
+        d.name.toLowerCase().includes("image") ||
+        d.name.toLowerCase().includes("evidence"),
+    );
+    list.push({
+      key: "photos",
+      name: photosDoc?.name || "Field Implementation Photographs & GPS Logs",
+      type: photosDoc?.type || "ZIP / JPEG",
+      uploadedBy: photosDoc?.uploadedBy || "Student Field Team",
+      uploadedByRole: photosDoc?.uploadedByRole || "UNIVERSITY",
+      uploadedDate: photosDoc?.uploadedDate || "26 Aug 2026",
+      fileType: photosDoc?.fileType || "ZIP / JPEG",
+      size: photosDoc?.size || "18.5 MB",
+      status: checklist.supportingPhotos
+        ? "Verified"
+        : photosDoc
+          ? "Awaiting Review"
+          : "Pending Upload",
+    });
+
+    // 6. Testing Report
+    const testingDoc = project.documents.find(
+      (d) =>
+        d.name.toLowerCase().includes("testing") ||
+        d.name.toLowerCase().includes("lab"),
+    );
+    list.push({
+      key: "testing",
+      name:
+        testingDoc?.name ||
+        "Field Prototype Water Quality & Lab Testing Report",
+      type: testingDoc?.type || "PDF",
+      uploadedBy: testingDoc?.uploadedBy || "Dr. Ramesh Kumar",
+      uploadedByRole: testingDoc?.uploadedByRole || "UNIVERSITY",
+      uploadedDate: testingDoc?.uploadedDate || "25 Aug 2026",
+      fileType: testingDoc?.fileType || "PDF",
+      size: testingDoc?.size || "2.7 MB",
+      status: checklist.fieldTestingEvidence
+        ? "Verified"
+        : testingDoc
+          ? "Awaiting Review"
+          : "Pending Upload",
+    });
+
+    // 7. Impact Assessment Report
+    list.push({
+      key: "impact",
+      name: impact
+        ? "Social Impact Assessment & Citizen Survey Data"
+        : "Pending Impact Assessment Report",
+      type: "PDF",
+      uploadedBy: impact?.submittedBy || "University Team",
+      uploadedByRole: "UNIVERSITY",
+      uploadedDate: impact?.submittedAt || "27 Aug 2026",
+      fileType: "PDF",
+      size: "1.4 MB",
+      status: impact
+        ? impact.status === "VERIFIED"
+          ? "Verified"
+          : "Submitted"
+        : "Awaiting Submission",
+    });
+
+    // 8. Completion Report
+    const completionDoc = project.documents.find((d) =>
+      d.name.toLowerCase().includes("completion"),
+    );
+    list.push({
+      key: "completion",
+      name:
+        completionDoc?.name || "Official Project Completion Sign-off Document",
+      type: completionDoc?.type || "PDF",
+      uploadedBy: completionDoc?.uploadedBy || "University Registrar",
+      uploadedByRole: completionDoc?.uploadedByRole || "UNIVERSITY",
+      uploadedDate: completionDoc?.uploadedDate || "27 Aug 2026",
+      fileType: completionDoc?.fileType || "PDF",
+      size: completionDoc?.size || "1.9 MB",
+      status: checklist.completionReport
+        ? "Verified"
+        : completionDoc
+          ? "Awaiting Review"
+          : "Pending Upload",
+    });
+
+    return list;
+  };
+
   if (!project) {
     return (
       <div className="text-center py-12 space-y-4">
         <p className="text-sm font-semibold text-primary">Project Not Found</p>
-        <p className="text-xs text-brandgray-muted">The requested project ID does not exist.</p>
+        <p className="text-xs text-brandgray-muted">
+          The requested project ID does not exist.
+        </p>
         <Link href="/admin/projects">
-          <Button variant="outline" size="sm">Back to Projects Control</Button>
+          <Button variant="outline" size="sm">
+            Back to Projects Control
+          </Button>
         </Link>
       </div>
     );
   }
 
   const stageConfig = STAGE_CONFIG[project.stage];
-  const isAwaitingVerification = project.stage === "AWAITING_ADMIN_VERIFICATION" || impact?.status === "SUBMITTED";
-  const isCompleted = project.stage === "COMPLETED" || impact?.status === "VERIFIED";
+  const isAwaitingVerification =
+    project.stage === "AWAITING_ADMIN_VERIFICATION" ||
+    impact?.status === "SUBMITTED";
+  const isCompleted =
+    project.stage === "COMPLETED" || impact?.status === "VERIFIED";
 
   return (
     <div className="space-y-8">
       {/* Breadcrumb Navigation */}
       <div className="flex items-center justify-between">
-        <Link href="/admin/projects" className="text-xs font-bold text-primary hover:underline flex items-center gap-1">
-          <ArrowLeft className="h-3.5 w-3.5" /> Back to Projects Control & Monitoring
+        <Link
+          href="/admin/projects"
+          className="text-xs font-bold text-primary hover:underline flex items-center gap-1"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" /> Back to Projects Control &
+          Monitoring
         </Link>
-        <span className="text-xs text-brandgray-muted">Project ID: <span className="font-mono font-bold text-primary">{project.id}</span></span>
+        <span className="text-xs text-brandgray-muted">
+          Project ID:{" "}
+          <span className="font-mono font-bold text-primary">{project.id}</span>
+        </span>
       </div>
 
-      {/* Main Banner */}
-      <div className={`bg-white border rounded-lg p-6 shadow-subtle space-y-4 ${
-        isAwaitingVerification ? "border-amber-300 ring-2 ring-amber-200" : "border-brandgray-border"
-      }`}>
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-1.5 max-w-2xl">
+      {/* Concise Government Overview Panel */}
+      <div
+        className={`bg-white border rounded-lg p-5 shadow-subtle space-y-4 ${
+          isAwaitingVerification
+            ? "border-amber-300 ring-2 ring-amber-200/50"
+            : "border-brandgray-border"
+        }`}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-brandgray-border/40 pb-3">
+          <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-extrabold text-primary uppercase tracking-wider bg-primary-light border border-primary/10 px-2.5 py-0.5 rounded">
+              <span className="text-[10px] font-extrabold text-primary uppercase tracking-wider bg-primary-light border border-primary/10 px-2.5 py-0.5 rounded font-mono">
                 {project.id}
               </span>
               <span className="text-xs font-bold text-brandgray-muted uppercase tracking-wider">
                 {project.originalProblem.category}
               </span>
             </div>
-            <h1 className="text-2xl font-bold text-primary">{project.title}</h1>
-            <p className="text-xs text-brandgray-muted flex items-center gap-2 font-medium">
-              <MapPin className="h-3.5 w-3.5 text-primary" /> {project.originalProblem.district}, {project.originalProblem.state} · University: <span className="font-bold text-primary">{project.collaboration.university}</span>
+            <h1 className="text-xl font-bold text-primary">{project.title}</h1>
+            <p className="text-xs text-brandgray-muted flex items-center gap-1 font-medium">
+              <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />{" "}
+              {project.originalProblem.district},{" "}
+              {project.originalProblem.state}
             </p>
           </div>
-
-          <div className="flex flex-col items-end gap-2">
-            <span className={`text-xs font-bold px-3 py-1 rounded border uppercase ${
-              isAwaitingVerification
-                ? "bg-amber-100 text-amber-950 border-amber-300 font-extrabold"
-                : isCompleted
-                ? "bg-emerald-100 text-emerald-950 border-emerald-300 font-extrabold"
-                : "bg-indigo-50 text-indigo-700 border-indigo-200"
-            }`}>
-              {stageConfig?.label || project.stage} ({project.progress}%)
+          <div>
+            <span
+              className={`text-xs font-extrabold px-3 py-1 rounded border uppercase ${
+                isAwaitingVerification
+                  ? "bg-amber-100 text-amber-950 border-amber-300 animate-pulse"
+                  : isCompleted
+                    ? "bg-emerald-100 text-emerald-950 border-emerald-300"
+                    : "bg-indigo-50 text-indigo-750 border-indigo-200"
+              }`}
+            >
+              {stageConfig?.label || project.stage}
             </span>
           </div>
+        </div>
+
+        {/* 13-Point Government Overview Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3.5 text-xs bg-slate-50 p-4 rounded border border-slate-200 font-medium text-slate-800">
+          <div>
+            <span className="text-[9px] font-bold text-brandgray-muted uppercase block leading-none mb-1">
+              PROJECT ID
+            </span>
+            <span className="font-mono font-bold text-primary">
+              {project.id}
+            </span>
+          </div>
+          <div>
+            <span className="text-[9px] font-bold text-brandgray-muted uppercase block leading-none mb-1">
+              STATUS
+            </span>
+            <span className="font-bold text-indigo-950 uppercase">
+              {project.stage.replace("_", " ")}
+            </span>
+          </div>
+          <div>
+            <span className="text-[9px] font-bold text-brandgray-muted uppercase block leading-none mb-1">
+              HEALTH
+            </span>
+            <span
+              className={`font-extrabold ${
+                project.stage === "COMPLETED"
+                  ? "text-emerald-700"
+                  : project.activities.some(
+                        (a) => a.type === "verification_revision",
+                      )
+                    ? "text-rose-700"
+                    : "text-emerald-700"
+              }`}
+            >
+              {project.stage === "COMPLETED"
+                ? "COMPLETED"
+                : project.activities.some(
+                      (a) => a.type === "verification_revision",
+                    )
+                  ? "NEEDS INTERVENTION"
+                  : "ON TRACK"}
+            </span>
+          </div>
+          <div>
+            <span className="text-[9px] font-bold text-brandgray-muted uppercase block leading-none mb-1">
+              PROGRESS
+            </span>
+            <span className="font-bold text-primary">
+              {project.progress}% Complete
+            </span>
+          </div>
+          <div>
+            <span className="text-[9px] font-bold text-brandgray-muted uppercase block leading-none mb-1">
+              EXPECTED TIMELINE
+            </span>
+            <span className="font-bold text-slate-700">
+              Ends {project.expectedCompletionDate || "30 June 2027"}
+            </span>
+          </div>
+          <div>
+            <span className="text-[9px] font-bold text-brandgray-muted uppercase block leading-none mb-1">
+              NEXT DEADLINE
+            </span>
+            <span className="font-bold text-slate-700">30 Nov 2026</span>
+          </div>
+          <div className="col-span-2">
+            <span className="text-[9px] font-bold text-brandgray-muted uppercase block leading-none mb-1">
+              UNIVERSITY PARTNER
+            </span>
+            <span className="font-bold text-purple-950 truncate block">
+              {project.collaboration.university}
+            </span>
+          </div>
+          <div>
+            <span className="text-[9px] font-bold text-brandgray-muted uppercase block leading-none mb-1">
+              RESEARCH TEAM
+            </span>
+            <span className="font-bold text-purple-950 truncate block">
+              {project.assignedTeam?.name || "Not Assigned"}
+            </span>
+          </div>
+          <div>
+            <span className="text-[9px] font-bold text-brandgray-muted uppercase block leading-none mb-1">
+              FACULTY MENTOR
+            </span>
+            <span className="font-bold text-purple-950 truncate block">
+              {project.facultyMentor}
+            </span>
+          </div>
+          <div className="col-span-2">
+            <span className="text-[9px] font-bold text-brandgray-muted uppercase block leading-none mb-1">
+              INDUSTRY/CSR PARTNER
+            </span>
+            <span className="font-bold text-indigo-950 truncate block">
+              {industryPartners.length > 0
+                ? industryPartners.map((p) => p.industryName).join(", ")
+                : "Not Matched"}
+            </span>
+          </div>
+          <div>
+            <span className="text-[9px] font-bold text-brandgray-muted uppercase block leading-none mb-1">
+              FUNDING
+            </span>
+            <span className="font-bold text-emerald-700">
+              {project.collaboration.funding || "Not available"}
+            </span>
+          </div>
+          <div>
+            <span className="text-[9px] font-bold text-brandgray-muted uppercase block leading-none mb-1">
+              BENEFICIARIES
+            </span>
+            <span className="font-bold text-emerald-700">
+              {impact
+                ? `${impact.beneficiariesReached.toLocaleString("en-IN")} people`
+                : "Not available"}
+            </span>
+          </div>
+          <div className="col-span-2">
+            <span className="text-[9px] font-bold text-brandgray-muted uppercase block leading-none mb-1">
+              CURRENT ACTION REQUIRED
+            </span>
+            <span className="font-bold text-amber-800 truncate block">
+              {project.nextAction || "None"}
+            </span>
+          </div>
+        </div>
+
+        {/* Traceability Linked ID Trail */}
+        <div className="flex flex-wrap items-center gap-1.5 text-[10.5px] border-t border-brandgray-border/40 pt-3">
+          <span className="text-brandgray-muted font-bold uppercase tracking-wider">
+            Traceability ID Trail:
+          </span>
+
+          <Link
+            href={`/admin/problems/${project.problemId}`}
+            className="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono font-bold text-primary hover:underline"
+          >
+            Problem: {project.problemId}
+          </Link>
+
+          <span className="text-slate-400">→</span>
+
+          <span className="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono font-bold text-slate-700">
+            Interest: int-matched
+          </span>
+
+          <span className="text-slate-400">→</span>
+
+          <span className="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono font-bold text-slate-700">
+            Team: {project.teamId || "team-1"}
+          </span>
+
+          <span className="text-slate-400">→</span>
+
+          {project.proposalId ? (
+            <Link
+              href={`/admin/proposals/${project.proposalId}`}
+              className="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono font-bold text-primary hover:underline"
+            >
+              Proposal: {project.proposalId}
+            </Link>
+          ) : (
+            <span className="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono font-bold text-slate-400">
+              Proposal: None
+            </span>
+          )}
+
+          <span className="text-slate-400">→</span>
+
+          <span className="bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded font-mono font-bold text-indigo-700">
+            Project: {project.id}
+          </span>
+
+          {industryPartners.length > 0 && (
+            <>
+              <span className="text-slate-400">→</span>
+              <Link
+                href={`/admin/industry-support`}
+                className="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono font-bold text-primary hover:underline"
+              >
+                CSR Request: {industryPartners[0].id}
+              </Link>
+            </>
+          )}
+
+          {impact && (
+            <>
+              <span className="text-slate-400">→</span>
+              <span className="bg-slate-100 border border-slate-200 px-2 py-0.5 rounded font-mono font-bold text-slate-700">
+                Impact: {impact.id}
+              </span>
+            </>
+          )}
         </div>
 
         {actionSuccess && (
@@ -266,7 +688,8 @@ export default function AdminProjectDetailPage() {
         <Card className="border-amber-400 bg-amber-50/70 shadow-subtle">
           <CardHeader className="p-5 border-b border-amber-300/80 bg-amber-100/60 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-extrabold text-amber-950 uppercase tracking-wider flex items-center gap-2">
-              <Award className="h-5 w-5 text-amber-700" /> Government Completion Verification Needed
+              <Award className="h-5 w-5 text-amber-700" /> Government Completion
+              Verification Needed
             </CardTitle>
             <span className="text-xs font-extrabold bg-amber-200 text-amber-950 border border-amber-400 px-3 py-0.5 rounded">
               FINAL SIGN-OFF REQUIRED
@@ -274,26 +697,149 @@ export default function AdminProjectDetailPage() {
           </CardHeader>
           <CardContent className="p-5 space-y-4 text-xs">
             <p className="text-amber-950 leading-relaxed font-medium">
-              An impact assessment has been submitted for this project. Review the outcome summary, beneficiary numbers, before/after metrics, and field evidence before granting final verification.
+              An impact assessment has been submitted for this project. The
+              administrator must audit the supporting documents and physically
+              verify field implementation reports before granting final
+              completion status.
             </p>
 
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <Button 
-                variant="primary" 
-                size="sm" 
+            {/* EVIDENCE VERIFICATION CHECKLIST */}
+            <div className="bg-white border border-amber-200 rounded p-4 space-y-3">
+              <h4 className="font-extrabold text-primary uppercase text-[11px] border-b border-slate-100 pb-1.5 flex items-center gap-1.5">
+                <FileCheck className="h-4 w-4 text-emerald-600" />{" "}
+                Administrative Evidence Checklist
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {[
+                  {
+                    key: "implementationReport",
+                    label: "Implementation Report",
+                  },
+                  {
+                    key: "fieldTestingEvidence",
+                    label: "Field Testing Evidence",
+                  },
+                  {
+                    key: "impactAssessment",
+                    label: "Impact Assessment (Auto-Loaded)",
+                    disabled: true,
+                  },
+                  {
+                    key: "beneficiaryData",
+                    label: "Beneficiary Verification Data",
+                  },
+                  {
+                    key: "supportingPhotos",
+                    label: "Supporting Deployment Photos",
+                  },
+                  {
+                    key: "completionReport",
+                    label: "Signed Completion Report",
+                  },
+                ].map((item) => (
+                  <label
+                    key={item.key}
+                    className={`flex items-center gap-2 p-2 border rounded cursor-pointer transition-colors ${
+                      checklist[item.key as keyof typeof checklist]
+                        ? "bg-emerald-50 border-emerald-300 text-emerald-950"
+                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100/70"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checklist[item.key as keyof typeof checklist]}
+                      disabled={item.disabled}
+                      onChange={(e) => {
+                        if (item.disabled) return;
+                        setChecklist({
+                          ...checklist,
+                          [item.key]: e.target.checked,
+                        });
+                      }}
+                      className="rounded text-primary focus:ring-primary h-3.5 w-3.5"
+                    />
+                    <span className="font-bold text-[11.5px]">
+                      {item.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Missing Evidence Warning Indicator */}
+            {!isAllEvidenceChecked ? (
+              <div className="p-3.5 bg-red-50 border border-red-200 rounded text-red-950 space-y-1">
+                <div className="font-extrabold text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                  <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />{" "}
+                  MISSING EVIDENCE BLOCKER
+                </div>
+                <p className="text-[10.5px] font-medium leading-relaxed">
+                  Final sign-off is disabled because some required field
+                  evidence is missing. Before signing off project completion,
+                  the administrator must confirm availability of:
+                </p>
+                <ul className="list-disc pl-4 space-y-0.5 text-[10px] font-semibold text-red-900">
+                  {!checklist.implementationReport && (
+                    <li>Implementation Report</li>
+                  )}
+                  {!checklist.fieldTestingEvidence && (
+                    <li>Field Testing Evidence</li>
+                  )}
+                  {!checklist.beneficiaryData && (
+                    <li>Beneficiary Verification Data</li>
+                  )}
+                  {!checklist.supportingPhotos && (
+                    <li>Supporting Deployment Photos</li>
+                  )}
+                  {!checklist.completionReport && (
+                    <li>Signed Completion Report</li>
+                  )}
+                </ul>
+              </div>
+            ) : (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded text-emerald-950 text-[10.5px] font-semibold flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                All mandatory completion evidence validated and marked
+                available. Ready for final signing authority sign-off.
+              </div>
+            )}
+
+            <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-brandgray-border/40">
+              <Button
+                variant="primary"
+                size="sm"
                 className="h-9 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 flex items-center gap-1.5"
-                onClick={() => { setModalMode("complete"); setIsModalOpen(true); }}
+                onClick={() => {
+                  setModalMode("complete");
+                  setIsModalOpen(true);
+                }}
+                disabled={!isAllEvidenceChecked}
               >
                 <Check className="h-4 w-4" /> Verify Impact & Complete Project
               </Button>
 
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="h-9 text-xs font-bold border-amber-300 text-amber-950 hover:bg-amber-100"
-                onClick={() => { setModalMode("request_evidence"); setIsModalOpen(true); }}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs font-bold border-amber-300 text-amber-950 hover:bg-amber-100/70"
+                onClick={() => {
+                  setModalMode("request_evidence");
+                  setIsModalOpen(true);
+                }}
               >
-                Request Revision / Additional Evidence
+                Request Additional Evidence
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 text-xs font-bold border-red-200 text-red-700 bg-red-50 hover:bg-red-100"
+                onClick={() => {
+                  setModalMode("return_correction");
+                  setIsModalOpen(true);
+                }}
+              >
+                Return for Correction
               </Button>
             </div>
           </CardContent>
@@ -305,89 +851,134 @@ export default function AdminProjectDetailPage() {
         <Card className="border-indigo-200 shadow-subtle bg-white">
           <CardHeader className="p-5 border-b border-indigo-100 bg-indigo-50/40 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-indigo-700" /> Impact Assessment Review
+              <TrendingUp className="h-4 w-4 text-indigo-700" /> Impact
+              Assessment Review
             </CardTitle>
-            <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded border uppercase ${
-              impact.status === "VERIFIED"
-                ? "bg-emerald-100 text-emerald-900 border-emerald-300"
-                : impact.status === "REVISION_REQUIRED"
-                ? "bg-red-100 text-red-900 border-red-300"
-                : "bg-indigo-100 text-indigo-900 border-indigo-300"
-            }`}>
+            <span
+              className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded border uppercase ${
+                impact.status === "VERIFIED"
+                  ? "bg-emerald-100 text-emerald-900 border-emerald-300"
+                  : impact.status === "REVISION_REQUIRED"
+                    ? "bg-red-100 text-red-900 border-red-300"
+                    : "bg-indigo-100 text-indigo-900 border-indigo-300"
+              }`}
+            >
               Status: {impact.status.replace("_", " ")}
             </span>
           </CardHeader>
           <CardContent className="p-5 space-y-5 text-xs">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-indigo-50/40 p-3 rounded border border-indigo-100">
               <div>
-                <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Submitted By</span>
-                <span className="font-bold text-indigo-950">{impact.submittedBy}</span>
+                <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                  Submitted By
+                </span>
+                <span className="font-bold text-indigo-950">
+                  {impact.submittedBy}
+                </span>
               </div>
               <div>
-                <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Beneficiaries Reached</span>
-                <span className="font-extrabold text-emerald-700 text-sm">{impact.beneficiariesReached.toLocaleString('en-IN')} people</span>
+                <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                  Beneficiaries Reached
+                </span>
+                <span className="font-extrabold text-emerald-700 text-sm">
+                  {impact.beneficiariesReached.toLocaleString("en-IN")} people
+                </span>
               </div>
               <div>
-                <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Locations Covered</span>
-                <span className="font-bold text-indigo-950">{impact.locationsCovered}</span>
+                <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                  Locations Covered
+                </span>
+                <span className="font-bold text-indigo-950">
+                  {impact.locationsCovered}
+                </span>
               </div>
               <div>
-                <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Submitted Date</span>
-                <span className="font-medium text-brandgray-text">{impact.submittedAt || impact.createdAt}</span>
+                <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                  Submitted Date
+                </span>
+                <span className="font-medium text-brandgray-text">
+                  {impact.submittedAt || impact.createdAt}
+                </span>
               </div>
             </div>
 
             <div className="space-y-1">
-              <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Project Outcome Summary</span>
+              <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                Project Outcome Summary
+              </span>
               <p className="text-xs text-brandgray-text bg-slate-50 p-3 rounded border border-slate-200 leading-relaxed font-medium">
                 {impact.summary}
               </p>
             </div>
 
             <div className="space-y-1">
-              <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Measurable Problem Improvement</span>
+              <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                Measurable Problem Improvement
+              </span>
               <p className="text-xs text-brandgray-text bg-slate-50 p-3 rounded border border-slate-200 leading-relaxed font-medium">
                 {impact.problemImprovement}
               </p>
             </div>
 
             {/* Before / After Comparison Table */}
-            {impact.beforeAfterComparisons && impact.beforeAfterComparisons.length > 0 && (
-              <div className="space-y-2">
-                <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Before vs. After Implementation Comparison</span>
-                <div className="overflow-x-auto border border-brandgray-border rounded">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-100 border-b border-brandgray-border font-bold text-primary uppercase text-[10px]">
-                      <tr>
-                        <th className="p-2.5">Metric</th>
-                        <th className="p-2.5">Before Implementation</th>
-                        <th className="p-2.5">After Implementation</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-150 bg-white">
-                      {impact.beforeAfterComparisons.map((c, i) => (
-                        <tr key={i}>
-                          <td className="p-2.5 font-bold text-primary">{c.metricName}</td>
-                          <td className="p-2.5 text-red-700 font-semibold">{c.beforeValue}</td>
-                          <td className="p-2.5 text-emerald-800 font-bold">{c.afterValue}</td>
+            {impact.beforeAfterComparisons &&
+              impact.beforeAfterComparisons.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                    Before vs. After Implementation Comparison
+                  </span>
+                  <div className="overflow-x-auto border border-brandgray-border rounded">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-100 border-b border-brandgray-border font-bold text-primary uppercase text-[10px]">
+                        <tr>
+                          <th className="p-2.5">Metric</th>
+                          <th className="p-2.5">Before Implementation</th>
+                          <th className="p-2.5">After Implementation</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-150 bg-white">
+                        {impact.beforeAfterComparisons.map((c, i) => (
+                          <tr key={i}>
+                            <td className="p-2.5 font-bold text-primary">
+                              {c.metricName}
+                            </td>
+                            <td className="p-2.5 text-red-700 font-semibold">
+                              {c.beforeValue}
+                            </td>
+                            <td className="p-2.5 text-emerald-800 font-bold">
+                              {c.afterValue}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
             {/* Flexible Impact Metrics */}
             {impact.impactMetrics && impact.impactMetrics.length > 0 && (
               <div className="space-y-2">
-                <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Impact Metrics</span>
+                <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                  Impact Metrics
+                </span>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {impact.impactMetrics.map((m) => (
-                    <div key={m.id} className="p-3 bg-emerald-50/50 border border-emerald-200 rounded space-y-1">
-                      <span className="text-[10px] font-bold text-emerald-900 uppercase block">{m.name}</span>
-                      <span className="text-lg font-extrabold text-emerald-950 block">{m.value.toLocaleString('en-IN')} {m.unit}</span>
-                      {m.description && <p className="text-[10px] text-emerald-800">{m.description}</p>}
+                    <div
+                      key={m.id}
+                      className="p-3 bg-emerald-50/50 border border-emerald-200 rounded space-y-1"
+                    >
+                      <span className="text-[10px] font-bold text-emerald-900 uppercase block">
+                        {m.name}
+                      </span>
+                      <span className="text-lg font-extrabold text-emerald-950 block">
+                        {m.value.toLocaleString("en-IN")} {m.unit}
+                      </span>
+                      {m.description && (
+                        <p className="text-[10px] text-emerald-800">
+                          {m.description}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -397,7 +988,9 @@ export default function AdminProjectDetailPage() {
             {/* Key Outcomes */}
             {impact.keyOutcomes && impact.keyOutcomes.length > 0 && (
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Key Outcomes Achieved</span>
+                <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                  Key Outcomes Achieved
+                </span>
                 <ul className="list-disc list-inside space-y-1 text-xs text-brandgray-text bg-white p-3 rounded border border-brandgray-border font-medium">
                   {impact.keyOutcomes.map((k, i) => (
                     <li key={i}>{k}</li>
@@ -410,7 +1003,9 @@ export default function AdminProjectDetailPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {impact.challenges && (
                 <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Challenges Encountered</span>
+                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                    Challenges Encountered
+                  </span>
                   <p className="text-xs text-brandgray-text bg-white p-2.5 rounded border border-brandgray-border leading-relaxed">
                     {impact.challenges}
                   </p>
@@ -418,7 +1013,9 @@ export default function AdminProjectDetailPage() {
               )}
               {impact.lessonsLearned && (
                 <div className="space-y-1">
-                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Lessons Learned</span>
+                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                    Lessons Learned
+                  </span>
                   <p className="text-xs text-brandgray-text bg-white p-2.5 rounded border border-brandgray-border leading-relaxed">
                     {impact.lessonsLearned}
                   </p>
@@ -427,69 +1024,168 @@ export default function AdminProjectDetailPage() {
             </div>
 
             {/* Evidence Documents */}
-            {impact.evidenceDocuments && impact.evidenceDocuments.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-brandgray-border/60">
-                <span className="text-[10px] font-bold text-primary uppercase tracking-wider block">Verified Impact Evidence Documents</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {impact.evidenceDocuments.map((doc, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2.5 border border-brandgray-border rounded bg-slate-50 text-xs">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="h-4 w-4 text-brandgray-muted shrink-0" />
-                        <div className="truncate">
-                          <span className="font-bold text-primary block truncate">{doc.name}</span>
-                          <span className="text-[9.5px] text-brandgray-muted block">{doc.type} · {doc.size} · Uploaded {doc.uploadedDate}</span>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => alert(`Initiating secure download for impact evidence: ${doc.name}`)}
-                        className="text-xs font-bold text-primary hover:underline shrink-0"
+            {impact.evidenceDocuments &&
+              impact.evidenceDocuments.length > 0 && (
+                <div className="space-y-2 pt-2 border-t border-brandgray-border/60">
+                  <span className="text-[10px] font-bold text-primary uppercase tracking-wider block">
+                    Verified Impact Evidence Documents
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {impact.evidenceDocuments.map((doc, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between p-2.5 border border-brandgray-border rounded bg-slate-50 text-xs"
                       >
-                        Download
-                      </button>
-                    </div>
-                  ))}
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="h-4 w-4 text-brandgray-muted shrink-0" />
+                          <div className="truncate">
+                            <span className="font-bold text-primary block truncate">
+                              {doc.name}
+                            </span>
+                            <span className="text-[9.5px] text-brandgray-muted block">
+                              {doc.type} · {doc.size} · Uploaded{" "}
+                              {doc.uploadedDate}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() =>
+                            alert(
+                              `Initiating secure download for impact evidence: ${doc.name}`,
+                            )
+                          }
+                          className="text-xs font-bold text-primary hover:underline shrink-0"
+                        >
+                          Download
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-
+              )}
           </CardContent>
         </Card>
       )}
 
       {/* Main Grid: Details, Team, CSR, Timeline */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
         {/* Left Column: Problem, Team, CSR, Milestones */}
         <div className="lg:col-span-2 space-y-6">
-
           {/* ORIGINAL COMMUNITY PROBLEM */}
           <Card className="border-brandgray-border shadow-subtle bg-white">
             <CardHeader className="p-5 border-b border-brandgray-border/60">
               <CardTitle className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
-                <FileText className="h-4 w-4 text-primary" /> Target Citizen Problem Report
+                <FileText className="h-4 w-4 text-primary" /> Target Citizen
+                Problem Report
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 space-y-4 text-xs">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-50 p-3 rounded border border-slate-150">
                 <div>
-                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Problem Title</span>
-                  <span className="font-bold text-primary">{project.originalProblem.title}</span>
+                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                    Problem Title
+                  </span>
+                  <span className="font-bold text-primary">
+                    {project.originalProblem.title}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Location</span>
-                  <span className="font-bold text-primary">{project.originalProblem.district}, {project.originalProblem.state}</span>
+                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                    Location
+                  </span>
+                  <span className="font-bold text-primary">
+                    {project.originalProblem.district},{" "}
+                    {project.originalProblem.state}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Affected Population</span>
-                  <span className="font-bold text-primary">{project.originalProblem.affectedPopulation}</span>
+                  <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                    Affected Population
+                  </span>
+                  <span className="font-bold text-primary">
+                    {project.originalProblem.affectedPopulation}
+                  </span>
                 </div>
               </div>
 
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Full Problem Statement</span>
+                <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                  Full Problem Statement
+                </span>
                 <p className="text-xs text-brandgray-text leading-relaxed bg-white p-3 rounded border border-brandgray-border">
                   {project.originalProblem.description}
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* EVIDENCE & DOCUMENT MANAGEMENT REGISTRY */}
+          <Card className="border-brandgray-border shadow-subtle bg-white">
+            <CardHeader className="p-5 border-b border-brandgray-border/60">
+              <CardTitle className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                <FileCheck className="h-4 w-4 text-emerald-700 font-bold" />{" "}
+                Evidence & Document Management Registry
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0 text-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-brandgray-border/60 text-[9.5px] font-bold text-brandgray-muted uppercase tracking-wider">
+                      <th className="p-3">Document Name</th>
+                      <th className="p-3">Type</th>
+                      <th className="p-3">Uploaded By</th>
+                      <th className="p-3">Role</th>
+                      <th className="p-3">Upload Date</th>
+                      <th className="p-3">Format</th>
+                      <th className="p-3">Size</th>
+                      <th className="p-3 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-brandgray-border/40 font-medium text-slate-800">
+                    {getProjectDocumentsList().map((doc, idx) => (
+                      <tr key={idx} className="hover:bg-slate-50/50">
+                        <td className="p-3 font-bold text-primary max-w-xs truncate">
+                          {doc.name}
+                        </td>
+                        <td className="p-3">{doc.type}</td>
+                        <td className="p-3">{doc.uploadedBy}</td>
+                        <td className="p-3">
+                          <span
+                            className={`text-[8.5px] font-bold px-1.5 py-0.5 border rounded uppercase ${
+                              doc.uploadedByRole === "ADMIN"
+                                ? "bg-amber-100 border-amber-300 text-amber-900"
+                                : "bg-purple-100 border-purple-300 text-purple-900"
+                            }`}
+                          >
+                            {doc.uploadedByRole}
+                          </span>
+                        </td>
+                        <td className="p-3">{doc.uploadedDate}</td>
+                        <td className="p-3 font-mono">{doc.fileType}</td>
+                        <td className="p-3 font-mono text-slate-500">
+                          {doc.size}
+                        </td>
+                        <td className="p-3 text-right">
+                          <span
+                            className={`text-[9.5px] font-extrabold px-2 py-0.5 rounded border uppercase ${
+                              doc.status === "Verified" ||
+                              doc.status === "Completed" ||
+                              doc.status === "Active"
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                : doc.status === "Awaiting Review" ||
+                                    doc.status === "Submitted"
+                                  ? "bg-amber-50 text-amber-800 border-amber-200 animate-pulse"
+                                  : "bg-red-50 text-red-800 border-red-200"
+                            }`}
+                          >
+                            {doc.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
@@ -498,34 +1194,50 @@ export default function AdminProjectDetailPage() {
           <Card className="border-purple-200 shadow-subtle bg-white">
             <CardHeader className="p-5 border-b border-purple-100 bg-purple-50/40">
               <CardTitle className="text-xs font-bold text-purple-950 uppercase tracking-wider flex items-center gap-2">
-                <GraduationCap className="h-4 w-4 text-purple-700" /> University & Assigned Research Team
+                <GraduationCap className="h-4 w-4 text-purple-700" /> University
+                & Assigned Research Team
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-purple-50/40 p-3 rounded border border-purple-100">
                 <div>
-                  <span className="text-[10px] font-bold text-purple-900 uppercase block">University Partner</span>
-                  <span className="font-bold text-purple-950">{project.collaboration.university}</span>
+                  <span className="text-[10px] font-bold text-purple-900 uppercase block">
+                    University Partner
+                  </span>
+                  <span className="font-bold text-purple-950">
+                    {project.collaboration.university}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-purple-900 uppercase block">Faculty Mentor / Coordinator</span>
-                  <span className="font-bold text-purple-950">{project.facultyMentor}</span>
+                  <span className="text-[10px] font-bold text-purple-900 uppercase block">
+                    Faculty Mentor / Coordinator
+                  </span>
+                  <span className="font-bold text-purple-950">
+                    {project.facultyMentor}
+                  </span>
                 </div>
               </div>
 
               {project.assignedTeam ? (
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-primary">{project.assignedTeam.name}</span>
+                    <span className="font-bold text-primary">
+                      {project.assignedTeam.name}
+                    </span>
                     <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
                       ACTIVE TEAM
                     </span>
                   </div>
                   <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block">Student Researchers</span>
+                    <span className="text-[10px] font-bold text-brandgray-muted uppercase block">
+                      Student Researchers
+                    </span>
                     <div className="flex flex-wrap gap-1.5">
                       {project.assignedTeam.members.map((m, idx) => (
-                        <span key={idx} className="text-[11px] bg-slate-100 text-slate-800 border border-slate-200 px-2 py-0.5 rounded font-medium">
+                        <span
+                          key={idx}
+                          className="text-[11px] bg-slate-100 text-slate-800 border border-slate-200 px-2 py-0.5 rounded font-medium"
+                        >
                           {m.name} ({m.degree})
                         </span>
                       ))}
@@ -542,30 +1254,48 @@ export default function AdminProjectDetailPage() {
           <Card className="border-indigo-200 shadow-subtle bg-white">
             <CardHeader className="p-5 border-b border-indigo-100 bg-indigo-50/40">
               <CardTitle className="text-xs font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-indigo-700" /> Industry & CSR Support Details
+                <Building2 className="h-4 w-4 text-indigo-700" /> Industry & CSR
+                Support Details
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 space-y-3 text-xs">
               {industryPartners.length === 0 ? (
-                <p className="text-brandgray-muted text-center py-3">No active CSR partners associated with this project yet.</p>
+                <p className="text-brandgray-muted text-center py-3">
+                  No active CSR partners associated with this project yet.
+                </p>
               ) : (
                 <div className="space-y-3">
                   {industryPartners.map((partner) => (
-                    <div key={partner.id} className="p-3 bg-indigo-50/40 border border-indigo-150 rounded space-y-2">
+                    <div
+                      key={partner.id}
+                      className="p-3 bg-indigo-50/40 border border-indigo-150 rounded space-y-2"
+                    >
                       <div className="flex justify-between items-center">
-                        <span className="font-bold text-indigo-950">{partner.industryName}</span>
+                        <span className="font-bold text-indigo-950">
+                          {partner.industryName}
+                        </span>
                         <span className="text-[10px] font-bold bg-indigo-100 text-indigo-900 border border-indigo-300 px-2 py-0.5 rounded">
                           {partner.status}
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-[11px] bg-white p-2 rounded border border-indigo-100">
                         <div>
-                          <span className="text-[9.5px] font-bold text-brandgray-muted uppercase block">Support Type</span>
-                          <span className="font-semibold text-primary">{partner.supportType}</span>
+                          <span className="text-[9.5px] font-bold text-brandgray-muted uppercase block">
+                            Support Type
+                          </span>
+                          <span className="font-semibold text-primary">
+                            {partner.supportType}
+                          </span>
                         </div>
                         <div>
-                          <span className="text-[9.5px] font-bold text-brandgray-muted uppercase block">Estimated Funding</span>
-                          <span className="font-bold text-emerald-700">{partner.estimatedFunding ? `₹${partner.estimatedFunding.toLocaleString('en-IN')}` : "In-Kind / Tech"}</span>
+                          <span className="text-[9.5px] font-bold text-brandgray-muted uppercase block">
+                            Estimated Funding
+                          </span>
+                          <span className="font-bold text-emerald-700">
+                            {partner.estimatedFunding
+                              ? `₹${partner.estimatedFunding.toLocaleString("en-IN")}`
+                              : "In-Kind / Tech"}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -575,38 +1305,147 @@ export default function AdminProjectDetailPage() {
             </CardContent>
           </Card>
 
+          {/* CSR DELIVERY VERIFICATION PANEL */}
+          {(() => {
+            const partnerships = industryService.getAllPartnerships().filter(
+              (p) => p.projectId === projectId
+            );
+            if (partnerships.length === 0) return null;
+
+            return (
+              <Card className="border-emerald-200 shadow-subtle bg-white">
+                <CardHeader className="p-5 border-b border-emerald-100 bg-emerald-50/40">
+                  <CardTitle className="text-xs font-bold text-emerald-950 uppercase tracking-wider flex items-center gap-2">
+                    <Award className="h-4 w-4 text-emerald-700" /> CSR Support Delivery Verification
+                    <span className="ml-auto text-[9px] font-bold bg-amber-100 text-amber-800 border border-amber-250 px-2 py-0.5 rounded uppercase tracking-wider">
+                      Admin Action Required
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-5 space-y-4 text-xs">
+                  <p className="text-brandgray-muted text-[11px]">
+                    Review and verify CSR support deliveries submitted by industry partners. Only Government Administrators can set status to <strong>VERIFIED</strong>.
+                  </p>
+                  {partnerships.map((ptn) => {
+                    const req = industryService.getSupportRequestById(ptn.requestId);
+                    return (
+                      <div key={ptn.id} className="space-y-2 border border-emerald-100 rounded-lg p-3 bg-emerald-50/20">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-bold text-primary">{req?.industryName || ptn.industryId}</span>
+                          <span className="text-[9.5px] font-bold bg-primary-light text-primary border border-primary/10 px-2 py-0.5 rounded uppercase">{ptn.id}</span>
+                          {req && (
+                            <span className="text-[9.5px] text-brandgray-muted">{req.supportType.replace(/_/g, " ")}</span>
+                          )}
+                        </div>
+                        {ptn.deliveryItems.map((item) => {
+                          const isDelivered = item.status === "DELIVERED";
+                          const isVerified = item.status === "VERIFIED";
+                          return (
+                            <div key={item.id} className="bg-white border border-slate-150 rounded p-2.5 flex items-start justify-between gap-3">
+                              <div className="space-y-0.5 flex-1">
+                                <p className="font-bold text-primary text-[11px]">{item.name}</p>
+                                <p className="text-brandgray-muted text-[10.5px]">{item.value}</p>
+                                {item.deliveryDate && (
+                                  <p className="text-[10px] text-brandgray-muted">Delivered: {item.deliveryDate}</p>
+                                )}
+                                {item.notes && (
+                                  <p className="text-[10px] text-slate-600 italic">{item.notes}</p>
+                                )}
+                                {item.evidenceRef && (
+                                  <p className="text-[10px] font-semibold text-teal-700">Evidence: {item.evidenceRef}</p>
+                                )}
+                                {isVerified && (
+                                  <p className="text-[10px] font-bold text-indigo-700">
+                                    ✓ Verified by {item.verifiedBy} on {item.verifiedDate}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="shrink-0">
+                                {isVerified ? (
+                                  <span className="text-[9.5px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 px-2.5 py-1 rounded uppercase">
+                                    ✓ Verified
+                                  </span>
+                                ) : isDelivered ? (
+                                  <button
+                                    className="text-[10px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded transition-all"
+                                    onClick={() => {
+                                      try {
+                                        const updated = industryService.updateDeliveryItem(
+                                          ptn.id, item.id,
+                                          { status: "VERIFIED" },
+                                          "ADMIN"
+                                        );
+                                        loadProjectDetails();
+                                      } catch (e: any) {
+                                        alert(e.message);
+                                      }
+                                    }}
+                                  >
+                                    Verify Delivery
+                                  </button>
+                                ) : (
+                                  <span className="text-[9.5px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2 py-1 rounded uppercase">
+                                    {item.status.replace(/_/g, " ")}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            );
+          })()}
+
           {/* SMART INDUSTRY / CSR RECOMMENDATIONS */}
           <Card className="border-indigo-200 shadow-subtle bg-white">
             <CardHeader className="p-5 border-b border-indigo-100 bg-indigo-50/40">
               <CardTitle className="text-xs font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-indigo-600" /> Smart Industry / CSR Recommendations
+                <Sparkles className="h-4 w-4 text-indigo-600" /> Smart Industry
+                / CSR Recommendations
               </CardTitle>
             </CardHeader>
             <CardContent className="p-5 space-y-4 text-xs">
               {industryRecs.length === 0 ? (
-                <p className="text-brandgray-muted text-center py-3">No active Industry / CSR organization matches found.</p>
+                <p className="text-brandgray-muted text-center py-3">
+                  No active Industry / CSR organization matches found.
+                </p>
               ) : (
                 <div className="space-y-4">
                   {industryRecs.map((rec, idx) => {
                     const isExpanded = expandedIndRecId === rec.industryId;
                     return (
-                      <div key={rec.industryId} className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
+                      <div
+                        key={rec.industryId}
+                        className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3"
+                      >
                         <div className="flex justify-between items-start gap-2">
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-primary text-sm">{idx + 1}. {rec.industryName}</span>
+                              <span className="font-bold text-primary text-sm">
+                                {idx + 1}. {rec.industryName}
+                              </span>
                             </div>
-                            <span className="text-[10px] text-brandgray-muted block font-medium">{rec.orgType}</span>
+                            <span className="text-[10px] text-brandgray-muted block font-medium">
+                              {rec.orgType}
+                            </span>
                           </div>
                           <div className="text-right shrink-0">
-                            <span className="text-sm font-extrabold text-indigo-700 block">{rec.score}% Match</span>
-                            <span className={`text-[8.5px] font-bold px-1.5 py-0.5 rounded border block mt-0.5 ${
-                              rec.matchLevel === "HIGH" 
-                                ? "bg-emerald-50 text-emerald-800 border-emerald-200" 
-                                : rec.matchLevel === "MEDIUM" 
-                                ? "bg-amber-50 text-amber-800 border-amber-200" 
-                                : "bg-slate-50 text-slate-800 border-slate-200"
-                            }`}>
+                            <span className="text-sm font-extrabold text-indigo-700 block">
+                              {rec.score}% Match
+                            </span>
+                            <span
+                              className={`text-[8.5px] font-bold px-1.5 py-0.5 rounded border block mt-0.5 ${
+                                rec.matchLevel === "HIGH"
+                                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                  : rec.matchLevel === "MEDIUM"
+                                    ? "bg-amber-50 text-amber-800 border-amber-200"
+                                    : "bg-slate-50 text-slate-800 border-slate-200"
+                              }`}
+                            >
                               {rec.matchLevel} MATCH
                             </span>
                           </div>
@@ -615,8 +1454,13 @@ export default function AdminProjectDetailPage() {
                         {/* Bulleted Reasons */}
                         <div className="space-y-1">
                           {rec.reasons.map((reason: string, rIdx: number) => (
-                            <div key={rIdx} className="flex items-center gap-1.5 text-[10.5px] text-slate-700 font-medium">
-                              <span className="text-emerald-600 font-extrabold">✓</span>
+                            <div
+                              key={rIdx}
+                              className="flex items-center gap-1.5 text-[10.5px] text-slate-700 font-medium"
+                            >
+                              <span className="text-emerald-600 font-extrabold">
+                                ✓
+                              </span>
                               <span>{reason.replace("✓ ", "")}</span>
                             </div>
                           ))}
@@ -625,24 +1469,32 @@ export default function AdminProjectDetailPage() {
                         {/* Actions */}
                         <div className="flex gap-2 pt-2 border-t border-slate-200/60 justify-between items-center text-[10.5px]">
                           <div className="flex gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
+                            <Button
+                              variant="outline"
+                              size="sm"
                               className="h-7 text-[10px] font-semibold text-slate-700 px-2.5"
                               onClick={() => {
-                                const fullProfile = industryService.getProfile(rec.industryId);
+                                const fullProfile = industryService.getProfile(
+                                  rec.industryId,
+                                );
                                 setViewingIndustry(fullProfile || rec);
                               }}
                             >
                               View Organization
                             </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
+                            <Button
+                              variant="outline"
+                              size="sm"
                               className="h-7 text-[10px] font-semibold text-slate-700 px-2.5"
-                              onClick={() => setExpandedIndRecId(isExpanded ? null : rec.industryId)}
+                              onClick={() =>
+                                setExpandedIndRecId(
+                                  isExpanded ? null : rec.industryId,
+                                )
+                              }
                             >
-                              {isExpanded ? "Hide Breakdown" : "Score Breakdown"}
+                              {isExpanded
+                                ? "Hide Breakdown"
+                                : "Score Breakdown"}
                             </Button>
                           </div>
                         </div>
@@ -651,36 +1503,65 @@ export default function AdminProjectDetailPage() {
                         {isExpanded && (
                           <div className="bg-white border border-slate-200 rounded p-3 text-[10.5px] space-y-2 mt-2">
                             <span className="font-bold text-primary uppercase text-[9px] block border-b border-slate-200 pb-1">
-                              Industry Matching Breakdown (Algorithm {rec.algorithmVersion})
+                              Industry Matching Breakdown (Algorithm{" "}
+                              {rec.algorithmVersion})
                             </span>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
                               <div className="flex justify-between">
-                                <span className="text-brandgray-muted">CSR Focus Alignment:</span>
-                                <span className="font-semibold">{rec.breakdown.csrFocusScore} / 25</span>
+                                <span className="text-brandgray-muted">
+                                  CSR Focus Alignment:
+                                </span>
+                                <span className="font-semibold">
+                                  {rec.breakdown.csrFocusScore} / 25
+                                </span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-brandgray-muted">Support Type Match:</span>
-                                <span className="font-semibold">{rec.breakdown.supportTypeScore} / 20</span>
+                                <span className="text-brandgray-muted">
+                                  Support Type Match:
+                                </span>
+                                <span className="font-semibold">
+                                  {rec.breakdown.supportTypeScore} / 20
+                                </span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-brandgray-muted">Technical Expertise:</span>
-                                <span className="font-semibold">{rec.breakdown.technicalExpertiseScore} / 20</span>
+                                <span className="text-brandgray-muted">
+                                  Technical Expertise:
+                                </span>
+                                <span className="font-semibold">
+                                  {rec.breakdown.technicalExpertiseScore} / 20
+                                </span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-brandgray-muted">Organization Type:</span>
-                                <span className="font-semibold">{rec.breakdown.organizationTypeScore} / 10</span>
+                                <span className="text-brandgray-muted">
+                                  Organization Type:
+                                </span>
+                                <span className="font-semibold">
+                                  {rec.breakdown.organizationTypeScore} / 10
+                                </span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-brandgray-muted">Project Domain Match:</span>
-                                <span className="font-semibold">{rec.breakdown.projectDomainScore} / 10</span>
+                                <span className="text-brandgray-muted">
+                                  Project Domain Match:
+                                </span>
+                                <span className="font-semibold">
+                                  {rec.breakdown.projectDomainScore} / 10
+                                </span>
                               </div>
                               <div className="flex justify-between">
-                                <span className="text-brandgray-muted">Previous Experience:</span>
-                                <span className="font-semibold">{rec.breakdown.previousExperienceScore} / 10</span>
+                                <span className="text-brandgray-muted">
+                                  Previous Experience:
+                                </span>
+                                <span className="font-semibold">
+                                  {rec.breakdown.previousExperienceScore} / 10
+                                </span>
                               </div>
                               <div className="flex justify-between col-span-2 border-t border-slate-100 pt-1">
-                                <span className="text-brandgray-muted">Geographic Relevance:</span>
-                                <span className="font-semibold">{rec.breakdown.locationScore} / 5</span>
+                                <span className="text-brandgray-muted">
+                                  Geographic Relevance:
+                                </span>
+                                <span className="font-semibold">
+                                  {rec.breakdown.locationScore} / 5
+                                </span>
                               </div>
                             </div>
                             <div className="flex justify-between border-t border-slate-200 pt-1 font-bold text-primary">
@@ -696,12 +1577,10 @@ export default function AdminProjectDetailPage() {
               )}
             </CardContent>
           </Card>
-
         </div>
 
         {/* Right Sidebar: Timeline & Verification Actions */}
         <div className="space-y-6">
-
           {/* FULL 10-STAGE LIFECYCLE TIMELINE */}
           <Card className="border-brandgray-border shadow-subtle bg-white">
             <CardHeader className="p-5 border-b border-brandgray-border/60">
@@ -714,21 +1593,27 @@ export default function AdminProjectDetailPage() {
                 const config = STAGE_CONFIG[stg];
                 const stageIndex = LIFECYCLE_STAGES.indexOf(project.stage);
                 const isCurrent = project.stage === stg;
-                const isDone = stageIndex > idx || (stageIndex === idx && project.stage === "COMPLETED");
+                const isDone =
+                  stageIndex > idx ||
+                  (stageIndex === idx && project.stage === "COMPLETED");
 
                 return (
                   <div key={stg} className="flex items-center gap-3">
-                    <div className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                      isDone
-                        ? "bg-emerald-600 text-white"
-                        : isCurrent
-                        ? "bg-amber-500 text-white font-extrabold ring-2 ring-amber-300 animate-pulse"
-                        : "bg-slate-100 text-slate-400 border border-slate-200"
-                    }`}>
+                    <div
+                      className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                        isDone
+                          ? "bg-emerald-600 text-white"
+                          : isCurrent
+                            ? "bg-amber-500 text-white font-extrabold ring-2 ring-amber-300 animate-pulse"
+                            : "bg-slate-100 text-slate-400 border border-slate-200"
+                      }`}
+                    >
                       {isDone ? "✓" : idx + 1}
                     </div>
                     <div className="space-y-0.5 min-w-0">
-                      <span className={`font-semibold block truncate ${isCurrent ? "text-amber-950 font-bold" : isDone ? "text-primary" : "text-slate-400"}`}>
+                      <span
+                        className={`font-semibold block truncate ${isCurrent ? "text-amber-950 font-bold" : isDone ? "text-primary" : "text-slate-400"}`}
+                      >
                         {config.label}
                       </span>
                     </div>
@@ -738,8 +1623,250 @@ export default function AdminProjectDetailPage() {
             </CardContent>
           </Card>
 
-        </div>
+          {/* PROJECT FINANCIAL & SUPPORT VISIBILITY */}
+          <Card className="border-brandgray-border shadow-subtle bg-white">
+            <CardHeader className="p-5 border-b border-brandgray-border/60">
+              <CardTitle className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                <FileSpreadsheet className="h-4 w-4 text-emerald-700" /> Project
+                Financials & Funding
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5 space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="border border-slate-100 p-2 rounded bg-slate-50">
+                  <span className="text-[9px] font-bold text-brandgray-muted uppercase block mb-0.5">
+                    Target Budget
+                  </span>
+                  <span className="font-extrabold text-[12px] text-primary">
+                    {project.collaboration.funding || "Not available"}
+                  </span>
+                </div>
+                <div className="border border-slate-100 p-2 rounded bg-slate-50">
+                  <span className="text-[9px] font-bold text-brandgray-muted uppercase block mb-0.5">
+                    Total Government Support
+                  </span>
+                  <span className="font-extrabold text-[12px] text-indigo-900">
+                    Not available
+                  </span>
+                </div>
+                <div className="border border-slate-100 p-2 rounded bg-slate-50">
+                  <span className="text-[9px] font-bold text-brandgray-muted uppercase block mb-0.5">
+                    CSR Funding Requested
+                  </span>
+                  <span className="font-extrabold text-[12px] text-amber-700">
+                    {industryPartners.reduce(
+                      (acc, curr) => acc + (curr.estimatedFunding || 0),
+                      0,
+                    ) > 0
+                      ? `₹${industryPartners.reduce((acc, curr) => acc + (curr.estimatedFunding || 0), 0).toLocaleString("en-IN")}`
+                      : "Not available"}
+                  </span>
+                </div>
+                <div className="border border-slate-100 p-2 rounded bg-slate-50">
+                  <span className="text-[9px] font-bold text-brandgray-muted uppercase block mb-0.5">
+                    CSR Funding Approved
+                  </span>
+                  <span className="font-extrabold text-[12px] text-emerald-700">
+                    {industryPartners
+                      .filter((p) => p.status === "ACCEPTED")
+                      .reduce(
+                        (acc, curr) => acc + (curr.estimatedFunding || 0),
+                        0,
+                      ) > 0
+                      ? `₹${industryPartners
+                          .filter((p) => p.status === "ACCEPTED")
+                          .reduce(
+                            (acc, curr) => acc + (curr.estimatedFunding || 0),
+                            0,
+                          )
+                          .toLocaleString("en-IN")}`
+                      : "Not available"}
+                  </span>
+                </div>
+                <div className="border border-slate-100 p-2 rounded bg-slate-50 col-span-2">
+                  <span className="text-[9px] font-bold text-brandgray-muted uppercase block mb-0.5">
+                    Other Resources / Material Support
+                  </span>
+                  <span className="font-semibold text-slate-700 block text-[10.5px]">
+                    {industryPartners.length > 0 &&
+                    industryPartners.some(
+                      (p) => p.supportType !== "CSR_FUNDING",
+                    )
+                      ? industryPartners
+                          .filter((p) => p.supportType !== "CSR_FUNDING")
+                          .map((p) => `${p.industryName} (${p.supportType})`)
+                          .join(", ")
+                      : "Not available"}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
+          {/* PROJECT RESPONSIBILITY MATRIX */}
+          <Card className="border-brandgray-border shadow-subtle bg-white">
+            <CardHeader className="p-5 border-b border-brandgray-border/60">
+              <CardTitle className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                <Layers className="h-4 w-4 text-indigo-750 font-bold" />{" "}
+                Operational Responsibility Matrix
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5 space-y-3.5 text-xs font-medium text-slate-750">
+              <div className="space-y-3">
+                <div className="flex items-start gap-2.5">
+                  <div className="h-4 w-4 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center font-bold text-[9px] text-amber-900 shrink-0 mt-0.5">
+                    G
+                  </div>
+                  <div>
+                    <span className="font-extrabold text-primary block text-[11px] leading-tight">
+                      Government Authority (Admin)
+                    </span>
+                    <span className="text-[10px] text-brandgray-muted leading-tight block">
+                      Validation of citizen reports, proposal approval, physical
+                      milestone checks, and final completion sign-off.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5">
+                  <div className="h-4 w-4 rounded-full bg-purple-100 border border-purple-300 flex items-center justify-center font-bold text-[9px] text-purple-900 shrink-0 mt-0.5">
+                    U
+                  </div>
+                  <div>
+                    <span className="font-extrabold text-primary block text-[11px] leading-tight">
+                      University Execution
+                    </span>
+                    <span className="text-[10px] text-brandgray-muted leading-tight block">
+                      {project.collaboration.university} - Responsible for
+                      overall academic coordination, research integrity, and
+                      resource provisioning.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5">
+                  <div className="h-4 w-4 rounded-full bg-purple-100 border border-purple-300 flex items-center justify-center font-bold text-[9px] text-purple-900 shrink-0 mt-0.5">
+                    FM
+                  </div>
+                  <div>
+                    <span className="font-extrabold text-primary block text-[11px] leading-tight">
+                      Faculty Mentor / Supervisor
+                    </span>
+                    <span className="text-[10px] text-brandgray-muted leading-tight block">
+                      {project.facultyMentor} - Technical guidance, progress
+                      reporting, quality assurance of prototypes, and impact
+                      assessment validation.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5">
+                  <div className="h-4 w-4 rounded-full bg-purple-100 border border-purple-300 flex items-center justify-center font-bold text-[9px] text-purple-900 shrink-0 mt-0.5">
+                    RT
+                  </div>
+                  <div>
+                    <span className="font-extrabold text-primary block text-[11px] leading-tight">
+                      Assigned Research Team
+                    </span>
+                    <span className="text-[10px] text-brandgray-muted leading-tight block">
+                      {project.assignedTeam?.name || "Not Assigned"} - Field
+                      research, hardware/software design, testing, citizen
+                      interaction, and data collection.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5">
+                  <div className="h-4 w-4 rounded-full bg-indigo-100 border border-indigo-300 flex items-center justify-center font-bold text-[9px] text-indigo-900 shrink-0 mt-0.5">
+                    CSR
+                  </div>
+                  <div>
+                    <span className="font-extrabold text-primary block text-[11px] leading-tight">
+                      Industry / CSR Partner
+                    </span>
+                    <span className="text-[10px] text-brandgray-muted leading-tight block">
+                      {industryPartners.length > 0
+                        ? industryPartners.map((p) => p.industryName).join(", ")
+                        : "None matched"}{" "}
+                      - CSR funding grant, mentorship, technology transfer, and
+                      implementation support.
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2.5">
+                  <div className="h-4 w-4 rounded-full bg-blue-100 border border-blue-300 flex items-center justify-center font-bold text-[9px] text-blue-900 shrink-0 mt-0.5">
+                    C
+                  </div>
+                  <div>
+                    <span className="font-extrabold text-primary block text-[11px] leading-tight">
+                      Citizen Origin
+                    </span>
+                    <span className="text-[10px] text-brandgray-muted leading-tight block">
+                      Original report submitted by{" "}
+                      {project.originalProblem.reporter}. Community context and
+                      direct beneficiary feedback.
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* COMPACT PROJECT HISTORY TIMELINE */}
+          <Card className="border-brandgray-border shadow-subtle bg-white">
+            <CardHeader className="p-5 border-b border-brandgray-border/60">
+              <CardTitle className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary shrink-0" /> Project
+                Decision & Event Trail ({activityHistory.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5 space-y-3.5 text-xs">
+              {activityHistory.length === 0 ? (
+                <p className="text-brandgray-muted text-center py-2">
+                  No activity records logged for this project yet.
+                </p>
+              ) : (
+                <div className="relative border-l-2 border-slate-200 pl-4 ml-2 space-y-4">
+                  {activityHistory.map((act) => {
+                    const formattedDate =
+                      act.timestamp && act.timestamp.includes("T")
+                        ? new Date(act.timestamp).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: true,
+                          })
+                        : act.timestamp;
+                    return (
+                      <div key={act.id} className="relative">
+                        {/* Dot */}
+                        <div className="absolute -left-[21px] top-1.5 h-2 w-2 rounded-full bg-indigo-600 ring-4 ring-white" />
+                        <div className="space-y-1">
+                          <span className="text-[10px] text-brandgray-muted block leading-none">
+                            {formattedDate}
+                          </span>
+                          <span className="font-bold text-slate-800 leading-tight block">
+                            {act.action || "System Event"}
+                          </span>
+                          <p className="text-[11px] text-brandgray-text font-medium leading-relaxed">
+                            {act.text}
+                          </p>
+                          {act.note && (
+                            <div className="p-1.5 bg-slate-100 text-slate-700 border-l border-slate-400 rounded-r text-[10px] leading-normal font-sans italic">
+                              &quot;{act.note}&quot;
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* VERIFICATION MODAL */}
@@ -748,9 +1875,16 @@ export default function AdminProjectDetailPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 space-y-4 border border-brandgray-border">
             <div className="flex justify-between items-center border-b border-brandgray-border pb-3">
               <h3 className="text-sm font-bold text-primary uppercase tracking-wider">
-                {modalMode === "complete" ? "Verify Impact & Complete Project" : "Request Impact Assessment Revision"}
+                {modalMode === "complete"
+                  ? "Verify Impact & Complete Project"
+                  : modalMode === "request_evidence"
+                    ? "Request Impact Assessment Revision"
+                    : "Return Project for Correction"}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-brandgray-muted hover:text-primary">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-brandgray-muted hover:text-primary"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -758,45 +1892,62 @@ export default function AdminProjectDetailPage() {
             <p className="text-xs text-brandgray-text leading-relaxed">
               {modalMode === "complete"
                 ? `Confirm that all outcomes, impact metrics, and evidence for project ${project.id} have been verified.`
-                : "Specify the revision details or additional evidence required from the university team."}
+                : modalMode === "request_evidence"
+                  ? "Specify the revision details or additional evidence required from the university team for the impact assessment."
+                  : "Specify the implementation corrections or structural adjustments required from the university team to return the project to Implementation stage."}
             </p>
 
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-brandgray-muted uppercase block">
-                Verification Note / Feedback (Optional for Completion)
+                Verification Note / Feedback (Required for Revision &
+                Correction)
               </label>
               <textarea
                 className="w-full text-xs p-2.5 border border-brandgray-border rounded focus:outline-none focus:border-primary font-medium"
                 rows={3}
-                placeholder="Enter verification sign-off notes or required revision details..."
+                placeholder="Enter detailed administrative notes, revision requirements or correction instructions..."
                 value={verificationNote}
                 onChange={(e) => setVerificationNote(e.target.value)}
               />
             </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-brandgray-border">
-              <Button variant="outline" size="sm" onClick={() => setIsModalOpen(false)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsModalOpen(false)}
+              >
                 Cancel
               </Button>
               {modalMode === "complete" ? (
-                <Button 
-                  variant="primary" 
-                  size="sm" 
+                <Button
+                  variant="primary"
+                  size="sm"
                   className="bg-emerald-700 hover:bg-emerald-800 text-xs font-bold"
                   onClick={handleVerifyAndComplete}
                   disabled={isSubmitting}
                 >
                   Verify Impact & Complete
                 </Button>
-              ) : (
-                <Button 
-                  variant="primary" 
-                  size="sm" 
+              ) : modalMode === "request_evidence" ? (
+                <Button
+                  variant="primary"
+                  size="sm"
                   className="bg-amber-700 hover:bg-amber-800 text-xs font-bold"
                   onClick={handleRequestEvidence}
                   disabled={isSubmitting}
                 >
                   Submit Revision Request
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  className="bg-rose-700 hover:bg-rose-800 text-xs font-bold"
+                  onClick={handleReturnCorrection}
+                  disabled={isSubmitting}
+                >
+                  Return for Correction
                 </Button>
               )}
             </div>
@@ -809,34 +1960,65 @@ export default function AdminProjectDetailPage() {
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg border border-slate-200 shadow-xl max-w-md w-full overflow-hidden text-xs">
             <div className="p-4 border-b border-slate-150 bg-slate-50 flex justify-between items-center">
-              <h3 className="font-bold text-primary text-sm uppercase">Industry Organization Profile</h3>
-              <button onClick={() => setViewingIndustry(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+              <h3 className="font-bold text-primary text-sm uppercase">
+                Industry Organization Profile
+              </h3>
+              <button
+                onClick={() => setViewingIndustry(null)}
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Organization Name</span>
-                <p className="font-extrabold text-sm text-primary">{viewingIndustry.name || viewingIndustry.industryName}</p>
-                <p className="text-[11px] text-brandgray-muted font-medium">{viewingIndustry.orgType}</p>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                  Organization Name
+                </span>
+                <p className="font-extrabold text-sm text-primary">
+                  {viewingIndustry.name || viewingIndustry.industryName}
+                </p>
+                <p className="text-[11px] text-brandgray-muted font-medium">
+                  {viewingIndustry.orgType}
+                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Location</span>
-                  <p className="font-bold text-slate-700">{viewingIndustry.location || `${viewingIndustry.district}, ${viewingIndustry.state}`}</p>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">
+                    Location
+                  </span>
+                  <p className="font-bold text-slate-700">
+                    {viewingIndustry.location ||
+                      `${viewingIndustry.district}, ${viewingIndustry.state}`}
+                  </p>
                 </div>
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Representative</span>
-                  <p className="font-bold text-slate-700">{viewingIndustry.representativeName || "CSR Grant Manager"}</p>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">
+                    Representative
+                  </span>
+                  <p className="font-bold text-slate-700">
+                    {viewingIndustry.representativeName || "CSR Grant Manager"}
+                  </p>
                 </div>
               </div>
 
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">CSR Focus Areas</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                  CSR Focus Areas
+                </span>
                 <div className="flex flex-wrap gap-1">
-                  {(viewingIndustry.csrFocusAreas || viewingIndustry.matchedCSRFocus || ["Water & Sanitation", "Rural Infrastructure"]).map((fa: string, i: number) => (
-                    <span key={i} className="bg-indigo-50 text-indigo-800 border border-indigo-200 rounded px-2 py-0.5 font-medium text-[10.5px]">
+                  {(
+                    viewingIndustry.csrFocusAreas ||
+                    viewingIndustry.matchedCSRFocus || [
+                      "Water & Sanitation",
+                      "Rural Infrastructure",
+                    ]
+                  ).map((fa: string, i: number) => (
+                    <span
+                      key={i}
+                      className="bg-indigo-50 text-indigo-800 border border-indigo-200 rounded px-2 py-0.5 font-medium text-[10.5px]"
+                    >
                       {fa}
                     </span>
                   ))}
@@ -844,10 +2026,21 @@ export default function AdminProjectDetailPage() {
               </div>
 
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Core Expertise & Capabilities</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                  Core Expertise & Capabilities
+                </span>
                 <div className="flex flex-wrap gap-1">
-                  {(viewingIndustry.expertise || viewingIndustry.matchedExpertise || ["Groundwater infrastructure", "IoT"]).map((exp: string, i: number) => (
-                    <span key={i} className="bg-slate-100 text-slate-800 border border-slate-200 rounded px-2 py-0.5 font-medium text-[10.5px]">
+                  {(
+                    viewingIndustry.expertise ||
+                    viewingIndustry.matchedExpertise || [
+                      "Groundwater infrastructure",
+                      "IoT",
+                    ]
+                  ).map((exp: string, i: number) => (
+                    <span
+                      key={i}
+                      className="bg-slate-100 text-slate-800 border border-slate-200 rounded px-2 py-0.5 font-medium text-[10.5px]"
+                    >
                       {exp}
                     </span>
                   ))}
@@ -855,10 +2048,21 @@ export default function AdminProjectDetailPage() {
               </div>
 
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Available Resources</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">
+                  Available Resources
+                </span>
                 <div className="flex flex-wrap gap-1">
-                  {(viewingIndustry.resources || viewingIndustry.matchedResources || ["CSR Funding", "Equipment / Resources"]).map((res: string, i: number) => (
-                    <span key={i} className="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded px-2 py-0.5 font-medium text-[10.5px]">
+                  {(
+                    viewingIndustry.resources ||
+                    viewingIndustry.matchedResources || [
+                      "CSR Funding",
+                      "Equipment / Resources",
+                    ]
+                  ).map((res: string, i: number) => (
+                    <span
+                      key={i}
+                      className="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded px-2 py-0.5 font-medium text-[10.5px]"
+                    >
                       {res}
                     </span>
                   ))}
@@ -866,27 +2070,43 @@ export default function AdminProjectDetailPage() {
               </div>
 
               <div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase">Previous Relevant Work</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">
+                  Previous Relevant Work
+                </span>
                 <div className="mt-1 space-y-1 pl-1 text-[11px] text-slate-700 font-medium">
-                  {(viewingIndustry.previousProjects || viewingIndustry.previousExperience || []).length > 0 ? (
-                    (viewingIndustry.previousProjects || viewingIndustry.previousExperience).map((proj: string, i: number) => (
-                      <div key={i} className="flex items-center gap-1">✓ {proj}</div>
+                  {(
+                    viewingIndustry.previousProjects ||
+                    viewingIndustry.previousExperience ||
+                    []
+                  ).length > 0 ? (
+                    (
+                      viewingIndustry.previousProjects ||
+                      viewingIndustry.previousExperience
+                    ).map((proj: string, i: number) => (
+                      <div key={i} className="flex items-center gap-1">
+                        ✓ {proj}
+                      </div>
                     ))
                   ) : (
-                    <p className="text-slate-400 italic">No previous projects recorded.</p>
+                    <p className="text-slate-400 italic">
+                      No previous projects recorded.
+                    </p>
                   )}
                 </div>
               </div>
             </div>
             <div className="p-4 border-t border-slate-150 bg-slate-50 text-right">
-              <Button variant="outline" size="sm" onClick={() => setViewingIndustry(null)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setViewingIndustry(null)}
+              >
                 Close
               </Button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 }

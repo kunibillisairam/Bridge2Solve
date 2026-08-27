@@ -14,7 +14,8 @@ import {
   Building2,
   Handshake,
   Layers,
-  FolderKanban
+  FolderKanban,
+  Briefcase
 } from "lucide-react";
 import { 
   industryService, 
@@ -23,17 +24,25 @@ import {
 import { ResolvedProject, STAGE_CONFIG } from "@/services/universityMockService";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/context/AuthContext";
 
 export default function IndustryProjectsPage() {
-  const [activeTab, setActiveTab] = useState<"all" | "active" | "seeking" | "my_interests">("all");
+  const { user } = useAuth();
+  const industryId = user?.profile?.industryDetails?.id || "ind-1";
+
+  const [activeTab, setActiveTab] = useState<"all" | "recommended" | "seeking" | "my_interests" | "my_partnerships">("all");
   const [projects, setProjects] = useState<ResolvedProject[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<ResolvedProject[]>([]);
   const [myInterestProjectIds, setMyInterestProjectIds] = useState<Set<string>>(new Set());
+  const [myPartnershipProjectIds, setMyPartnershipProjectIds] = useState<Set<string>>(new Set());
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedState, setSelectedState] = useState("All");
+  const [selectedStage, setSelectedStage] = useState("All");
+  const [selectedSupportType, setSelectedSupportType] = useState("All");
+  const [selectedMatchLevel, setSelectedMatchLevel] = useState("All");
 
   useEffect(() => {
     loadData();
@@ -41,17 +50,32 @@ export default function IndustryProjectsPage() {
 
   const loadData = () => {
     const eligible = industryService.getEligibleProjects();
-    const myRequests = industryService.getSupportRequestsForIndustry("ind-1");
+    const myRequests = industryService.getSupportRequestsForIndustry(industryId);
     const interestIds = new Set(myRequests.map((r) => r.projectId));
     setMyInterestProjectIds(interestIds);
 
+    const partnerships = industryService.getPartnershipsForIndustry(industryId);
+    const partnershipIds = new Set(partnerships.map((p) => p.projectId));
+    setMyPartnershipProjectIds(partnershipIds);
+
     let list = eligible;
-    if (activeTab === "active") {
-      list = eligible.filter((p) => p.status === "ACTIVE" || p.stage === "IMPLEMENTATION");
+    if (activeTab === "all") {
+      list = eligible;
+    } else if (activeTab === "recommended") {
+      list = eligible.filter((p) => {
+        const m = industryService.getMatchForIndustryAndProject(p.id, industryId);
+        return m && m.score > 0;
+      }).sort((a, b) => {
+        const mA = industryService.getMatchForIndustryAndProject(a.id, industryId);
+        const mB = industryService.getMatchForIndustryAndProject(b.id, industryId);
+        return (mB?.score || 0) - (mA?.score || 0);
+      });
     } else if (activeTab === "seeking") {
       list = eligible.filter((p) => p.stage !== "COMPLETED");
     } else if (activeTab === "my_interests") {
       list = eligible.filter((p) => interestIds.has(p.id));
+    } else if (activeTab === "my_partnerships") {
+      list = eligible.filter((p) => partnershipIds.has(p.id));
     }
 
     setProjects(list);
@@ -81,20 +105,44 @@ export default function IndustryProjectsPage() {
       result = result.filter((p) => p.originalProblem.state === selectedState);
     }
 
+    if (selectedStage !== "All") {
+      result = result.filter((p) => p.stage === selectedStage);
+    }
+
+    if (selectedSupportType !== "All") {
+      result = result.filter((p) => {
+        const m = industryService.getMatchForIndustryAndProject(p.id, industryId);
+        return m && m.matchedSupportTypes.includes(selectedSupportType);
+      });
+    }
+
+    if (selectedMatchLevel !== "All") {
+      result = result.filter((p) => {
+        const m = industryService.getMatchForIndustryAndProject(p.id, industryId);
+        return m && m.matchLevel === selectedMatchLevel;
+      });
+    }
+
     setFilteredProjects(result);
   };
 
   useEffect(() => {
     setFilteredProblems(projects);
-  }, [searchQuery, selectedCategory, selectedState, projects]);
+  }, [searchQuery, selectedCategory, selectedState, selectedStage, selectedSupportType, selectedMatchLevel, projects]);
 
   const categories = ["All", "Water & Sanitation", "Agriculture & Food Tech", "Waste Management", "Renewable Energy", "Education & Social Impact"];
   const states = ["All", "Jharkhand", "Punjab", "Maharashtra", "Bihar", "Odisha", "Kerala"];
+  const stages = ["All", "PROBLEM_REPORTED", "VALIDATED", "UNIVERSITY_MATCHED", "TEAM_FORMED", "PROPOSAL_SUBMITTED", "APPROVED", "IMPLEMENTATION", "IMPACT_ASSESSMENT", "AWAITING_ADMIN_VERIFICATION", "COMPLETED"];
+  const supportTypes = ["All", "CSR_FUNDING", "TECHNICAL_MENTORSHIP", "EQUIPMENT_RESOURCES", "INDUSTRY_EXPERTISE", "INFRASTRUCTURE_DEPLOYMENT", "OTHER"];
+  const matchLevels = ["All", "HIGH", "MEDIUM", "LOW"];
 
   const clearFilters = () => {
     setSearchQuery("");
     setSelectedCategory("All");
     setSelectedState("All");
+    setSelectedStage("All");
+    setSelectedSupportType("All");
+    setSelectedMatchLevel("All");
   };
 
   return (
@@ -108,7 +156,7 @@ export default function IndustryProjectsPage() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-brandgray-border">
+      <div className="flex border-b border-brandgray-border flex-wrap">
         <button
           onClick={() => setActiveTab("all")}
           className={`py-2.5 px-4 font-bold text-xs border-b-2 transition-all flex items-center gap-1.5 ${
@@ -117,17 +165,17 @@ export default function IndustryProjectsPage() {
               : "border-transparent text-brandgray-muted hover:text-brandgray-text"
           }`}
         >
-          All Eligible Projects ({industryService.getEligibleProjects().length})
+          All Eligible Projects
         </button>
         <button
-          onClick={() => setActiveTab("active")}
+          onClick={() => setActiveTab("recommended")}
           className={`py-2.5 px-4 font-bold text-xs border-b-2 transition-all flex items-center gap-1.5 ${
-            activeTab === "active"
+            activeTab === "recommended"
               ? "border-primary text-primary"
               : "border-transparent text-brandgray-muted hover:text-brandgray-text"
           }`}
         >
-          <Layers className="h-3.5 w-3.5 text-primary" /> Active Implementation
+          <Sparkles className="h-3.5 w-3.5 text-indigo-650" /> Recommended Suitability
         </button>
         <button
           onClick={() => setActiveTab("seeking")}
@@ -137,7 +185,7 @@ export default function IndustryProjectsPage() {
               : "border-transparent text-brandgray-muted hover:text-brandgray-text"
           }`}
         >
-          <Sparkles className="h-3.5 w-3.5 text-primary" /> Seeking Support
+          Seeking Support
         </button>
         <button
           onClick={() => setActiveTab("my_interests")}
@@ -147,7 +195,17 @@ export default function IndustryProjectsPage() {
               : "border-transparent text-brandgray-muted hover:text-brandgray-text"
           }`}
         >
-          <Handshake className="h-3.5 w-3.5 text-primary" /> My Organization Interests ({myInterestProjectIds.size})
+          <Handshake className="h-3.5 w-3.5 text-primary" /> My Interests ({myInterestProjectIds.size})
+        </button>
+        <button
+          onClick={() => setActiveTab("my_partnerships")}
+          className={`py-2.5 px-4 font-bold text-xs border-b-2 transition-all flex items-center gap-1.5 ${
+            activeTab === "my_partnerships"
+              ? "border-primary text-primary"
+              : "border-transparent text-brandgray-muted hover:text-brandgray-text"
+          }`}
+        >
+          <Briefcase className="h-3.5 w-3.5 text-primary" /> My Partnerships ({myPartnershipProjectIds.size})
         </button>
       </div>
 
@@ -190,7 +248,37 @@ export default function IndustryProjectsPage() {
             ))}
           </select>
 
-          {(searchQuery || selectedCategory !== "All" || selectedState !== "All") && (
+          <select
+            className="text-xs border border-brandgray-border rounded px-2.5 py-1.5 bg-white text-brandgray-text font-medium"
+            value={selectedStage}
+            onChange={(e) => setSelectedStage(e.target.value)}
+          >
+            {stages.map((st) => (
+              <option key={st} value={st}>{st === "All" ? "All Stages" : st.replace(/_/g, " ")}</option>
+            ))}
+          </select>
+
+          <select
+            className="text-xs border border-brandgray-border rounded px-2.5 py-1.5 bg-white text-brandgray-text font-medium"
+            value={selectedSupportType}
+            onChange={(e) => setSelectedSupportType(e.target.value)}
+          >
+            {supportTypes.map((st) => (
+              <option key={st} value={st}>{st === "All" ? "All Support Types" : (SUPPORT_TYPE_LABELS as Record<string, string>)[st] ?? st}</option>
+            ))}
+          </select>
+
+          <select
+            className="text-xs border border-brandgray-border rounded px-2.5 py-1.5 bg-white text-brandgray-text font-medium"
+            value={selectedMatchLevel}
+            onChange={(e) => setSelectedMatchLevel(e.target.value)}
+          >
+            {matchLevels.map((ml) => (
+              <option key={ml} value={ml}>{ml === "All" ? "All Match Levels" : `${ml} MATCH`}</option>
+            ))}
+          </select>
+
+          {(searchQuery || selectedCategory !== "All" || selectedState !== "All" || selectedStage !== "All" || selectedSupportType !== "All" || selectedMatchLevel !== "All") && (
             <Button
               variant="outline"
               size="sm"
@@ -221,7 +309,8 @@ export default function IndustryProjectsPage() {
           {filteredProjects.map((project) => {
             const stageConfig = STAGE_CONFIG[project.stage];
             const hasMyInterest = myInterestProjectIds.has(project.id);
-            const indMatch = industryService.getMatchForIndustryAndProject(project.id, "ind-1");
+            const hasMyPartnership = myPartnershipProjectIds.has(project.id);
+            const indMatch = industryService.getMatchForIndustryAndProject(project.id, industryId);
 
             return (
               <Card key={project.id} className="border-brandgray-border shadow-subtle bg-white hover:border-primary/30 transition-all flex flex-col justify-between">
@@ -237,14 +326,18 @@ export default function IndustryProjectsPage() {
                         </span>
                         {indMatch && (
                           <span className="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded">
-                            {indMatch.score}% MATCH
+                            {indMatch.score}% MATCH ({indMatch.matchLevel})
                           </span>
                         )}
-                        {hasMyInterest && (
-                          <span className="text-[9.5px] font-bold bg-green-50 text-green-800 border border-green-200 px-2 py-0.5 rounded">
-                            ✓ INTEREST SUBMITTED
+                        {hasMyPartnership ? (
+                          <span className="text-[9.5px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-250 px-2 py-0.5 rounded uppercase">
+                            ✓ Active Partnership
                           </span>
-                        )}
+                        ) : hasMyInterest ? (
+                          <span className="text-[9.5px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded uppercase">
+                            ✓ Interest Submitted
+                          </span>
+                        ) : null}
                       </div>
                       <h4 className="text-base font-bold text-primary">
                         {project.title}
@@ -265,11 +358,25 @@ export default function IndustryProjectsPage() {
                       <span>{project.collaboration.university}</span>
                     </div>
                     {project.assignedTeam && (
-                      <p className="text-[11px] text-brandgray-muted flex items-center gap-1 pl-5">
-                        <Users className="h-3.5 w-3.5 shrink-0" /> Team: {project.assignedTeam.name} ({project.assignedTeam.facultyMentor})
-                      </p>
+                      <div className="text-[11px] text-brandgray-muted pl-5 space-y-0.5">
+                        <p className="flex items-center gap-1">
+                          <Users className="h-3.5 w-3.5 shrink-0" /> Team: {project.assignedTeam.name}
+                        </p>
+                        <p className="pl-4.5">Mentor: {project.assignedTeam.facultyMentor}</p>
+                      </div>
                     )}
                   </div>
+
+                  {indMatch && indMatch.matchedSupportTypes && indMatch.matchedSupportTypes.length > 0 && (
+                    <div className="text-[11px] font-bold text-slate-700 flex flex-wrap gap-1.5 items-center">
+                      <span className="text-[9px] font-bold text-brandgray-muted uppercase shrink-0">Support Needed:</span>
+                      {indMatch.matchedSupportTypes.map((st: string, idx: number) => (
+                        <span key={idx} className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded text-[9.5px] font-semibold uppercase">
+                          {st.replace(/_/g, " ")}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between pt-3 border-t border-brandgray-border/40 text-xs">
                     <span className="flex items-center gap-1 text-brandgray-muted">

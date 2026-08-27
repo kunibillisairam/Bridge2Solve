@@ -2666,6 +2666,7 @@ export const universityMockService = {
       localStorage.removeItem("uni_activities");
       localStorage.removeItem("uni_projects");
       localStorage.removeItem("ind_support_requests");
+      localStorage.removeItem("ind_partnerships");
       localStorage.removeItem("pbridge_notifications");
       for (let i = 1; i <= 5; i++) {
         localStorage.removeItem(`ind_profile_ind-${i}`);

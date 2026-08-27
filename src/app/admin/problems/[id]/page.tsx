@@ -222,6 +222,11 @@ export default function AdminProblemDetailPage() {
     );
   }
 
+  // Calculate duplicate risk
+  const duplicateRisk = duplicateCandidates.length > 0
+    ? (duplicateCandidates.some(c => c.similarityScore >= 80) ? "HIGH" : "MEDIUM")
+    : "LOW";
+
   // Stepper calculations based on actual activities
   const steps = [
     { label: "Reported", done: true, date: problem.submissionDate },

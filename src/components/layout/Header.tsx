@@ -4,9 +4,11 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useAuth, ROLE_REDIRECT } from "@/context/AuthContext";
 
 export function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   const navigationLinks = [
     { label: "Explore Problems", href: "#" },
@@ -76,12 +78,25 @@ export function Header() {
           </nav>
 
           {/* Header Action Button */}
-          <div className="hidden md:flex items-center">
-            <Link href="/login">
-              <Button variant="outline" size="sm">
-                Access Portal
-              </Button>
-            </Link>
+          <div className="hidden md:flex items-center gap-4">
+            {user ? (
+              <>
+                <Link href={ROLE_REDIRECT[user.role] || "/"}>
+                  <Button variant="outline" size="sm">
+                    Dashboard
+                  </Button>
+                </Link>
+                <Button variant="outline" size="sm" onClick={logout}>
+                  Log Out
+                </Button>
+              </>
+            ) : (
+              <Link href="/login">
+                <Button variant="outline" size="sm">
+                  Access Portal
+                </Button>
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -115,12 +130,25 @@ export function Header() {
               {link.label}
             </Link>
           ))}
-          <div className="pt-4 border-t border-brandgray-border mt-3 px-3">
-            <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
-              <Button variant="outline" size="md" className="w-full">
-                Access Portal
-              </Button>
-            </Link>
+          <div className="pt-4 border-t border-brandgray-border mt-3 px-3 space-y-2">
+            {user ? (
+              <>
+                <Link href={ROLE_REDIRECT[user.role] || "/"} onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="outline" size="md" className="w-full">
+                    Dashboard
+                  </Button>
+                </Link>
+                <Button variant="outline" size="md" className="w-full" onClick={() => { logout(); setIsMobileMenuOpen(false); }}>
+                  Log Out
+                </Button>
+              </>
+            ) : (
+              <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button variant="outline" size="md" className="w-full">
+                  Access Portal
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       )}

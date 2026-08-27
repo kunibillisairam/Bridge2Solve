@@ -16,7 +16,9 @@ import {
   Search,
   Filter,
   Bell,
-  Clock
+  Clock,
+  DollarSign,
+  Award
 } from "lucide-react";
 import { 
   industryService, 
@@ -27,29 +29,40 @@ import { ResolvedProject, STAGE_CONFIG } from "@/services/universityMockService"
 import { notificationService, formatRelativeTime } from "@/services/notificationService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/context/AuthContext";
+
 
 export default function IndustryDashboard() {
+  const { user } = useAuth();
+  const industryId = user?.profile?.industryDetails?.id || "ind-1";
+
   const [profile, setProfile] = useState<IndustryOrganizationProfile | null>(null);
   const [projects, setProjects] = useState<ResolvedProject[]>([]);
   const [metrics, setMetrics] = useState({
     availableProjectsCount: 0,
-    myInterestsCount: 0,
-    supportRequestsCount: 0,
+    recommendedProjectsCount: 0,
+    mySupportRequestsCount: 0,
+    pendingRequestsCount: 0,
     activePartnershipsCount: 0,
+    totalCommittedFunding: 0,
+    supportDeliveredCount: 0,
+    supportAwaitingVerificationCount: 0,
   });
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (industryId) {
+      loadData(industryId);
+    }
+  }, [industryId]);
 
-  const loadData = () => {
-    const prof = industryService.getProfile("ind-1");
+  const loadData = (indId: string) => {
+    const prof = industryService.getProfile(indId);
     setProfile(prof);
 
     const eligible = industryService.getEligibleProjects();
     setProjects(eligible);
 
-    const m = industryService.getIndustryMetrics("ind-1");
+    const m = industryService.getIndustryDashboardMetrics(indId);
     setMetrics(m);
   };
 
@@ -134,30 +147,58 @@ export default function IndustryDashboard() {
           { 
             label: "Available Projects", 
             value: metrics.availableProjectsCount, 
-            description: "Active projects seeking industry support",
+            description: "Projects seeking industry support",
             icon: Layers, 
             color: "text-primary bg-primary-light border-primary/10" 
           },
           { 
-            label: "My Interests", 
-            value: metrics.myInterestsCount, 
-            description: "Support requests submitted by your org",
-            icon: Handshake, 
+            label: "Recommended Projects", 
+            value: metrics.recommendedProjectsCount, 
+            description: "AI-matched project suitability",
+            icon: Sparkles, 
             color: "text-indigo-700 bg-indigo-50 border-indigo-200" 
           },
           { 
-            label: "Support Requests", 
-            value: metrics.supportRequestsCount, 
-            description: "Pending or under review",
-            icon: FileText, 
-            color: "text-amber-700 bg-amber-50 border-amber-250" 
+            label: "My Support Requests", 
+            value: metrics.mySupportRequestsCount, 
+            description: "Total submissions by your organization",
+            icon: Handshake, 
+            color: "text-blue-705 bg-blue-50 border-blue-200" 
+          },
+          { 
+            label: "Pending Requests", 
+            value: metrics.pendingRequestsCount, 
+            description: "Requests awaiting review",
+            icon: Clock, 
+            color: "text-amber-705 bg-amber-50 border-amber-250" 
           },
           { 
             label: "Active Partnerships", 
             value: metrics.activePartnershipsCount, 
-            description: "Confirmed CSR & technical collaborations",
+            description: "Formal active collaborations",
             icon: CheckCircle2, 
             color: "text-emerald-700 bg-emerald-50 border-emerald-250" 
+          },
+          { 
+            label: "Committed Funding", 
+            value: `₹${metrics.totalCommittedFunding.toLocaleString('en-IN')}`, 
+            description: "Total financial CSR pledges",
+            icon: DollarSign, 
+            color: "text-teal-700 bg-teal-50 border-teal-200" 
+          },
+          { 
+            label: "Support Delivered", 
+            value: metrics.supportDeliveredCount, 
+            description: "Pledged items marked delivered",
+            icon: Award, 
+            color: "text-indigo-700 bg-indigo-50 border-indigo-200" 
+          },
+          { 
+            label: "Awaiting Verification", 
+            value: metrics.supportAwaitingVerificationCount, 
+            description: "Delivered items awaiting admin sign-off",
+            icon: FileText, 
+            color: "text-rose-700 bg-rose-50 border-rose-200" 
           },
         ].map((stat, i) => {
           const Icon = stat.icon;
@@ -171,10 +212,10 @@ export default function IndustryDashboard() {
                   <span className="text-2xl font-bold text-primary block leading-none">
                     {stat.value}
                   </span>
-                  <span className="text-xs font-semibold text-brandgray-text mt-1.5 block">
+                  <span className="text-xs font-semibold text-brandgray-text mt-1.5 block font-sans">
                     {stat.label}
                   </span>
-                  <span className="text-[10px] text-brandgray-muted mt-0.5 block">
+                  <span className="text-[10px] text-brandgray-muted mt-0.5 block leading-normal">
                     {stat.description}
                   </span>
                 </div>
@@ -209,7 +250,7 @@ export default function IndustryDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {(() => {
               const rankedProjects = [...projects].map(p => {
-                const match = industryService.getMatchForIndustryAndProject(p.id, "ind-1");
+                const match = industryService.getMatchForIndustryAndProject(p.id, industryId);
                 return { project: p, match };
               }).sort((a, b) => (b.match?.score || 0) - (a.match?.score || 0));
 
@@ -264,11 +305,26 @@ export default function IndustryDashboard() {
                           <span>{project.collaboration.university}</span>
                         </div>
                         {project.assignedTeam && (
-                          <p className="text-[11px] text-brandgray-muted flex items-center gap-1 pl-5">
-                            <Users className="h-3.5 w-3.5 shrink-0" /> Team: {project.assignedTeam.name} ({project.assignedTeam.facultyMentor})
-                          </p>
+                          <div className="text-[11px] text-brandgray-muted pl-5 space-y-0.5">
+                            <p className="flex items-center gap-1">
+                              <Users className="h-3.5 w-3.5 shrink-0" /> Team: {project.assignedTeam.name}
+                            </p>
+                            <p className="pl-4.5">Mentor: {project.assignedTeam.facultyMentor}</p>
+                          </div>
                         )}
                       </div>
+
+                      {/* Support Opportunities Needed */}
+                      {match && match.matchedSupportTypes && match.matchedSupportTypes.length > 0 && (
+                        <div className="text-[11px] font-bold text-slate-700 flex flex-wrap gap-1.5 items-center">
+                          <span className="text-[9px] font-bold text-brandgray-muted uppercase shrink-0">Support Needed:</span>
+                          {match.matchedSupportTypes.map((st: string, idx: number) => (
+                            <span key={idx} className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-1.5 py-0.5 rounded text-[9.5px] font-semibold uppercase">
+                              {st.replace(/_/g, " ")}
+                            </span>
+                          ))}
+                        </div>
+                      )}
 
                       <div className="flex items-center justify-between pt-3 border-t border-brandgray-border/40 text-xs">
                         <span className="flex items-center gap-1 text-brandgray-muted">
@@ -276,7 +332,7 @@ export default function IndustryDashboard() {
                         </span>
                         <Link href={`/industry/projects/${project.id}`}>
                           <Button variant="primary" size="sm" className="h-8 text-xs font-bold">
-                            View Project & Support
+                            View Project
                           </Button>
                         </Link>
                       </div>

@@ -326,7 +326,7 @@ export default function AdminActivityLogPage() {
                           <span className="font-bold text-slate-700 block uppercase text-[9px] mb-0.5 flex items-center gap-1">
                             <ShieldAlert className="h-3.5 w-3.5 text-slate-500" /> Administrative Decision Note:
                           </span>
-                          <span className="font-medium font-serif italic text-slate-600">"{act.note}"</span>
+                          <span className="font-medium font-serif italic text-slate-600">&ldquo;{act.note}&rdquo;</span>
                         </div>
                       )}
                     </div>

@@ -55,6 +55,38 @@ export interface IndustryOrganizationProfile {
   availableResources: string[];
 }
 
+export type DeliveryStatus = 
+  | "PLANNED"
+  | "COMMITTED"
+  | "IN_PROGRESS"
+  | "DELIVERED"
+  | "VERIFIED";
+
+export interface SupportDeliveryItem {
+  id: string;
+  name: string;
+  value: string;
+  status: DeliveryStatus;
+  deliveryDate?: string;
+  evidenceRef?: string;
+  notes?: string;
+  verifiedBy?: string;
+  verifiedDate?: string;
+}
+
+export interface IndustryPartnership {
+  id: string;
+  requestId: string;
+  industryId: string;
+  projectId: string;
+  status: "ACTIVE" | "PENDING_ACTIVATION" | "COMPLETED";
+  startDate: string;
+  endDate: string;
+  approvedDate: string;
+  deliveryItems: SupportDeliveryItem[];
+}
+
+
 export const SUPPORT_TYPE_LABELS: Record<SupportType, string> = {
   CSR_FUNDING: "CSR Funding",
   TECHNICAL_MENTORSHIP: "Technical Mentorship",
@@ -441,6 +473,7 @@ export const industryService = {
 
     // Create activity event without changing project lifecycle stage
     if (status === "ACCEPTED") {
+      this.createPartnership(requests[idx]);
       universityMockService.addActivity(
         `CSR support from "${req.industryName}" (${SUPPORT_TYPE_LABELS[req.supportType]}) accepted for "${projectTitle}".`,
         {
@@ -587,6 +620,272 @@ export const industryService = {
       rejectedCount: all.filter((r) => r.status === "REJECTED").length,
       totalRequestsCount: all.length,
       activePartnershipsCount: all.filter((r) => r.status === "ACCEPTED").length,
+    };
+  },
+
+  // ----------------------------------------------------
+  // Industry Partnerships API
+  // ----------------------------------------------------
+  getAllPartnerships(): IndustryPartnership[] {
+    const saved = getStoredData<IndustryPartnership[]>("ind_partnerships", []);
+    if (saved && saved.length > 0) {
+      return saved;
+    }
+
+    // Seeding default partnerships from accepted requests
+    const requests = this.getAllSupportRequests();
+    const accepted = requests.filter(r => r.status === "ACCEPTED");
+    const list: IndustryPartnership[] = [];
+
+    accepted.forEach((req, idx) => {
+      const deliveryItems: SupportDeliveryItem[] = [];
+      if (req.supportType === "CSR_FUNDING") {
+        deliveryItems.push({
+          id: `${req.id}-item-1`,
+          name: "CSR Funding",
+          value: req.estimatedFunding ? `₹${req.estimatedFunding.toLocaleString('en-IN')}` : "Not available",
+          status: req.id === "CSR-2026-001" ? "VERIFIED" : "COMMITTED",
+          deliveryDate: req.id === "CSR-2026-001" ? "2026-08-14" : undefined,
+          evidenceRef: req.id === "CSR-2026-001" ? "TXN-87612398" : undefined,
+          notes: req.id === "CSR-2026-001" ? "First installment of ₹7,50,000 wired to Ranchi University research account." : undefined,
+          verifiedBy: req.id === "CSR-2026-001" ? "Government Administration" : undefined,
+          verifiedDate: req.id === "CSR-2026-001" ? "2026-08-15" : undefined
+        });
+      } else {
+        deliveryItems.push({
+          id: `${req.id}-item-1`,
+          name: SUPPORT_TYPE_LABELS[req.supportType],
+          value: req.resourcesOffered || "Standard Partnership Support",
+          status: "COMMITTED"
+        });
+      }
+
+      if (req.resourcesOffered && req.supportType === "CSR_FUNDING") {
+        deliveryItems.push({
+          id: `${req.id}-item-2`,
+          name: "Material Resources",
+          value: req.resourcesOffered,
+          status: req.id === "CSR-2026-001" ? "IN_PROGRESS" : "PLANNED"
+        });
+      }
+
+      const project = universityMockService.getProjectById(req.projectId);
+      list.push({
+        id: `PTN-2026-00${idx + 1}`,
+        requestId: req.id,
+        industryId: req.industryId,
+        projectId: req.projectId,
+        status: (project && project.stage === "COMPLETED") ? "COMPLETED" : "ACTIVE",
+        startDate: req.createdAt,
+        endDate: req.expectedDuration || "12 months",
+        approvedDate: req.reviewedAt || req.updatedAt,
+        deliveryItems
+      });
+    });
+
+    if (isClient) {
+      setStoredData("ind_partnerships", list);
+    }
+    return list;
+  },
+
+  getPartnershipById(id: string): IndustryPartnership | undefined {
+    return this.getAllPartnerships().find(p => p.id === id);
+  },
+
+  getPartnershipByProjectId(projectId: string): IndustryPartnership | undefined {
+    return this.getAllPartnerships().find(p => p.projectId === projectId);
+  },
+
+  getPartnershipsForIndustry(industryId = "ind-1"): IndustryPartnership[] {
+    return this.getAllPartnerships().filter(p => p.industryId === industryId);
+  },
+
+  createPartnership(req: IndustrySupportRequest): IndustryPartnership {
+    const partnerships = this.getAllPartnerships();
+    const existing = partnerships.find(p => p.requestId === req.id);
+    if (existing) return existing;
+
+    const today = new Date().toISOString().split("T")[0];
+    const project = this.getEligibleProjectById(req.projectId);
+
+    const deliveryItems: SupportDeliveryItem[] = [];
+    if (req.supportType === "CSR_FUNDING") {
+      deliveryItems.push({
+        id: `${req.id}-item-1`,
+        name: "CSR Funding",
+        value: req.estimatedFunding ? `₹${req.estimatedFunding.toLocaleString('en-IN')}` : "Not available",
+        status: "COMMITTED"
+      });
+    } else {
+      deliveryItems.push({
+        id: `${req.id}-item-1`,
+        name: SUPPORT_TYPE_LABELS[req.supportType],
+        value: req.resourcesOffered || "Standard Partnership Support",
+        status: "COMMITTED"
+      });
+    }
+
+    if (req.resourcesOffered && req.supportType === "CSR_FUNDING") {
+      deliveryItems.push({
+        id: `${req.id}-item-2`,
+        name: "Material Resources",
+        value: req.resourcesOffered,
+        status: "PLANNED"
+      });
+    }
+
+    const newPartnership: IndustryPartnership = {
+      id: `PTN-2026-00${partnerships.length + 1}`,
+      requestId: req.id,
+      industryId: req.industryId,
+      projectId: req.projectId,
+      status: (project && project.stage === "COMPLETED") ? "COMPLETED" : "ACTIVE",
+      startDate: req.createdAt,
+      endDate: req.expectedDuration || "12 months",
+      approvedDate: today,
+      deliveryItems
+    };
+
+    partnerships.push(newPartnership);
+    setStoredData("ind_partnerships", partnerships);
+
+    // Track activity timeline
+    universityMockService.addActivity(
+      `CSR partnership formally created under ID "${newPartnership.id}" for project "${project?.title || req.projectId}".`,
+      {
+        actor: "Sunita Rao",
+        actorRole: "ADMIN",
+        action: "Partnership created",
+        entityType: "PROJECT",
+        entityId: req.projectId,
+        entityName: project?.title || req.projectId,
+        newState: "ACTIVE"
+      }
+    );
+
+    return newPartnership;
+  },
+
+  updateDeliveryItem(
+    partnershipId: string,
+    itemId: string,
+    input: {
+      status: DeliveryStatus;
+      details?: string;
+      deliveryDate?: string;
+      evidenceRef?: string;
+      notes?: string;
+    },
+    userRole = "INDUSTRY"
+  ): IndustryPartnership {
+    const partnerships = this.getAllPartnerships();
+    const idx = partnerships.findIndex(p => p.id === partnershipId);
+    if (idx === -1) throw new Error("Partnership not found.");
+
+    const ptn = partnerships[idx];
+    const itemIdx = ptn.deliveryItems.findIndex(i => i.id === itemId);
+    if (itemIdx === -1) throw new Error("Delivery item not found.");
+
+    const item = ptn.deliveryItems[itemIdx];
+
+    // Security check: only ADMIN can VERIFY
+    if (userRole !== "ADMIN" && input.status === "VERIFIED") {
+      throw new Error("Unauthorized: Only Government Administrators can verify support deliveries.");
+    }
+
+    item.status = input.status;
+    if (input.details) item.value = input.details;
+    if (input.deliveryDate) item.deliveryDate = input.deliveryDate;
+    if (input.evidenceRef) item.evidenceRef = input.evidenceRef;
+    if (input.notes) item.notes = input.notes;
+
+    if (userRole === "ADMIN" && input.status === "VERIFIED") {
+      item.verifiedBy = "Government Administration";
+      item.verifiedDate = new Date().toISOString().split("T")[0];
+    }
+
+    ptn.deliveryItems[itemIdx] = item;
+    partnerships[idx] = ptn;
+    setStoredData("ind_partnerships", partnerships);
+
+    const profile = this.getProfile(ptn.industryId);
+    const project = this.getEligibleProjectById(ptn.projectId);
+    const projectTitle = project ? project.title : ptn.projectId;
+
+    // Log Activity Log
+    universityMockService.addActivity(
+      userRole === "ADMIN" 
+        ? `Government verified CSR delivery of "${item.name}" under partnership "${partnershipId}".` 
+        : `CSR support delivery update for "${item.name}" submitted under partnership "${partnershipId}" (Status: ${input.status}).`,
+      {
+        actor: userRole === "ADMIN" ? "Sunita Rao" : profile.name,
+        actorRole: userRole === "ADMIN" ? "ADMIN" : "INDUSTRY",
+        action: userRole === "ADMIN" ? "Support delivery verified" : "Support delivery updated",
+        entityType: "PROJECT",
+        entityId: ptn.projectId,
+        entityName: projectTitle,
+        newState: input.status,
+        note: input.notes
+      }
+    );
+
+    return ptn;
+  },
+
+  // ----------------------------------------------------
+  // Dynamic Dashboard Metrics API (Improved)
+  // ----------------------------------------------------
+  getIndustryDashboardMetrics(industryId = "ind-1"): {
+    availableProjectsCount: number;
+    recommendedProjectsCount: number;
+    mySupportRequestsCount: number;
+    pendingRequestsCount: number;
+    activePartnershipsCount: number;
+    totalCommittedFunding: number;
+    supportDeliveredCount: number;
+    supportAwaitingVerificationCount: number;
+  } {
+    const available = this.getEligibleProjects();
+    const recommendations = available.filter(p => {
+      const match = this.getMatchForIndustryAndProject(p.id, industryId);
+      return match && match.score > 0;
+    });
+
+    const myRequests = this.getSupportRequestsForIndustry(industryId);
+    const pending = myRequests.filter(r => r.status === "PENDING" || r.status === "UNDER_REVIEW");
+
+    const partnerships = this.getAllPartnerships().filter(p => p.industryId === industryId);
+    const active = partnerships.filter(p => p.status === "ACTIVE");
+
+    const totalCommittedFunding = partnerships.reduce((sum, ptn) => {
+      const req = myRequests.find(r => r.id === ptn.requestId);
+      return sum + (req?.estimatedFunding || 0);
+    }, 0);
+
+    let supportDeliveredCount = 0;
+    let supportAwaitingVerificationCount = 0;
+
+    partnerships.forEach(ptn => {
+      ptn.deliveryItems.forEach(item => {
+        if (item.status === "DELIVERED" || item.status === "VERIFIED") {
+          supportDeliveredCount++;
+        }
+        if (item.status === "DELIVERED") {
+          supportAwaitingVerificationCount++;
+        }
+      });
+    });
+
+    return {
+      availableProjectsCount: available.length,
+      recommendedProjectsCount: recommendations.length,
+      mySupportRequestsCount: myRequests.length,
+      pendingRequestsCount: pending.length,
+      activePartnershipsCount: active.length,
+      totalCommittedFunding,
+      supportDeliveredCount,
+      supportAwaitingVerificationCount
     };
   }
 };

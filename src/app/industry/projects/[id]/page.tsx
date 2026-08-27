@@ -37,8 +37,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { impactService } from "@/services/impactService";
+import { useAuth } from "@/context/AuthContext";
 
 export default function IndustryProjectDetailPage() {
+  const { user } = useAuth();
+  const industryId = user?.profile?.industryDetails?.id || "ind-1";
+
   const params = useParams();
   const router = useRouter();
   const projectId = params.id as string;
@@ -62,17 +66,19 @@ export default function IndustryProjectDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    loadProjectDetails();
-  }, [projectId]);
+    if (industryId) {
+      loadProjectDetails(industryId);
+    }
+  }, [projectId, industryId]);
 
-  const loadProjectDetails = () => {
+  const loadProjectDetails = (indId: string) => {
     const p = industryService.getEligibleProjectById(projectId);
     if (p) {
       setProject(p);
-      const reqs = industryService.getSupportRequestsForProject(projectId).filter((r) => r.industryId === "ind-1");
+      const reqs = industryService.getSupportRequestsForProject(projectId).filter((r) => r.industryId === indId);
       setExistingRequests(reqs);
 
-      const match = industryService.getMatchForIndustryAndProject(projectId, "ind-1");
+      const match = industryService.getMatchForIndustryAndProject(projectId, indId);
       setIndustryMatch(match || null);
     }
     setLoading(false);
@@ -118,10 +124,10 @@ export default function IndustryProjectDetailPage() {
           resourcesOffered: resourcesOffered || undefined,
           expectedDuration: expectedDuration || undefined,
         },
-        "ind-1"
+        industryId
       );
 
-      setSubmitSuccess(`Interest submitted successfully! Your support request (ID: ${created.id}) is now PENDING review.`);
+      setSubmitSuccess(`✓ Support request submitted successfully!\nRequest ID: ${created.id}\nStatus: PENDING`);
       setTimeout(() => {
         setIsModalOpen(false);
         setSubmitSuccess("");
@@ -129,8 +135,8 @@ export default function IndustryProjectDetailPage() {
         setEstimatedFunding("");
         setResourcesOffered("");
         setExpectedDuration("");
-        loadProjectDetails();
-      }, 1800);
+        loadProjectDetails(industryId);
+      }, 3000);
     } catch (err: any) {
       setSubmitError(err.message || "Failed to submit interest request.");
     } finally {
@@ -151,7 +157,7 @@ export default function IndustryProjectDetailPage() {
   }
 
   const stageConfig = STAGE_CONFIG[project.stage];
-  const profile = industryService.getProfile("ind-1");
+  const profile = industryService.getProfile(industryId);
 
   return (
     <div className="space-y-8">
@@ -572,7 +578,7 @@ export default function IndustryProjectDetailPage() {
             </div>
 
             {submitSuccess && (
-              <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-xs font-semibold">
+              <div className="p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded text-xs font-semibold whitespace-pre-line">
                 {submitSuccess}
               </div>
             )}

@@ -46,10 +46,10 @@ interface AuthContextValue {
 }
 
 export const ROLE_REDIRECT: Record<UserRole, string> = {
-  CITIZEN: '/citizen/dashboard',
+  CITIZEN: '/citizen',
   UNIVERSITY: '/university/dashboard',
   INDUSTRY: '/industry/dashboard',
-  ADMIN: '/admin/dashboard',
+  ADMIN: '/admin',
 };
 
 const defaultContext: AuthContextValue = {
@@ -100,8 +100,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       if (!res.ok) return { success: false, error: data.error || 'Login failed' };
       
-      // Refresh user to get full profile
-      await refreshUser();
+      // Set user directly from login response — avoids a race condition where
+      // calling refreshUser() immediately fires /api/auth/me before the browser
+      // has committed the Set-Cookie header from this response to the cookie jar.
+      const loggedInUser: AuthUser = {
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name,
+        role: data.user.role as UserRole,
+        orgName: data.user.orgName ?? null,
+        orgDetails: data.user.orgDetails ?? null,
+      };
+      setUser(loggedInUser);
+      setLoading(false);
       
       const role = data.user.role as UserRole;
       router.push(ROLE_REDIRECT[role] || '/');
@@ -109,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       return { success: false, error: 'Network error. Please try again.' };
     }
-  }, [router, refreshUser]);
+  }, [router]);
 
   const signup = useCallback(async (signupData: SignupPayload) => {
     try {
@@ -123,7 +134,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: data.error || 'Registration failed' };
       }
 
-      await refreshUser();
+      // Set user directly from signup response — avoids the same Set-Cookie race condition
+      const signedUpUser: AuthUser = {
+        id: data.user.id,
+        email: data.user.email,
+        name: data.user.name,
+        role: data.user.role as UserRole,
+        orgName: data.user.orgName ?? null,
+        orgDetails: data.user.orgDetails ?? null,
+      };
+      setUser(signedUpUser);
+      setLoading(false);
 
       const role = data.user.role as UserRole;
       router.push(ROLE_REDIRECT[role] || '/');
@@ -131,7 +152,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       return { success: false, error: 'Network error. Please try again.' };
     }
-  }, [router, refreshUser]);
+  }, [router]);
 
   const logout = useCallback(async () => {
     try {

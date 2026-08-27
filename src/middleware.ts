@@ -6,10 +6,10 @@ const JWT_SIGNING_SECRET = JWT_SECRET || 'dev-only-insecure-placeholder-do-not-u
 const COOKIE_NAME = 'sih_session';
 
 const ROLE_DASHBOARDS: Record<string, string> = {
-  CITIZEN: '/citizen/dashboard',
+  CITIZEN: '/citizen',
   UNIVERSITY: '/university/dashboard',
   INDUSTRY: '/industry/dashboard',
-  ADMIN: '/admin/dashboard',
+  ADMIN: '/admin',
 };
 
 export async function middleware(req: NextRequest) {

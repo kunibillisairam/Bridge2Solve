@@ -8,7 +8,8 @@ import {
   Layers, 
   Handshake, 
   User, 
-  LayoutDashboard 
+  LayoutDashboard,
+  Briefcase
 } from "lucide-react";
 
 export default function IndustryLayout({ children }: { children: React.ReactNode }) {
@@ -18,6 +19,7 @@ export default function IndustryLayout({ children }: { children: React.ReactNode
     { label: "Dashboard", href: "/industry/dashboard", icon: LayoutDashboard },
     { label: "Project Discovery", href: "/industry/projects", icon: Layers },
     { label: "My Interests", href: "/industry/interests", icon: Handshake },
+    { label: "My Partnerships", href: "/industry/partnerships", icon: Briefcase },
     { label: "Organization Profile", href: "/industry/profile", icon: User },
   ];
 

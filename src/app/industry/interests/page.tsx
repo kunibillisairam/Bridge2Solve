@@ -23,20 +23,26 @@ import {
 import { ResolvedProject } from "@/services/universityMockService";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/context/AuthContext";
 
 interface ResolvedSupportRequest extends IndustrySupportRequest {
   project: ResolvedProject | undefined;
 }
 
 export default function IndustryInterestsPage() {
+  const { user } = useAuth();
+  const industryId = user?.profile?.industryDetails?.id || "ind-1";
+
   const [requests, setRequests] = useState<ResolvedSupportRequest[]>([]);
 
   useEffect(() => {
-    loadRequests();
-  }, []);
+    if (industryId) {
+      loadRequests(industryId);
+    }
+  }, [industryId]);
 
-  const loadRequests = () => {
-    const raw = industryService.getSupportRequestsForIndustry("ind-1");
+  const loadRequests = (indId: string) => {
+    const raw = industryService.getSupportRequestsForIndustry(indId);
     const resolved = raw.map((r) => ({
       ...r,
       project: industryService.getEligibleProjectById(r.projectId),
@@ -129,13 +135,42 @@ export default function IndustryInterestsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-1 text-xs">
+                {req.status === "REJECTED" && req.rejectionReason && (
+                  <div className="p-3 bg-rose-50 text-rose-800 border border-rose-200 rounded text-xs">
+                    <span className="font-bold block uppercase text-[9.5px] text-rose-900 mb-0.5">Admin Rejection Feedback:</span>
+                    <p className="font-medium">{req.rejectionReason}</p>
+                  </div>
+                )}
+
+                {req.status === "UNDER_REVIEW" && req.clarificationNote && (
+                  <div className="p-3 bg-amber-50 text-amber-800 border border-amber-200 rounded text-xs">
+                    <span className="font-bold block uppercase text-[9.5px] text-amber-900 mb-0.5">Clarification Requested by Admin:</span>
+                    <p className="font-medium">{req.clarificationNote}</p>
+                  </div>
+                )}
+
+                <div className="flex flex-wrap items-center justify-between pt-1 gap-2 text-xs">
                   <span className="text-[11px] text-brandgray-muted">Request ID: <span className="font-mono font-semibold">{req.id}</span></span>
-                  <Link href={`/industry/projects/${req.projectId}`}>
-                    <Button variant="outline" size="sm" className="h-8 text-xs font-semibold">
-                      View Project Details <ArrowRight className="h-3.5 w-3.5" />
-                    </Button>
-                  </Link>
+                  <div className="flex gap-2">
+                    {req.status === "ACCEPTED" && (() => {
+                      const ptn = industryService.getPartnershipByProjectId(req.projectId);
+                      if (ptn) {
+                        return (
+                          <Link href={`/industry/partnerships/${ptn.id}`}>
+                            <Button variant="primary" size="sm" className="h-8 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white">
+                              ✓ Partnership Workspace
+                            </Button>
+                          </Link>
+                        );
+                      }
+                      return null;
+                    })()}
+                    <Link href={`/industry/projects/${req.projectId}`}>
+                      <Button variant="outline" size="sm" className="h-8 text-xs font-semibold">
+                        View Project <ArrowRight className="h-3.5 w-3.5" />
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </CardContent>
             </Card>
