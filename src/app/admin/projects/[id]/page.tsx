@@ -50,6 +50,9 @@ export default function AdminProjectDetailPage() {
   const [project, setProject] = useState<ResolvedProject | null>(null);
   const [industryPartners, setIndustryPartners] = useState<IndustrySupportRequest[]>([]);
   const [impact, setImpact] = useState<ImpactAssessment | null>(null);
+  const [industryRecs, setIndustryRecs] = useState<any[]>([]);
+  const [expandedIndRecId, setExpandedIndRecId] = useState<string | null>(null);
+  const [viewingIndustry, setViewingIndustry] = useState<any | null>(null);
   
   // Verification Modal & Action State
   const [verificationNote, setVerificationNote] = useState("");
@@ -71,6 +74,9 @@ export default function AdminProjectDetailPage() {
         setProject(res);
         const accepted = industryService.getAcceptedSupportRequestsForProject(res.id);
         setIndustryPartners(accepted);
+
+        const recs = industryService.getIndustryRecommendationsForProject(res.id);
+        setIndustryRecs(recs);
       }
     }
     const imp = impactService.getImpactAssessmentForProject(projectId);
@@ -505,6 +511,128 @@ export default function AdminProjectDetailPage() {
             </CardContent>
           </Card>
 
+          {/* SMART INDUSTRY / CSR RECOMMENDATIONS */}
+          <Card className="border-indigo-200 shadow-subtle bg-white">
+            <CardHeader className="p-5 border-b border-indigo-100 bg-indigo-50/40">
+              <CardTitle className="text-xs font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-indigo-600" /> Smart Industry / CSR Recommendations
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-5 space-y-4 text-xs">
+              {industryRecs.length === 0 ? (
+                <p className="text-brandgray-muted text-center py-3">No active Industry / CSR organization matches found.</p>
+              ) : (
+                <div className="space-y-4">
+                  {industryRecs.map((rec, idx) => {
+                    const isExpanded = expandedIndRecId === rec.industryId;
+                    return (
+                      <div key={rec.industryId} className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-3">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-primary text-sm">{idx + 1}. {rec.industryName}</span>
+                            </div>
+                            <span className="text-[10px] text-brandgray-muted block font-medium">{rec.orgType}</span>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-sm font-extrabold text-indigo-700 block">{rec.score}% Match</span>
+                            <span className={`text-[8.5px] font-bold px-1.5 py-0.5 rounded border block mt-0.5 ${
+                              rec.matchLevel === "HIGH" 
+                                ? "bg-emerald-50 text-emerald-800 border-emerald-200" 
+                                : rec.matchLevel === "MEDIUM" 
+                                ? "bg-amber-50 text-amber-800 border-amber-200" 
+                                : "bg-slate-50 text-slate-800 border-slate-200"
+                            }`}>
+                              {rec.matchLevel} MATCH
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Bulleted Reasons */}
+                        <div className="space-y-1">
+                          {rec.reasons.map((reason: string, rIdx: number) => (
+                            <div key={rIdx} className="flex items-center gap-1.5 text-[10.5px] text-slate-700 font-medium">
+                              <span className="text-emerald-600 font-extrabold">✓</span>
+                              <span>{reason.replace("✓ ", "")}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-2 pt-2 border-t border-slate-200/60 justify-between items-center text-[10.5px]">
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-7 text-[10px] font-semibold text-slate-700 px-2.5"
+                              onClick={() => {
+                                const fullProfile = industryService.getProfile(rec.industryId);
+                                setViewingIndustry(fullProfile || rec);
+                              }}
+                            >
+                              View Organization
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="h-7 text-[10px] font-semibold text-slate-700 px-2.5"
+                              onClick={() => setExpandedIndRecId(isExpanded ? null : rec.industryId)}
+                            >
+                              {isExpanded ? "Hide Breakdown" : "Score Breakdown"}
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Score Breakdown Drawer */}
+                        {isExpanded && (
+                          <div className="bg-white border border-slate-200 rounded p-3 text-[10.5px] space-y-2 mt-2">
+                            <span className="font-bold text-primary uppercase text-[9px] block border-b border-slate-200 pb-1">
+                              Industry Matching Breakdown (Algorithm {rec.algorithmVersion})
+                            </span>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
+                              <div className="flex justify-between">
+                                <span className="text-brandgray-muted">CSR Focus Alignment:</span>
+                                <span className="font-semibold">{rec.breakdown.csrFocusScore} / 25</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-brandgray-muted">Support Type Match:</span>
+                                <span className="font-semibold">{rec.breakdown.supportTypeScore} / 20</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-brandgray-muted">Technical Expertise:</span>
+                                <span className="font-semibold">{rec.breakdown.technicalExpertiseScore} / 20</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-brandgray-muted">Organization Type:</span>
+                                <span className="font-semibold">{rec.breakdown.organizationTypeScore} / 10</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-brandgray-muted">Project Domain Match:</span>
+                                <span className="font-semibold">{rec.breakdown.projectDomainScore} / 10</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-brandgray-muted">Previous Experience:</span>
+                                <span className="font-semibold">{rec.breakdown.previousExperienceScore} / 10</span>
+                              </div>
+                              <div className="flex justify-between col-span-2 border-t border-slate-100 pt-1">
+                                <span className="text-brandgray-muted">Geographic Relevance:</span>
+                                <span className="font-semibold">{rec.breakdown.locationScore} / 5</span>
+                              </div>
+                            </div>
+                            <div className="flex justify-between border-t border-slate-200 pt-1 font-bold text-primary">
+                              <span>Total Score:</span>
+                              <span>{rec.score} / 100</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
         </div>
 
         {/* Right Sidebar: Timeline & Verification Actions */}
@@ -611,6 +739,90 @@ export default function AdminProjectDetailPage() {
           </div>
         </div>
       )}
+
+      {/* Organization Profile Detail Modal */}
+      {viewingIndustry && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-xl max-w-md w-full overflow-hidden text-xs">
+            <div className="p-4 border-b border-slate-150 bg-slate-50 flex justify-between items-center">
+              <h3 className="font-bold text-primary text-sm uppercase">Industry Organization Profile</h3>
+              <button onClick={() => setViewingIndustry(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Organization Name</span>
+                <p className="font-extrabold text-sm text-primary">{viewingIndustry.name || viewingIndustry.industryName}</p>
+                <p className="text-[11px] text-brandgray-muted font-medium">{viewingIndustry.orgType}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Location</span>
+                  <p className="font-bold text-slate-700">{viewingIndustry.location || `${viewingIndustry.district}, ${viewingIndustry.state}`}</p>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Representative</span>
+                  <p className="font-bold text-slate-700">{viewingIndustry.representativeName || "CSR Grant Manager"}</p>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">CSR Focus Areas</span>
+                <div className="flex flex-wrap gap-1">
+                  {(viewingIndustry.csrFocusAreas || viewingIndustry.matchedCSRFocus || ["Water & Sanitation", "Rural Infrastructure"]).map((fa: string, i: number) => (
+                    <span key={i} className="bg-indigo-50 text-indigo-800 border border-indigo-200 rounded px-2 py-0.5 font-medium text-[10.5px]">
+                      {fa}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Core Expertise & Capabilities</span>
+                <div className="flex flex-wrap gap-1">
+                  {(viewingIndustry.expertise || viewingIndustry.matchedExpertise || ["Groundwater infrastructure", "IoT"]).map((exp: string, i: number) => (
+                    <span key={i} className="bg-slate-100 text-slate-800 border border-slate-200 rounded px-2 py-0.5 font-medium text-[10.5px]">
+                      {exp}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Available Resources</span>
+                <div className="flex flex-wrap gap-1">
+                  {(viewingIndustry.resources || viewingIndustry.matchedResources || ["CSR Funding", "Equipment / Resources"]).map((res: string, i: number) => (
+                    <span key={i} className="bg-emerald-50 text-emerald-800 border border-emerald-200 rounded px-2 py-0.5 font-medium text-[10.5px]">
+                      {res}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Previous Relevant Work</span>
+                <div className="mt-1 space-y-1 pl-1 text-[11px] text-slate-700 font-medium">
+                  {(viewingIndustry.previousProjects || viewingIndustry.previousExperience || []).length > 0 ? (
+                    (viewingIndustry.previousProjects || viewingIndustry.previousExperience).map((proj: string, i: number) => (
+                      <div key={i} className="flex items-center gap-1">✓ {proj}</div>
+                    ))
+                  ) : (
+                    <p className="text-slate-400 italic">No previous projects recorded.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="p-4 border-t border-slate-150 bg-slate-50 text-right">
+              <Button variant="outline" size="sm" onClick={() => setViewingIndustry(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

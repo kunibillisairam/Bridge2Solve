@@ -1,5 +1,9 @@
 import { universityMockService, UniversityProject, ResolvedProject } from "./universityMockService";
 import { notificationService } from "./notificationService";
+import { 
+  getIndustryRecommendationsForProject, 
+  IndustryMatchResult 
+} from "./smartMatchingService";
 
 export type SupportType = 
   | "CSR_FUNDING"
@@ -173,6 +177,24 @@ export const industryService = {
     const raw = universityMockService.getProjectById(projectId);
     if (!raw) return undefined;
     return universityMockService.resolveProject(raw);
+  },
+
+  // ----------------------------------------------------
+  // Smart Industry Matching API
+  // ----------------------------------------------------
+  getIndustryRecommendationsForProject(projectId: string): IndustryMatchResult[] {
+    const project = this.getEligibleProjectById(projectId);
+    if (!project) return [];
+
+    const problemAnalysis = universityMockService.getProblemAnalysis(project.originalProblem.id);
+    const activeRequests = this.getSupportRequestsForProject(projectId);
+
+    return getIndustryRecommendationsForProject(project, problemAnalysis, activeRequests);
+  },
+
+  getMatchForIndustryAndProject(projectId: string, industryId = "ind-1"): IndustryMatchResult | undefined {
+    const recs = this.getIndustryRecommendationsForProject(projectId);
+    return recs.find(r => r.industryId === industryId);
   },
 
   // ----------------------------------------------------

@@ -213,22 +213,28 @@ export default function IndustryProjectsPage() {
           {filteredProjects.map((project) => {
             const stageConfig = STAGE_CONFIG[project.stage];
             const hasMyInterest = myInterestProjectIds.has(project.id);
+            const indMatch = industryService.getMatchForIndustryAndProject(project.id, "ind-1");
 
             return (
               <Card key={project.id} className="border-brandgray-border shadow-subtle bg-white hover:border-primary/30 transition-all flex flex-col justify-between">
                 <CardContent className="p-5 space-y-4">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[10px] font-extrabold text-primary uppercase tracking-wider bg-primary-light border border-primary/10 px-2 py-0.5 rounded">
                           {project.id}
                         </span>
                         <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider">
                           {project.originalProblem.category}
                         </span>
+                        {indMatch && (
+                          <span className="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded">
+                            {indMatch.score}% MATCH
+                          </span>
+                        )}
                         {hasMyInterest && (
-                          <span className="text-[9.5px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 px-2 py-0.5 rounded">
-                            ✓ SUPPORT INTEREST SUBMITTED
+                          <span className="text-[9.5px] font-bold bg-green-50 text-green-800 border border-green-200 px-2 py-0.5 rounded">
+                            ✓ INTEREST SUBMITTED
                           </span>
                         )}
                       </div>

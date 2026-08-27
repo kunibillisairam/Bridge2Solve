@@ -184,11 +184,11 @@ export default function IndustryDashboard() {
         })}
       </div>
 
-      {/* AVAILABLE PROJECTS SECTION */}
+      {/* RECOMMENDED PROJECTS SECTION */}
       <div className="space-y-4">
         <div className="flex items-center justify-between border-b border-brandgray-border/60 pb-2">
           <h3 className="text-sm font-bold text-primary uppercase tracking-wider flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" /> Available Collaborative Projects
+            <Sparkles className="h-4 w-4 text-indigo-600" /> Recommended Projects for Your Organization
           </h3>
           <Link 
             href="/industry/projects" 
@@ -207,93 +207,84 @@ export default function IndustryDashboard() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {projects.map((project) => {
-              const stageConfig = STAGE_CONFIG[project.stage];
-              return (
-                <Card key={project.id} className="border-brandgray-border shadow-subtle bg-white hover:border-primary/30 transition-all flex flex-col justify-between">
-                  <CardContent className="p-5 space-y-4">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-extrabold text-primary uppercase tracking-wider bg-primary-light border border-primary/10 px-2 py-0.5 rounded">
-                            {project.id}
-                          </span>
-                          <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider">
-                            {project.originalProblem.category}
-                          </span>
+            {(() => {
+              const rankedProjects = [...projects].map(p => {
+                const match = industryService.getMatchForIndustryAndProject(p.id, "ind-1");
+                return { project: p, match };
+              }).sort((a, b) => (b.match?.score || 0) - (a.match?.score || 0));
+
+              return rankedProjects.map(({ project, match }) => {
+                const stageConfig = STAGE_CONFIG[project.stage];
+                return (
+                  <Card key={project.id} className="border-indigo-200 shadow-subtle bg-white hover:border-indigo-400 transition-all flex flex-col justify-between">
+                    <CardContent className="p-5 space-y-4">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-extrabold text-primary uppercase tracking-wider bg-primary-light border border-primary/10 px-2 py-0.5 rounded">
+                              {project.id}
+                            </span>
+                            <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider">
+                              {project.originalProblem.category}
+                            </span>
+                            {match && (
+                              <span className="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded">
+                                {match.score}% MATCH ({match.matchLevel})
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="text-base font-bold text-primary">
+                            {project.title}
+                          </h4>
                         </div>
-                        <h4 className="text-base font-bold text-primary">
-                          {project.title}
-                        </h4>
+                        <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-150 px-2.5 py-0.5 rounded font-bold">
+                          {stageConfig?.label || project.stage} ({project.progress}%)
+                        </span>
                       </div>
-                      <span className="text-xs bg-indigo-50 text-indigo-700 border border-indigo-150 px-2.5 py-0.5 rounded font-bold">
-                        {stageConfig?.label || project.stage} ({project.progress}%)
-                      </span>
-                    </div>
 
-                    {/* Progress Bar */}
-                    <div className="space-y-1">
-                      <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-primary transition-all duration-300"
-                          style={{ width: `${project.progress}%` }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-[10px] text-brandgray-muted font-medium">
-                        <span>Started: {project.startDate}</span>
-                        <span>Target: {project.expectedCompletionDate}</span>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-brandgray-text leading-relaxed line-clamp-2">
-                      {project.originalProblem.description}
-                    </p>
-
-                    {/* University & Team Info */}
-                    <div className="p-3 bg-slate-50 rounded border border-slate-150 text-xs space-y-1">
-                      <div className="flex items-center gap-1.5 font-bold text-primary">
-                        <GraduationCap className="h-4 w-4 text-primary shrink-0" />
-                        <span>{project.collaboration.university}</span>
-                      </div>
-                      {project.assignedTeam && (
-                        <p className="text-[11px] text-brandgray-muted flex items-center gap-1 pl-5">
-                          <Users className="h-3.5 w-3.5 shrink-0" /> Team: {project.assignedTeam.name} ({project.assignedTeam.facultyMentor})
-                        </p>
+                      {/* Match Reasons Highlights */}
+                      {match && match.reasons.length > 0 && (
+                        <div className="p-2.5 bg-indigo-50/40 border border-indigo-150 rounded space-y-1 text-xs">
+                          <span className="text-[9.5px] font-extrabold text-indigo-900 uppercase block">Why Recommended:</span>
+                          <div className="space-y-0.5">
+                            {match.reasons.slice(0, 3).map((r: string, idx: number) => (
+                              <div key={idx} className="flex items-center gap-1.5 text-[10.5px] text-slate-700 font-medium">
+                                <span className="text-emerald-600 font-extrabold">✓</span>
+                                <span>{r.replace("✓ ", "")}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
-                    </div>
 
-                    {/* Support Needed Tags */}
-                    <div className="space-y-1.5 pt-1">
-                      <span className="text-[10px] font-bold text-brandgray-muted uppercase tracking-wider block">
-                        Industry Support Opportunities:
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        <span className="text-[10.5px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded font-medium">
-                          CSR Funding
-                        </span>
-                        <span className="text-[10.5px] bg-indigo-50 text-indigo-800 border border-indigo-200 px-2 py-0.5 rounded font-medium">
-                          Technical Mentorship
-                        </span>
-                        <span className="text-[10.5px] bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded font-medium">
-                          Equipment & Resources
-                        </span>
+                      {/* University & Team Info */}
+                      <div className="p-3 bg-slate-50 rounded border border-slate-150 text-xs space-y-1">
+                        <div className="flex items-center gap-1.5 font-bold text-primary">
+                          <GraduationCap className="h-4 w-4 text-primary shrink-0" />
+                          <span>{project.collaboration.university}</span>
+                        </div>
+                        {project.assignedTeam && (
+                          <p className="text-[11px] text-brandgray-muted flex items-center gap-1 pl-5">
+                            <Users className="h-3.5 w-3.5 shrink-0" /> Team: {project.assignedTeam.name} ({project.assignedTeam.facultyMentor})
+                          </p>
+                        )}
                       </div>
-                    </div>
 
-                    <div className="flex items-center justify-between pt-3 border-t border-brandgray-border/40 text-xs">
-                      <span className="flex items-center gap-1 text-brandgray-muted">
-                        <MapPin className="h-3.5 w-3.5" /> {project.originalProblem.district}, {project.originalProblem.state}
-                      </span>
-                      <Link href={`/industry/projects/${project.id}`}>
-                        <Button variant="primary" size="sm" className="h-8 text-xs font-semibold">
-                          View Project & Support
-                        </Button>
-                      </Link>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                      <div className="flex items-center justify-between pt-3 border-t border-brandgray-border/40 text-xs">
+                        <span className="flex items-center gap-1 text-brandgray-muted">
+                          <MapPin className="h-3.5 w-3.5" /> {project.originalProblem.district}, {project.originalProblem.state}
+                        </span>
+                        <Link href={`/industry/projects/${project.id}`}>
+                          <Button variant="primary" size="sm" className="h-8 text-xs font-bold">
+                            View Project & Support
+                          </Button>
+                        </Link>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              });
+            })()}
           </div>
         )}
       </div>

@@ -197,6 +197,7 @@ export interface UniversityProject {
 // Resolved project for UI display
 export interface ResolvedProject extends UniversityProject {
   originalProblem: {
+    id: string;
     title: string;
     description: string;
     category: string;
@@ -1903,6 +1904,7 @@ export const universityMockService = {
     return {
       ...project,
       originalProblem: {
+        id: problem.id,
         title: problem.title,
         description: problem.description,
         category: problem.category,

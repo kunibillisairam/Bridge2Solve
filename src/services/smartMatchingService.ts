@@ -40,7 +40,55 @@ export interface IndustryProfile {
   csrFocusAreas: string[];
   resources: string[];
   previousProjects: string[];
+  status?: "ACTIVE" | "SUSPENDED" | "INACTIVE";
 }
+
+// ----------------------------------------------------
+// Smart Industry / CSR Match Result Structure
+// ----------------------------------------------------
+export interface IndustryMatchResult {
+  industryId: string;
+  industryName: string;
+  orgType: string;
+  score: number;
+  matchLevel: "HIGH" | "MEDIUM" | "LOW";
+  matchedCSRFocus: string[];
+  matchedSupportTypes: string[];
+  matchedExpertise: string[];
+  matchedResources: string[];
+  previousExperience: string[];
+  locationMatch: "SAME_DISTRICT" | "SAME_STATE" | "OUT_OF_STATE";
+  reasons: string[];
+  algorithmVersion: string;
+  breakdown: {
+    csrFocusScore: number;
+    supportTypeScore: number;
+    technicalExpertiseScore: number;
+    organizationTypeScore: number;
+    projectDomainScore: number;
+    previousExperienceScore: number;
+    locationScore: number;
+  };
+}
+
+export const INDUSTRY_MATCHING_ALGORITHM_VERSION = "v1";
+
+export const INDUSTRY_MATCH_CONFIG = {
+  version: INDUSTRY_MATCHING_ALGORITHM_VERSION,
+  thresholds: {
+    HIGH: 80,
+    MEDIUM: 60,
+  },
+  weights: {
+    csrFocus: 25,
+    supportType: 20,
+    technicalExpertise: 20,
+    organizationType: 10,
+    projectDomain: 10,
+    previousExperience: 10,
+    location: 5,
+  }
+};
 
 export interface EntityRecommendation {
   entityId: string;
@@ -1071,6 +1119,283 @@ export function getTeamRecommendationsForProblem(
           locationScore
         },
         algorithmVersion: TEAM_MATCHING_ALGORITHM_VERSION
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+}
+
+// ----------------------------------------------------
+// Structured Industry Registries (Mock Database Source)
+// ----------------------------------------------------
+export const DEMO_INDUSTRY_PROFILES: IndustryProfile[] = [
+  {
+    id: "ind-1",
+    name: "Tata Steel CSR Foundation",
+    orgType: "Corporate CSR Foundation",
+    location: "Jamshedpur, Jharkhand",
+    state: "Jharkhand",
+    district: "Ranchi",
+    expertise: ["Groundwater infrastructure", "Community water tanks", "Sanitation engineering", "Water Infrastructure", "IoT", "Environmental Engineering"],
+    technologyCapabilities: ["Water Quality Sensors", "Piping Systems", "Civil Construction"],
+    csrFocusAreas: ["Water & Sanitation", "Rural Infrastructure", "Public Health", "Water", "Rural Development"],
+    resources: ["CSR Funding", "CSR Grants", "Civil Construction Engineers", "Heavy Earth Equipment", "Infrastructure Deployment"],
+    previousProjects: ["Ranchi Rural Sand Filter Deployment", "Water Infrastructure Project", "Chota Nagpur Water Network"],
+    status: "ACTIVE"
+  },
+  {
+    id: "ind-2",
+    name: "ABC Infrastructure Foundation",
+    orgType: "Infrastructure & Engineering CSR",
+    location: "Ranchi, Jharkhand",
+    state: "Jharkhand",
+    district: "Ranchi",
+    expertise: ["Infrastructure Deployment", "Civil Works", "Water Systems", "Solar Installation"],
+    technologyCapabilities: ["Concrete Engineering", "Solar Rooftops"],
+    csrFocusAreas: ["Infrastructure", "Rural Development", "Water", "Renewable Energy"],
+    resources: ["CSR Funding", "Equipment / Resources", "Infrastructure Deployment"],
+    previousProjects: ["Rural Drinking Water Station", "School Solar Rooftop Grid"],
+    status: "ACTIVE"
+  },
+  {
+    id: "ind-3",
+    name: "XYZ Technologies CSR",
+    orgType: "Technology & IT Enterprise",
+    location: "Bengaluru, Karnataka",
+    state: "Karnataka",
+    district: "Bengaluru",
+    expertise: ["IoT", "Software Systems", "Technical Mentorship", "AI/YOLO Sorting", "E-learning Hardware"],
+    technologyCapabilities: ["Cloud Systems", "Microcontrollers", "YOLO AI Models"],
+    csrFocusAreas: ["Education", "Technology", "Digital Literacy", "Environment"],
+    resources: ["Technical Mentorship", "Equipment / Resources", "Software Licenses", "Laptops"],
+    previousProjects: ["Mayurbhanj Offline Learning Tablet Deployment", "Smart Garbage Sensor Grid"],
+    status: "ACTIVE"
+  },
+  {
+    id: "ind-4",
+    name: "EcoSoil Agri-Tech CSR",
+    orgType: "Agri-Business Enterprise",
+    location: "Ludhiana, Punjab",
+    state: "Punjab",
+    district: "Sangrur",
+    expertise: ["Soil Bioremediation", "Organic Agriculture", "Water Management"],
+    technologyCapabilities: ["Soil Sensor Arrays", "Bio-fertilizer Formulations"],
+    csrFocusAreas: ["Agriculture", "Environment", "Rural Development", "Soil Health"],
+    resources: ["CSR Funding", "Equipment / Resources", "Bio-fertilizers", "Agriculture Experts"],
+    previousProjects: ["Sangrur Soil Salinity Recovery Campaign"],
+    status: "ACTIVE"
+  },
+  {
+    id: "ind-suspended",
+    name: "Suspended Corp CSR",
+    orgType: "Corporation",
+    location: "Ranchi, Jharkhand",
+    state: "Jharkhand",
+    district: "Ranchi",
+    expertise: ["Water Engineering"],
+    technologyCapabilities: ["Basic Piping"],
+    csrFocusAreas: ["Water & Sanitation"],
+    resources: ["CSR Funding"],
+    previousProjects: [],
+    status: "SUSPENDED"
+  },
+  {
+    id: "ind-inactive",
+    name: "Inactive CSR Group",
+    orgType: "Corporation",
+    location: "Pune, Maharashtra",
+    state: "Maharashtra",
+    district: "Pune",
+    expertise: ["E-learning"],
+    technologyCapabilities: ["Monitors"],
+    csrFocusAreas: ["Education"],
+    resources: ["Equipment"],
+    previousProjects: [],
+    status: "INACTIVE"
+  }
+];
+
+// ----------------------------------------------------
+// Smart Industry / CSR Recommendation Algorithm
+// ----------------------------------------------------
+export function getIndustryRecommendationsForProject(
+  project: any,
+  analysis?: ProblemAnalysis,
+  activeRequests?: any[],
+  customProfiles?: IndustryProfile[]
+): IndustryMatchResult[] {
+  if (!project) return [];
+
+  const profiles = customProfiles || DEMO_INDUSTRY_PROFILES;
+
+  // Rule 19: Exclude INELIGIBLE (SUSPENDED or INACTIVE) Industries
+  const activeProfiles = profiles.filter(p => p.status !== "SUSPENDED" && p.status !== "INACTIVE");
+  const weights = INDUSTRY_MATCH_CONFIG.weights;
+  const thresholds = INDUSTRY_MATCH_CONFIG.thresholds;
+
+  const problemCategory = project.originalProblem?.category || project.category || "";
+  const problemDistrict = project.originalProblem?.district || project.district || "";
+  const problemState = project.originalProblem?.state || project.state || "";
+  const problemDesc = project.originalProblem?.description || project.description || project.title || "";
+  const requiredExpertise: string[] = project.requiredExpertise || analysis?.requiredExpertise || project.originalProblem?.requiredExpertise || [];
+
+  return activeProfiles
+    .map((ind) => {
+      const reasons: string[] = [];
+      let csrFocusScore = 0;
+      let supportTypeScore = 0;
+      let technicalExpertiseScore = 0;
+      let organizationTypeScore = 0;
+      let projectDomainScore = 0;
+      let previousExperienceScore = 0;
+      let locationScore = 0;
+
+      const matchedCSRFocus: string[] = [];
+      const matchedSupportTypes: string[] = [];
+      const matchedExpertise: string[] = [];
+      const matchedResources: string[] = [];
+      const previousExperience: string[] = [];
+
+      // 1. CSR Focus Match (25%)
+      const projectKeywords = [problemCategory, problemDesc, ...requiredExpertise].map(s => String(s).toLowerCase());
+      ind.csrFocusAreas.forEach(area => {
+        const aLow = area.toLowerCase();
+        if (
+          projectKeywords.some(kw => kw.includes(aLow) || aLow.includes(kw)) ||
+          (aLow.includes("water") && problemCategory.toLowerCase().includes("water")) ||
+          (aLow.includes("rural") && problemDesc.toLowerCase().includes("rural")) ||
+          (aLow.includes("education") && problemCategory.toLowerCase().includes("education")) ||
+          (aLow.includes("agriculture") && problemCategory.toLowerCase().includes("agriculture"))
+        ) {
+          matchedCSRFocus.push(area);
+        }
+      });
+
+      if (matchedCSRFocus.length > 0) {
+        csrFocusScore = Math.min(weights.csrFocus, Math.round((matchedCSRFocus.length / Math.max(1, ind.csrFocusAreas.length)) * weights.csrFocus) + 12);
+        csrFocusScore = Math.min(weights.csrFocus, csrFocusScore);
+        reasons.push(`✓ CSR focus matches ${matchedCSRFocus.slice(0, 2).join(" & ")}`);
+      } else {
+        csrFocusScore = Math.round(weights.csrFocus * 0.3);
+      }
+
+      // 2. Support Type Match (20%)
+      const resTypes = ind.resources.map(r => r.toLowerCase());
+      if (resTypes.some(r => r.includes("funding") || r.includes("grant"))) matchedSupportTypes.push("CSR Funding");
+      if (resTypes.some(r => r.includes("infrastructure") || r.includes("equipment") || r.includes("construction"))) matchedSupportTypes.push("Infrastructure Deployment");
+      if (resTypes.some(r => r.includes("mentorship") || r.includes("expert") || r.includes("engineer"))) matchedSupportTypes.push("Technical Mentorship");
+
+      if (matchedSupportTypes.length > 0) {
+        supportTypeScore = Math.min(weights.supportType, Math.round((matchedSupportTypes.length / 3) * weights.supportType) + 8);
+        supportTypeScore = Math.min(weights.supportType, supportTypeScore);
+        reasons.push(`✓ Supports ${matchedSupportTypes.slice(0, 2).join(" & ")}`);
+      } else {
+        supportTypeScore = Math.round(weights.supportType * 0.4);
+      }
+
+      // 3. Technical Expertise Match (20%)
+      ind.expertise.forEach(exp => {
+        const eLow = exp.toLowerCase();
+        if (
+          projectKeywords.some(kw => kw.includes(eLow) || eLow.includes(kw)) ||
+          (eLow.includes("water") && problemCategory.toLowerCase().includes("water")) ||
+          (eLow.includes("soil") && problemCategory.toLowerCase().includes("soil")) ||
+          (eLow.includes("iot") && problemDesc.toLowerCase().includes("iot"))
+        ) {
+          matchedExpertise.push(exp);
+        }
+      });
+
+      if (matchedExpertise.length > 0) {
+        technicalExpertiseScore = Math.min(weights.technicalExpertise, Math.round((matchedExpertise.length / Math.max(1, ind.expertise.length)) * weights.technicalExpertise) + 10);
+        technicalExpertiseScore = Math.min(weights.technicalExpertise, technicalExpertiseScore);
+        reasons.push(`✓ Technical expertise matches project requirements (${matchedExpertise[0]})`);
+      } else {
+        technicalExpertiseScore = Math.round(weights.technicalExpertise * 0.3);
+      }
+
+      // 4. Organization Type Match (10%)
+      const otLow = ind.orgType.toLowerCase();
+      const catLow = problemCategory.toLowerCase();
+      if (
+        otLow.includes("foundation") || 
+        otLow.includes("csr") || 
+        (otLow.includes("tech") && catLow.includes("tech")) || 
+        (otLow.includes("infrastructure") && catLow.includes("water"))
+      ) {
+        organizationTypeScore = weights.organizationType;
+        reasons.push(`✓ ${ind.orgType} organization type aligns with project scope`);
+      } else {
+        organizationTypeScore = Math.round(weights.organizationType * 0.6);
+      }
+
+      // 5. Project Domain Match (10%)
+      const domainMatch = ind.csrFocusAreas.some(fa => fa.toLowerCase().includes(catLow) || catLow.includes(fa.toLowerCase())) || ind.expertise.some(e => e.toLowerCase().includes(catLow));
+      if (domainMatch) {
+        projectDomainScore = weights.projectDomain;
+        reasons.push(`✓ Aligned with ${problemCategory} domain`);
+      } else {
+        projectDomainScore = Math.round(weights.projectDomain * 0.4);
+      }
+
+      // 6. Previous Experience (10%)
+      const cleanKeywords = [problemCategory, problemDesc].map(kw => kw.toLowerCase());
+      const matchedPrev = ind.previousProjects.filter(proj => 
+        cleanKeywords.some(k => proj.toLowerCase().includes(k)) ||
+        (proj.toLowerCase().includes("water") && catLow.includes("water")) ||
+        (proj.toLowerCase().includes("soil") && catLow.includes("soil")) ||
+        (proj.toLowerCase().includes("tablet") && catLow.includes("education"))
+      );
+      if (matchedPrev.length > 0) {
+        previousExperienceScore = weights.previousExperience;
+        previousExperience.push(...matchedPrev);
+        reasons.push(`✓ Previous relevant project: ${matchedPrev[0]}`);
+      } else {
+        previousExperienceScore = 0;
+      }
+
+      // 7. Geographic Relevance (5%)
+      let locationMatch: "SAME_DISTRICT" | "SAME_STATE" | "OUT_OF_STATE" = "OUT_OF_STATE";
+      if (ind.district.toLowerCase() === problemDistrict.toLowerCase() && ind.state.toLowerCase() === problemState.toLowerCase()) {
+        locationScore = weights.location;
+        locationMatch = "SAME_DISTRICT";
+        reasons.push(`✓ Located in the same district (${ind.district})`);
+      } else if (ind.state.toLowerCase() === problemState.toLowerCase()) {
+        locationScore = Math.round(weights.location * 0.6);
+        locationMatch = "SAME_STATE";
+        reasons.push(`✓ Located in the same state (${ind.state})`);
+      } else {
+        locationScore = Math.round(weights.location * 0.2);
+        locationMatch = "OUT_OF_STATE";
+      }
+
+      // Ensure sum of individual breakdown scores equals the total score
+      const score = csrFocusScore + supportTypeScore + technicalExpertiseScore + organizationTypeScore + projectDomainScore + previousExperienceScore + locationScore;
+      const normalizedScore = Math.min(Math.max(score, 0), 100);
+      const matchLevel: "HIGH" | "MEDIUM" | "LOW" = normalizedScore >= thresholds.HIGH ? "HIGH" : normalizedScore >= thresholds.MEDIUM ? "MEDIUM" : "LOW";
+
+      return {
+        industryId: ind.id,
+        industryName: ind.name,
+        orgType: ind.orgType,
+        score: normalizedScore,
+        matchLevel,
+        matchedCSRFocus,
+        matchedSupportTypes,
+        matchedExpertise,
+        matchedResources: ind.resources,
+        previousExperience,
+        locationMatch,
+        reasons,
+        algorithmVersion: INDUSTRY_MATCHING_ALGORITHM_VERSION,
+        breakdown: {
+          csrFocusScore,
+          supportTypeScore,
+          technicalExpertiseScore,
+          organizationTypeScore,
+          projectDomainScore,
+          previousExperienceScore,
+          locationScore,
+        }
       };
     })
     .sort((a, b) => b.score - a.score);

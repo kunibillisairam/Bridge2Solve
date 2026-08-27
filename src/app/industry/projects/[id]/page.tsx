@@ -45,6 +45,8 @@ export default function IndustryProjectDetailPage() {
 
   const [project, setProject] = useState<ResolvedProject | null>(null);
   const [existingRequests, setExistingRequests] = useState<IndustrySupportRequest[]>([]);
+  const [industryMatch, setIndustryMatch] = useState<any | null>(null);
+  const [showBreakdown, setShowBreakdown] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Form State
@@ -68,6 +70,9 @@ export default function IndustryProjectDetailPage() {
       setProject(p);
       const reqs = industryService.getSupportRequestsForProject(projectId).filter((r) => r.industryId === "ind-1");
       setExistingRequests(reqs);
+
+      const match = industryService.getMatchForIndustryAndProject(projectId, "ind-1");
+      setIndustryMatch(match || null);
     }
   };
 
@@ -190,6 +195,99 @@ export default function IndustryProjectDetailPage() {
           </div>
         )}
       </div>
+
+      {/* WHY THIS PROJECT MATCHES YOUR ORGANIZATION */}
+      {industryMatch && (
+        <div className="p-5 bg-gradient-to-r from-indigo-900 via-primary to-indigo-950 text-white rounded-lg shadow-subtle space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="space-y-1">
+              <span className="text-[10px] font-extrabold text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-amber-300" /> Smart CSR & Capacity Match Recommendation
+              </span>
+              <h3 className="text-lg font-bold text-white">Why This Project Matches Your Organization</h3>
+              <p className="text-xs text-indigo-150 font-medium">
+                Calculated based on your CSR focus areas, available resources, and technical capabilities.
+              </p>
+            </div>
+
+            <div className="text-right bg-white/10 backdrop-blur-xs border border-white/15 px-3 py-1.5 rounded-lg shrink-0">
+              <span className="text-xl font-black text-amber-300 block">{industryMatch.score}% MATCH</span>
+              <span className="text-[9px] font-extrabold uppercase tracking-widest text-indigo-100 block">{industryMatch.matchLevel} SUITABILITY</span>
+            </div>
+          </div>
+
+          {/* Bulleted Reasons */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs bg-white/5 border border-white/10 p-3 rounded-lg">
+            {industryMatch.reasons.map((reason: string, idx: number) => (
+              <div key={idx} className="flex items-center gap-1.5 text-indigo-100 font-medium text-[11px]">
+                <span className="text-emerald-400 font-extrabold">✓</span>
+                <span>{reason.replace("✓ ", "")}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap justify-between items-center gap-2 pt-1 text-xs">
+            <button 
+              onClick={() => setShowBreakdown(!showBreakdown)}
+              className="text-amber-300 hover:text-amber-200 font-bold underline text-[11px]"
+            >
+              {showBreakdown ? "Hide Score Breakdown" : "View Score Breakdown Metrics"}
+            </button>
+
+            <Button 
+              variant="primary" 
+              size="sm" 
+              className="h-8 px-4 text-xs font-bold bg-amber-400 hover:bg-amber-300 text-indigo-950 border-none shadow-md flex items-center gap-1.5"
+              onClick={() => setIsModalOpen(true)}
+            >
+              <Handshake className="h-4 w-4" /> Express Industry Interest
+            </Button>
+          </div>
+
+          {/* Breakdown drawer */}
+          {showBreakdown && (
+            <div className="bg-white/10 border border-white/15 rounded p-3 text-[11px] space-y-2 text-indigo-100">
+              <span className="font-bold text-amber-300 uppercase text-[9.5px] block border-b border-white/10 pb-1">
+                Matching Factor Breakdown (Algorithm {industryMatch.algorithmVersion})
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[10.5px]">
+                <div>
+                  <span className="text-indigo-200 block text-[9.5px]">CSR Focus:</span>
+                  <span className="font-extrabold text-white">{industryMatch.breakdown.csrFocusScore} / 25</span>
+                </div>
+                <div>
+                  <span className="text-indigo-200 block text-[9.5px]">Support Type:</span>
+                  <span className="font-extrabold text-white">{industryMatch.breakdown.supportTypeScore} / 20</span>
+                </div>
+                <div>
+                  <span className="text-indigo-200 block text-[9.5px]">Expertise:</span>
+                  <span className="font-extrabold text-white">{industryMatch.breakdown.technicalExpertiseScore} / 20</span>
+                </div>
+                <div>
+                  <span className="text-indigo-200 block text-[9.5px]">Org Type:</span>
+                  <span className="font-extrabold text-white">{industryMatch.breakdown.organizationTypeScore} / 10</span>
+                </div>
+                <div>
+                  <span className="text-indigo-200 block text-[9.5px]">Domain:</span>
+                  <span className="font-extrabold text-white">{industryMatch.breakdown.projectDomainScore} / 10</span>
+                </div>
+                <div>
+                  <span className="text-indigo-200 block text-[9.5px]">Experience:</span>
+                  <span className="font-extrabold text-white">{industryMatch.breakdown.previousExperienceScore} / 10</span>
+                </div>
+                <div>
+                  <span className="text-indigo-200 block text-[9.5px]">Location:</span>
+                  <span className="font-extrabold text-white">{industryMatch.breakdown.locationScore} / 5</span>
+                </div>
+                <div>
+                  <span className="text-indigo-200 block text-[9.5px]">Total Match:</span>
+                  <span className="font-extrabold text-amber-300">{industryMatch.score} / 100</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
