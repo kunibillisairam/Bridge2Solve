@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { 
   Building2, 
   Layers, 
@@ -16,9 +16,16 @@ import { industryService } from "@/services/industryService";
 
 export default function IndustryLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, loading } = useAuth();
   const industryId = user?.profile?.industryDetails?.id || "ind-1";
   const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    if (!loading && (!user || user.role !== "INDUSTRY")) {
+      router.push("/login");
+    }
+  }, [loading, user, router]);
 
   useEffect(() => {
     setMounted(true);
@@ -39,6 +46,21 @@ export default function IndustryLayout({ children }: { children: React.ReactNode
     { label: "My Partnerships", href: "/industry/partnerships", icon: Briefcase, badge: activePartnershipsCount },
     { label: "Organization Profile", href: "/industry/profile", icon: User },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="text-sm text-brandgray-muted">Verifying portal access...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== "INDUSTRY") {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50">

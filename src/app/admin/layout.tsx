@@ -20,18 +20,41 @@ import {
 } from "lucide-react";
 import { universityMockService } from "@/services/universityMockService";
 import { industryService } from "@/services/industryService";
+import { useAuth } from "@/context/AuthContext";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
 
+  const { user, loading } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    if (!loading && (!user || user.role !== "ADMIN")) {
+      router.push("/login");
+    }
+  }, [loading, user, router]);
+
+  useEffect(() => {
     setMounted(true);
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <span className="text-sm text-brandgray-muted">Verifying portal access...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== "ADMIN") {
+    return null;
+  }
 
   const pendingProblemsCount = mounted ? universityMockService.getProblems().filter((p) => p.status === "Unassigned").length : 0;
   const pendingProposalsCount = mounted ? universityMockService.getAllProposalsForAdmin().filter((pr) => pr.status === "SUBMITTED").length : 0;
