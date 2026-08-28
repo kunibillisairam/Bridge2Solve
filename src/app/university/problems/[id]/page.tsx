@@ -116,7 +116,7 @@ export default function ProblemDetailsPage() {
     );
   }
 
-  const isInterestedOrAssigned = !!interest || problem.status !== "Unassigned";
+  const isInterestedOrAssigned = !!interest && interest.status !== "WITHDRAWN";
   const rec = universityMockService.getRecommendationForUniversity(problem.id, universityId);
   const proposal = universityMockService.getProposals(universityId).find((p) => p.problemId === problem.id);
 
@@ -345,8 +345,10 @@ export default function ProblemDetailsPage() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs border-b border-brandgray-light pb-2">
-                  <span className="text-brandgray-muted">Problem Status</span>
-                  <span className="font-semibold text-brandgray-text">{problem.status}</span>
+                  <span className="text-brandgray-muted">Interest Status</span>
+                  <span className="font-semibold text-brandgray-text">
+                    {isInterestedOrAssigned ? "Registered" : "Not Registered"}
+                  </span>
                 </div>
               </div>
 
