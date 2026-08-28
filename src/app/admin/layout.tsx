@@ -98,13 +98,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Sticky Admin Header */}
       <div className="bg-primary text-white sticky top-16 z-40 shadow-subtle border-b border-primary/20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-13 py-2">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between h-13 py-2 gap-4 min-w-0">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
               <ShieldCheck className="h-5 w-5 text-amber-400 shrink-0" />
-              <span className="text-xs font-bold uppercase tracking-wider text-white hidden sm:inline border-r border-white/20 pr-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-white hidden sm:inline border-r border-white/20 pr-3 shrink-0">
                 Admin Control Center
               </span>
-              <nav className="flex items-center gap-1 sm:gap-1.5">
+              <nav className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto whitespace-nowrap scrollbar-none py-1 min-w-0">
                 {navItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = pathname === item.href;
@@ -112,7 +112,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={`py-1.5 px-3 rounded text-xs font-semibold transition-colors flex items-center gap-1.5 ${
+                      className={`py-1.5 px-3 rounded text-xs font-semibold transition-colors flex items-center gap-1.5 shrink-0 ${
                         isActive
                           ? "bg-white text-primary font-bold shadow-subtle"
                           : "text-white/80 hover:text-white hover:bg-white/10"
