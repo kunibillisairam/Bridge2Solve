@@ -127,6 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
       setUser(loggedInUser);
       setLoading(false);
+      router.refresh();
       
       const role = data.user.role as UserRole;
       router.push(ROLE_REDIRECT[role] || '/');
@@ -159,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       };
       setUser(signedUpUser);
       setLoading(false);
+      router.refresh();
 
       const role = data.user.role as UserRole;
       router.push(ROLE_REDIRECT[role] || '/');

@@ -1,19 +1,31 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
+import { useAuth, ROLE_REDIRECT } from '@/context/AuthContext';
 import { Lock, Mail, AlertCircle, Building2, User, Landmark, Shield, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, user, loading: authLoading } = useAuth();
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (!authLoading && user) {
+      const target = ROLE_REDIRECT[user.role];
+      if (target) {
+        router.push(target);
+      }
+    }
+  }, [user, authLoading, router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return;
     setError('');
     setLoading(true);
 
