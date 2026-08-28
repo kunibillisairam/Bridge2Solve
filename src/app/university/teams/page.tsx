@@ -25,7 +25,11 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
+import { useAuth } from "@/context/AuthContext";
+
 export default function TeamsPage() {
+  const { user } = useAuth();
+  const universityId = user?.profile?.universityDetails?.id || "univ-1";
   const searchParams = useSearchParams();
   const assignProblemIdFromUrl = searchParams.get("assignProblemId");
 
@@ -51,9 +55,7 @@ export default function TeamsPage() {
   // Add Member State (Keyed by Team ID)
   const [addMemberName, setAddMemberName] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    loadData();
-  }, []);
+
 
   useEffect(() => {
     if (assignProblemIdFromUrl) {
@@ -64,11 +66,20 @@ export default function TeamsPage() {
     }
   }, [assignProblemIdFromUrl]);
 
-  const loadData = () => {
-    const allTeams = universityMockService.getTeams();
+  useEffect(() => {
+    if (user) {
+      if (user.profile?.universityDetails) {
+        universityMockService.registerCustomUniversity(user.profile.universityDetails, user.profile);
+      }
+      loadData(user.profile?.universityDetails?.id || "univ-1");
+    }
+  }, [user]);
+
+  const loadData = (univId = "univ-1") => {
+    const allTeams = universityMockService.getTeams(univId);
     setTeams(allTeams);
 
-    const registered = universityMockService.getRegisteredProblemsForUniversity("univ-1");
+    const registered = universityMockService.getRegisteredProblemsForUniversity(univId);
     setRegisteredDetails(registered);
   };
 
@@ -92,6 +103,7 @@ export default function TeamsPage() {
       .filter((s) => s.length > 0);
 
     const created = universityMockService.createTeam({
+      universityId: universityId,
       name: newTeamName.trim(),
       facultyMentor: newFacultyMentor.trim(),
       studentMembers: students,
@@ -100,7 +112,7 @@ export default function TeamsPage() {
 
     if (newAssignedProblemId) {
       try {
-        universityMockService.assignTeamToProblem(created.id, newAssignedProblemId, "univ-1");
+        universityMockService.assignTeamToProblem(created.id, newAssignedProblemId, universityId);
       } catch (err: any) {
         console.error(err);
       }
@@ -113,7 +125,7 @@ export default function TeamsPage() {
     setNewRequiredSkills("");
     setNewAssignedProblemId("");
     setIsCreateModalOpen(false);
-    loadData();
+    loadData(universityId);
   };
 
   const handleAssignTeamSubmit = (e: React.FormEvent) => {
@@ -127,13 +139,13 @@ export default function TeamsPage() {
     }
 
     try {
-      universityMockService.assignTeamToProblem(selectedTeamIdToAssign, assignModalProblem.id, "univ-1");
+      universityMockService.assignTeamToProblem(selectedTeamIdToAssign, assignModalProblem.id, universityId);
       setAssignSuccess(`Team successfully assigned to "${assignModalProblem.title}"!`);
       setTimeout(() => {
         setAssignModalProblem(null);
         setSelectedTeamIdToAssign("");
         setAssignSuccess("");
-        loadData();
+        loadData(universityId);
       }, 1500);
     } catch (err: any) {
       setAssignError(err.message || "Failed to assign team.");
@@ -146,7 +158,7 @@ export default function TeamsPage() {
 
     universityMockService.addTeamMember(teamId, name);
     setAddMemberName((prev) => ({ ...prev, [teamId]: "" }));
-    loadData();
+    loadData(universityId);
   };
 
   const problemsNeedingTeams = registeredDetails.filter((r) => !r.team);
@@ -383,7 +395,7 @@ export default function TeamsPage() {
                 </label>
                 <div className="space-y-3 max-h-72 overflow-y-auto border border-brandgray-border rounded p-3">
                   {(() => {
-                    const teamRecs = universityMockService.getTeamRecommendationsForProblem(assignModalProblem.id, "univ-1");
+                    const teamRecs = universityMockService.getTeamRecommendationsForProblem(assignModalProblem.id, universityId);
                     if (teamRecs.length === 0) {
                       return <p className="text-xs text-brandgray-muted text-center py-4">No active available research teams match this problem requirements.</p>;
                     }

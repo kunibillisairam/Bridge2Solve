@@ -31,6 +31,8 @@ import { notificationService, formatRelativeTime } from "@/services/notification
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
+import { useAuth } from "@/context/AuthContext";
+
 const PRIORITY_BADGES = {
   High: "bg-red-50 text-red-700 border-red-200",
   Medium: "bg-amber-50 text-amber-700 border-amber-200",
@@ -45,6 +47,9 @@ const STATUS_BADGES = {
 };
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const universityId = user?.profile?.universityDetails?.id || "univ-1";
+
   const [recommendedProblems, setRecommendedProblems] = useState<CommunityProblem[]>([]);
   const [registeredDetails, setRegisteredDetails] = useState<RegisteredProblemDetail[]>([]);
   const [teams, setTeams] = useState<UniversityTeam[]>([]);
@@ -52,17 +57,22 @@ export default function DashboardPage() {
   const [activities, setActivities] = useState<ActivityLog[]>([]);
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    if (user) {
+      if (user.profile?.universityDetails) {
+        universityMockService.registerCustomUniversity(user.profile.universityDetails, user.profile);
+      }
+      loadDashboardData(user.profile?.universityDetails?.id || "univ-1");
+    }
+  }, [user]);
 
-  const loadDashboardData = () => {
-    const recs = universityMockService.getUnregisteredRecommendedProblems("univ-1");
-    const registered = universityMockService.getRegisteredProblemsForUniversity("univ-1");
+  const loadDashboardData = (univId: string) => {
+    const recs = universityMockService.getUnregisteredRecommendedProblems(univId);
+    const registered = universityMockService.getRegisteredProblemsForUniversity(univId);
 
     setRecommendedProblems(recs);
     setRegisteredDetails(registered);
-    setTeams(universityMockService.getTeams());
-    setProposals(universityMockService.getProposals("univ-1"));
+    setTeams(universityMockService.getTeams(univId));
+    setProposals(universityMockService.getProposals(univId));
     setActivities(universityMockService.getActivities());
   };
 
@@ -70,7 +80,7 @@ export default function DashboardPage() {
   const registeredCount = registeredDetails.length;
   const teamFormationPendingCount = registeredDetails.filter((r) => !r.team).length;
   const proposalsSubmittedCount = proposals.filter((p) => p.status === "SUBMITTED" || p.status === "UNDER_REVIEW" || p.status === "ACCEPTED").length;
-  const activeProjectsCount = universityMockService.getProjects().length;
+  const activeProjectsCount = universityMockService.getProjectsForUniversity(universityId).length;
 
   return (
     <div className="space-y-8">
@@ -84,7 +94,7 @@ export default function DashboardPage() {
 
       {/* ACTION REQUIRED & UNIVERSITY NOTIFICATIONS */}
       {(() => {
-        const univNotifs = notificationService.getNotificationsForUser("univ-1", "UNIVERSITY");
+        const univNotifs = notificationService.getNotificationsForUser(universityId, "UNIVERSITY");
         const actionRequired = univNotifs.filter((n) => n.isActionRequired);
         if (univNotifs.length === 0) return null;
 
@@ -209,15 +219,22 @@ export default function DashboardPage() {
 
             {recommendedProblems.length === 0 ? (
               <Card className="border-brandgray-border shadow-subtle bg-white">
-                <CardContent className="p-8 text-center space-y-2">
-                  <p className="text-sm font-semibold text-primary">You&apos;re all caught up!</p>
-                  <p className="text-xs text-brandgray-muted">No new recommended problems currently matching your university.</p>
+                <CardContent className="p-8 text-center space-y-4">
+                  <div className="space-y-1">
+                    <p className="text-sm font-bold text-primary">No new community problems match your institution yet.</p>
+                    <p className="text-xs text-brandgray-muted">Once nearby citizen problems are validated, relevant challenges will appear here.</p>
+                  </div>
+                  <Link href="/university/problems">
+                    <Button variant="outline" size="sm" className="font-bold text-xs">
+                      Explore All Problems
+                    </Button>
+                  </Link>
                 </CardContent>
               </Card>
             ) : (
               <div className="space-y-4">
                 {recommendedProblems.slice(0, 2).map((problem) => {
-                  const rec = universityMockService.getRecommendationForUniversity(problem.id, "univ-1");
+                  const rec = universityMockService.getRecommendationForUniversity(problem.id, universityId);
                   const matchScore = rec ? rec.score : problem.matchScore;
 
                   return (
@@ -291,8 +308,8 @@ export default function DashboardPage() {
             {registeredDetails.length === 0 ? (
               <Card className="border-brandgray-border shadow-subtle bg-white">
                 <CardContent className="p-8 text-center space-y-2">
-                  <p className="text-sm font-semibold text-primary">No Registered Problems</p>
-                  <p className="text-xs text-brandgray-muted">You haven&apos;t registered interest in any problems yet. Explore recommended problems to find opportunities.</p>
+                  <p className="text-sm font-bold text-primary">No problems registered yet.</p>
+                  <p className="text-xs text-brandgray-muted">Express interest in a relevant community problem to start a project.</p>
                 </CardContent>
               </Card>
             ) : (
@@ -356,7 +373,7 @@ export default function DashboardPage() {
                             </div>
                             
                             {(() => {
-                              const recs = universityMockService.getTeamRecommendationsForProblem(problem.id, "univ-1");
+                              const recs = universityMockService.getTeamRecommendationsForProblem(problem.id, universityId);
                               if (recs.length === 0) return null;
                               const best = recs[0];
                               return (

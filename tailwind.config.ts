@@ -25,7 +25,7 @@ const config: Config = {
           light: "#FEF3C7",
         },
         brandgray: {
-          light: "#F9FAFB",   // standard light gray background
+          light: "#FAF8F2",   // light cream background
           border: "#E5E7EB",  // standard border gray
           text: "#1F2937",    // dark gray for readable body text
           muted: "#6B7280",   // muted text gray

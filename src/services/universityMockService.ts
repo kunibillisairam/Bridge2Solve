@@ -1635,7 +1635,73 @@ export const universityMockService = {
     const registeredProblemIds = new Set(interests.map((i) => i.problemId));
 
     const allProblems = this.getProblems();
-    return allProblems.filter((p) => !registeredProblemIds.has(p.id));
+    const unregisteredProblems = allProblems.filter((p) => !registeredProblemIds.has(p.id));
+
+    const seedUniversityIds = ["univ-1", "univ-2", "univ-3", "univ-4", "univ-5"];
+    if (seedUniversityIds.includes(universityId)) {
+      return unregisteredProblems;
+    }
+
+    // For newly registered custom universities, filter based on relevance:
+    const universities = this.getUniversities();
+    const u = universities.find(univ => univ.id === universityId);
+    if (!u) {
+      return [];
+    }
+
+    return unregisteredProblems.filter(p => {
+      // Must be validated by admin (which translates to "Interested" status in the mock system)
+      if (p.status !== "Interested") {
+        return false;
+      }
+      
+      const rec = this.getRecommendationForUniversity(p.id, universityId);
+      if (!rec) return false;
+
+      // Geographically relevant (same state or district) AND domain relevant (match score >= 50)
+      const sameDistrict = u.district.toLowerCase() === p.district.toLowerCase();
+      const sameState = u.state.toLowerCase() === p.state.toLowerCase();
+      const score = rec.score;
+      const isDomainRelevant = score >= 50;
+
+      return (sameDistrict || sameState) && isDomainRelevant;
+    });
+  },
+
+  getUniversities(): any[] {
+    const custom = getStoredData<any[]>("uni_custom_universities", []);
+    const merged = [...DEMO_UNIVERSITIES];
+    for (const c of custom) {
+      if (!merged.some(u => u.id === c.id)) {
+        merged.push(c);
+      }
+    }
+    return merged;
+  },
+
+  registerCustomUniversity(details: any, profile: any): void {
+    if (!details || !details.id) return;
+    const custom = getStoredData<any[]>("uni_custom_universities", []);
+    if (!custom.some(u => u.id === details.id)) {
+      const parts = (details.location || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+      const state = details.state || (parts.length > 1 ? parts[1] : profile.state) || "";
+      const district = details.district || (parts.length > 0 ? parts[0] : profile.district) || "";
+      const newUniv = {
+        id: details.id,
+        name: details.name,
+        location: details.location || `${district}, ${state}`,
+        state: state,
+        district: district,
+        departments: [profile.department || "General Engineering", "Research & Development"],
+        researchAreas: ["Urban Drainage", "Water Treatment", "Renewable Energy", "Environmental Engineering"],
+        expertise: ["Sustainable Solutions", "Community Development"],
+        facilities: ["Advanced Engineering Labs"],
+        previousProjects: [],
+        status: "ACTIVE"
+      };
+      custom.push(newUniv);
+      setStoredData("uni_custom_universities", custom);
+    }
   },
 
   getRegisteredProblemsForUniversity(universityId = "univ-1"): RegisteredProblemDetail[] {
@@ -2015,8 +2081,12 @@ export const universityMockService = {
   },
 
   // Teams API
-  getTeams(): UniversityTeam[] {
-    return getStoredData<UniversityTeam[]>("uni_teams", INITIAL_TEAMS);
+  getTeams(universityId?: string): UniversityTeam[] {
+    const all = getStoredData<UniversityTeam[]>("uni_teams", INITIAL_TEAMS);
+    if (universityId) {
+      return all.filter(t => t.universityId === universityId);
+    }
+    return all;
   },
 
   createTeam(teamData: Omit<UniversityTeam, "id" | "status" | "assignedProblemId" | "assignedProblemTitle">): UniversityTeam {
@@ -2443,6 +2513,26 @@ export const universityMockService = {
   // Projects API
   getProjects(): UniversityProject[] {
     return getStoredData<UniversityProject[]>("uni_projects", INITIAL_PROJECTS);
+  },
+
+  getProjectsForUniversity(universityId = "univ-1"): UniversityProject[] {
+    const allProjects = this.getProjects();
+    const seedUniversityIds = ["univ-1", "univ-2", "univ-3", "univ-4", "univ-5"];
+    if (seedUniversityIds.includes(universityId)) {
+      return allProjects;
+    }
+    
+    // For custom universities, filter by checking teamId or proposalId
+    const univProposals = this.getAllProposalsForAdmin().filter(p => p.universityId === universityId);
+    const univProposalIds = new Set(univProposals.map(p => p.id));
+    const univTeams = this.getTeams().filter(t => t.universityId === universityId);
+    const univTeamIds = new Set(univTeams.map(t => t.id));
+
+    return allProjects.filter(
+      (proj) => 
+        (proj.proposalId && univProposalIds.has(proj.proposalId)) || 
+        (proj.teamId && univTeamIds.has(proj.teamId))
+    );
   },
 
   getProjectById(id: string): UniversityProject | undefined {

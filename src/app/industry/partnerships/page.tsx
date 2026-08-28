@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -52,7 +52,7 @@ export default function IndustryPartnershipsPage() {
     const rawList = industryService.getPartnershipsForIndustry(indId);
     const resolved = rawList.map(p => ({
       ...p,
-      project: industryService.getEligibleProjectById(p.projectId)
+      project: industryService.getEligibleProjectById(p.projectId, indId)
     }));
     setPartnerships(resolved);
 

@@ -49,7 +49,7 @@ export default function IndustryProjectsPage() {
   }, [activeTab]);
 
   const loadData = () => {
-    const eligible = industryService.getEligibleProjects();
+    const eligible = industryService.getEligibleProjects(industryId);
     const myRequests = industryService.getSupportRequestsForIndustry(industryId);
     const interestIds = new Set(myRequests.map((r) => r.projectId));
     setMyInterestProjectIds(interestIds);
@@ -295,12 +295,29 @@ export default function IndustryProjectsPage() {
         <Card className="border-brandgray-border shadow-subtle bg-white">
           <CardContent className="p-8 text-center space-y-3 max-w-xl mx-auto">
             <Search className="h-8 w-8 mx-auto text-slate-300" />
-            <p className="text-sm font-bold text-primary">No Projects Found</p>
-            <p className="text-xs text-brandgray-muted leading-relaxed">
-              No collaborative research projects currently match your active search terms, category filters, or match suitability preferences.
+            <p className="text-sm font-bold text-primary">
+              {activeTab === "recommended" 
+                ? "No projects are currently matched to your organization."
+                : activeTab === "all" 
+                ? "No eligible projects are available yet."
+                : activeTab === "my_interests"
+                ? "You haven't expressed interest in any project yet."
+                : activeTab === "my_partnerships"
+                ? "No active CSR partnerships yet."
+                : "No Projects Found"
+              }
             </p>
-            <p className="text-[11px] font-bold text-primary">
-              What next: Click the &apos;Clear Filters&apos; button to reset the search parameters, choose &apos;All Categories&apos;, or browse all projects to see upcoming CSR collaboration opportunities.
+            <p className="text-xs text-brandgray-muted leading-relaxed">
+              {activeTab === "recommended" 
+                ? "Validated community projects relevant to your CSR focus will appear here."
+                : activeTab === "all"
+                ? "No eligible projects are available yet."
+                : activeTab === "my_interests"
+                ? "You haven't expressed interest in any project yet."
+                : activeTab === "my_partnerships"
+                ? "No active CSR partnerships yet."
+                : "No collaborative research projects currently match your active search terms, category filters, or match suitability preferences."
+              }
             </p>
           </CardContent>
         </Card>

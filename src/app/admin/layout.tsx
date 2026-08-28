@@ -94,7 +94,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     : 0;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-brandgray-light">
       {/* Sticky Admin Header */}
       <div className="bg-primary text-white sticky top-16 z-40 shadow-subtle border-b border-primary/20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

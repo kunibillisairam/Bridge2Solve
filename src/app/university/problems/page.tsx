@@ -22,6 +22,8 @@ import {
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
+import { useAuth } from "@/context/AuthContext";
+
 const PRIORITY_BADGES = {
   High: "bg-red-50 text-red-700 border-red-200",
   Medium: "bg-amber-50 text-amber-700 border-amber-200",
@@ -38,6 +40,8 @@ const STATUS_BADGES = {
 export default function ProblemsPage() {
   const searchParams = useSearchParams();
   const initialTab = searchParams.get("tab") || "all";
+  const { user } = useAuth();
+  const universityId = user?.profile?.universityDetails?.id || "univ-1";
 
   const [activeTab, setActiveTab] = useState<"all" | "recommended" | "my_problems">(
     initialTab === "recommended" ? "recommended" : initialTab === "my_problems" ? "my_problems" : "all"
@@ -53,13 +57,18 @@ export default function ProblemsPage() {
   const [selectedPriority, setSelectedPriority] = useState("All");
 
   useEffect(() => {
-    loadProblemsData();
-  }, [activeTab]);
+    if (user) {
+      if (user.profile?.universityDetails) {
+        universityMockService.registerCustomUniversity(user.profile.universityDetails, user.profile);
+      }
+      loadProblemsData(user.profile?.universityDetails?.id || "univ-1");
+    }
+  }, [user, activeTab]);
 
-  const loadProblemsData = () => {
+  const loadProblemsData = (univId: string) => {
     const all = universityMockService.getProblems();
-    const unregistered = universityMockService.getUnregisteredRecommendedProblems("univ-1");
-    const registered = universityMockService.getRegisteredProblemsForUniversity("univ-1").map((r) => r.problem);
+    const unregistered = universityMockService.getUnregisteredRecommendedProblems(univId);
+    const registered = universityMockService.getRegisteredProblemsForUniversity(univId).map((r) => r.problem);
 
     if (activeTab === "recommended") {
       setProblems(unregistered);
@@ -143,7 +152,7 @@ export default function ProblemsPage() {
               : "border-transparent text-brandgray-muted hover:text-brandgray-text"
           }`}
         >
-          <Sparkles className="h-3.5 w-3.5 text-primary" /> Recommended ({universityMockService.getUnregisteredRecommendedProblems("univ-1").length})
+          <Sparkles className="h-3.5 w-3.5 text-primary" /> Recommended ({universityMockService.getUnregisteredRecommendedProblems(universityId).length})
         </button>
         <button
           onClick={() => setActiveTab("my_problems")}
@@ -153,7 +162,7 @@ export default function ProblemsPage() {
               : "border-transparent text-brandgray-muted hover:text-brandgray-text"
           }`}
         >
-          <Layers className="h-3.5 w-3.5 text-primary" /> My Registered Problems ({universityMockService.getRegisteredProblemsForUniversity("univ-1").length})
+          <Layers className="h-3.5 w-3.5 text-primary" /> My Registered Problems ({universityMockService.getRegisteredProblemsForUniversity(universityId).length})
         </button>
       </div>
 
@@ -224,32 +233,25 @@ export default function ProblemsPage() {
         <div className="text-center py-12 bg-white rounded-lg border border-brandgray-border p-6 space-y-3 shadow-subtle max-w-2xl mx-auto">
           <p className="text-sm font-bold text-primary">
             {activeTab === "recommended" 
-              ? "No Recommended Problems Found" 
+              ? "No new community problems match your institution yet." 
               : activeTab === "my_problems" 
-              ? "No Registered Problems Found" 
+              ? "No problems registered yet." 
               : "No Problems Found"}
           </p>
           <p className="text-xs text-brandgray-muted leading-relaxed">
             {activeTab === "recommended"
-              ? "There are currently no unassigned community problems matching your university profile's research focus or expertise tags. This happens when all matching problems are already assigned or validated under other categories."
+              ? "Once nearby citizen problems are validated, relevant challenges will appear here."
               : activeTab === "my_problems"
-              ? "You have not expressed interest or registered your research team for any community problems yet. A project can only be created once you register interest and submit a proposal."
-              : "No community problems match your active search keyword, category, state, or priority filter combinations."}
-          </p>
-          <p className="text-[11px] font-bold text-primary">
-            {activeTab === "recommended"
-              ? "What next: Try browsing the \"All Problems\" tab to explore other challenges, update your university profile's research expertise tags, or check back later."
-              : activeTab === "my_problems"
-              ? "What next: Visit the \"Recommended\" or \"All Problems\" tabs, choose a challenge matching your research interest, and click \"Register Interest\"."
-              : "What next: Adjust your search terms, select \"All Categories\" / \"All States\", or click the \"Clear Filters\" button above to reset."}
+              ? "Express interest in a relevant community problem to start a project."
+              : "No community problems match your active search combination."}
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredProblems.map((problem) => {
-            const interest = universityMockService.getInterestForProblem(problem.id, "univ-1");
+            const interest = universityMockService.getInterestForProblem(problem.id, universityId);
             const isRegistered = !!interest && interest.status !== "WITHDRAWN";
-            const rec = universityMockService.getRecommendationForUniversity(problem.id, "univ-1");
+            const rec = universityMockService.getRecommendationForUniversity(problem.id, universityId);
             const matchScore = rec ? rec.score : problem.matchScore;
 
             return (

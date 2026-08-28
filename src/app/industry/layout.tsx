@@ -63,7 +63,7 @@ export default function IndustryLayout({ children }: { children: React.ReactNode
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-brandgray-light">
       {/* Sub-navigation bar for Industry portal */}
       <div className="bg-white border-b border-brandgray-border sticky top-16 z-40 shadow-subtle">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

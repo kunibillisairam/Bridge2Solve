@@ -32,6 +32,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
+import { useAuth } from "@/context/AuthContext";
+
 const STATUS_BADGES = {
   DRAFT: "bg-slate-50 text-slate-700 border-slate-200",
   SUBMITTED: "bg-blue-50 text-blue-700 border-blue-150",
@@ -45,6 +47,8 @@ interface ProposalWithProject extends ResolvedProposal {
 }
 
 export default function ProposalsPage() {
+  const { user } = useAuth();
+  const universityId = user?.profile?.universityDetails?.id || "univ-1";
   const searchParams = useSearchParams();
   const [proposals, setProposals] = useState<ProposalWithProject[]>([]);
   const [eligibleProblems, setEligibleProblems] = useState<CommunityProblem[]>([]);
@@ -69,16 +73,21 @@ export default function ProposalsPage() {
   const [formActionType, setFormActionType] = useState<"draft" | "submit" | null>(null);
 
   useEffect(() => {
-    loadData();
+    if (user) {
+      if (user.profile?.universityDetails) {
+        universityMockService.registerCustomUniversity(user.profile.universityDetails, user.profile);
+      }
+      loadData(user.profile?.universityDetails?.id || "univ-1");
+    }
     const prepopulateProblemId = searchParams.get("createForProblemId");
     if (prepopulateProblemId) {
       setProblemId(prepopulateProblemId);
       setMode('create');
     }
-  }, [searchParams]);
+  }, [user, searchParams]);
 
-  const loadData = () => {
-    const rawProposals = universityMockService.getProposals("univ-1");
+  const loadData = (univId: string) => {
+    const rawProposals = universityMockService.getProposals(univId);
     const resolved = rawProposals.map((p) => {
       const res = universityMockService.resolveProposal(p);
       const proj = universityMockService.getProjectForProposal(p.id);
@@ -86,13 +95,13 @@ export default function ProposalsPage() {
     });
     setProposals(resolved);
 
-    const eligible = universityMockService.getEligibleProblemsForProposals("univ-1");
+    const eligible = universityMockService.getEligibleProblemsForProposals(univId);
     setEligibleProblems(eligible);
   };
 
   useEffect(() => {
     if (problemId) {
-      const teamsForProb = universityMockService.getTeamsForProblem(problemId, "univ-1");
+      const teamsForProb = universityMockService.getTeamsForProblem(problemId, universityId);
       setAvailableTeams(teamsForProb);
       if (teamsForProb.length > 0 && (!teamId || !teamsForProb.some(t => t.id === teamId))) {
         setTeamId(teamsForProb[0].id);
@@ -101,7 +110,7 @@ export default function ProposalsPage() {
       setAvailableTeams([]);
       setTeamId("");
     }
-  }, [problemId]);
+  }, [problemId, universityId]);
 
   const handleOpenCreate = () => {
     setEditingId(undefined);
@@ -158,7 +167,7 @@ export default function ProposalsPage() {
           resourceRequirements: resourceRequirements.trim(),
         },
         isSubmit,
-        "univ-1"
+        universityId
       );
 
       setSuccessMessage(
@@ -170,7 +179,7 @@ export default function ProposalsPage() {
 
       setMode("list");
       setSelectedProposal(null);
-      loadData();
+      loadData(universityId);
     } catch (err: any) {
       setFormError(err.message || "Failed to save proposal.");
     } finally {

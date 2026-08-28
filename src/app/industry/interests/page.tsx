@@ -45,7 +45,7 @@ export default function IndustryInterestsPage() {
     const raw = industryService.getSupportRequestsForIndustry(indId);
     const resolved = raw.map((r) => ({
       ...r,
-      project: industryService.getEligibleProjectById(r.projectId),
+      project: industryService.getEligibleProjectById(r.projectId, indId),
     }));
     setRequests(resolved);
   };

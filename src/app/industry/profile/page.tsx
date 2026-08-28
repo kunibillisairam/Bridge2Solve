@@ -18,8 +18,12 @@ import {
 } from "@/services/industryService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { useAuth } from "@/context/AuthContext";
 
 export default function IndustryProfilePage() {
+  const { user } = useAuth();
+  const industryId = user?.profile?.industryDetails?.id || "ind-1";
+
   const [profile, setProfile] = useState<IndustryOrganizationProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -37,11 +41,13 @@ export default function IndustryProfilePage() {
   const [savedSuccess, setSavedSuccess] = useState("");
 
   useEffect(() => {
-    loadProfile();
-  }, []);
+    if (industryId) {
+      loadProfile(industryId);
+    }
+  }, [industryId]);
 
-  const loadProfile = () => {
-    const p = industryService.getProfile("ind-1");
+  const loadProfile = (indId: string) => {
+    const p = industryService.getProfile(indId);
     setProfile(p);
     setName(p.name);
     setRepresentativeName(p.representativeName);

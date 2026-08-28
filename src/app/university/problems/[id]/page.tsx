@@ -30,6 +30,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
+import { useAuth } from "@/context/AuthContext";
+
 const PRIORITY_BADGES = {
   High: "bg-red-50 text-red-700 border-red-200",
   Medium: "bg-amber-50 text-amber-700 border-amber-200",
@@ -45,6 +47,8 @@ const STATUS_BADGES = {
 };
 
 export default function ProblemDetailsPage() {
+  const { user } = useAuth();
+  const universityId = user?.profile?.universityDetails?.id || "univ-1";
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [problem, setProblem] = useState<CommunityProblem | null>(null);
@@ -65,7 +69,7 @@ export default function ProblemDetailsPage() {
     if (probData) {
       setProblem(probData);
       
-      const interestData = universityMockService.getInterestForProblem(problemId);
+      const interestData = universityMockService.getInterestForProblem(problemId, universityId);
       setInterest(interestData || null);
 
       const teamData = universityMockService.getAssignedTeamForProblem(problemId);
@@ -79,7 +83,7 @@ export default function ProblemDetailsPage() {
 
   const handleExpressInterest = () => {
     if (!problem) return;
-    const newInterest = universityMockService.expressInterest(problem.id);
+    const newInterest = universityMockService.expressInterest(problem.id, universityId, user?.profile?.universityName || undefined);
     
     setInterest(newInterest);
     const updated = universityMockService.getProblemById(problem.id);
@@ -113,8 +117,8 @@ export default function ProblemDetailsPage() {
   }
 
   const isInterestedOrAssigned = !!interest || problem.status !== "Unassigned";
-  const rec = universityMockService.getRecommendationForUniversity(problem.id, "univ-1");
-  const proposal = universityMockService.getProposals("univ-1").find((p) => p.problemId === problem.id);
+  const rec = universityMockService.getRecommendationForUniversity(problem.id, universityId);
+  const proposal = universityMockService.getProposals(universityId).find((p) => p.problemId === problem.id);
 
   return (
     <div className="space-y-6">

@@ -269,6 +269,28 @@ export const industryService = {
   // Profile API
   // ----------------------------------------------------
   getProfile(industryId = "ind-1"): IndustryOrganizationProfile {
+    const seededIds = ["ind-1", "ind-2", "ind-3", "ind-4", "ind-5", "ind-suspended"];
+    if (!seededIds.includes(industryId)) {
+      const stored = typeof window !== "undefined" ? localStorage.getItem(`ind_profile_${industryId}`) : null;
+      if (stored) {
+        return JSON.parse(stored);
+      }
+      return {
+        id: industryId,
+        name: "New Corporate CSR Partner",
+        orgType: "Corporate CSR",
+        representativeName: "Representative",
+        email: "",
+        phone: "",
+        location: "Chennai, Tamil Nadu",
+        state: "Tamil Nadu",
+        district: "Chennai",
+        website: "",
+        csrFocusAreas: [],
+        expertise: [],
+        availableResources: []
+      };
+    }
     return getStoredData<IndustryOrganizationProfile>(`ind_profile_${industryId}`, INITIAL_INDUSTRY_PROFILE);
   },
 
@@ -280,11 +302,18 @@ export const industryService = {
   // ----------------------------------------------------
   // Eligible Projects API
   // ----------------------------------------------------
-  getEligibleProjects(): ResolvedProject[] {
+  getEligibleProjects(industryId = "ind-1"): ResolvedProject[] {
     const rawProjects = universityMockService.getProjects();
     const resolved: ResolvedProject[] = [];
 
+    const seededIds = ["ind-1", "ind-2", "ind-3", "ind-4", "ind-5", "ind-suspended"];
+    const isNewIndustry = !seededIds.includes(industryId);
+
     for (const proj of rawProjects) {
+      // Exclude seeded projects for new industry organizations
+      if (isNewIndustry && ["PB-2026-001", "PB-2026-002", "PB-2026-003", "PB-2026-004", "PB-2026-005"].includes(proj.id)) {
+        continue;
+      }
       const res = universityMockService.resolveProject(proj);
       if (res) {
         resolved.push(res);
@@ -294,7 +323,14 @@ export const industryService = {
     return resolved;
   },
 
-  getEligibleProjectById(projectId: string): ResolvedProject | undefined {
+  getEligibleProjectById(projectId: string, industryId = "ind-1"): ResolvedProject | undefined {
+    const seededIds = ["ind-1", "ind-2", "ind-3", "ind-4", "ind-5", "ind-suspended"];
+    const isNewIndustry = !seededIds.includes(industryId);
+
+    if (isNewIndustry && ["PB-2026-001", "PB-2026-002", "PB-2026-003", "PB-2026-004", "PB-2026-005"].includes(projectId)) {
+      return undefined;
+    }
+
     const raw = universityMockService.getProjectById(projectId);
     if (!raw) return undefined;
     return universityMockService.resolveProject(raw);
@@ -303,14 +339,125 @@ export const industryService = {
   // ----------------------------------------------------
   // Smart Industry Matching API
   // ----------------------------------------------------
+  getAllIndustryProfilesForMatching(): any[] {
+    const baseline = [
+      {
+        id: "ind-1",
+        name: "Tata Steel CSR Foundation",
+        orgType: "Corporate CSR Foundation",
+        location: "Jamshedpur, Jharkhand",
+        state: "Jharkhand",
+        district: "Ranchi",
+        expertise: ["Groundwater infrastructure", "Community water tanks", "Sanitation engineering", "Water Infrastructure", "IoT", "Environmental Engineering"],
+        technologyCapabilities: ["Water Quality Sensors", "Piping Systems", "Civil Construction"],
+        csrFocusAreas: ["Water & Sanitation", "Rural Infrastructure", "Public Health", "Water", "Rural Development"],
+        resources: ["CSR Funding", "CSR Grants", "Civil Construction Engineers", "Heavy Earth Equipment", "Infrastructure Deployment"],
+        previousProjects: ["Ranchi Rural Sand Filter Deployment", "Water Infrastructure Project", "Chota Nagpur Water Network"],
+        status: "ACTIVE"
+      },
+      {
+        id: "ind-2",
+        name: "ABC Infrastructure Foundation",
+        orgType: "Infrastructure & Engineering CSR",
+        location: "Ranchi, Jharkhand",
+        state: "Jharkhand",
+        district: "Ranchi",
+        expertise: ["Infrastructure Deployment", "Civil Works", "Water Systems", "Solar Installation"],
+        technologyCapabilities: ["Concrete Engineering", "Solar Rooftops"],
+        csrFocusAreas: ["Infrastructure", "Rural Development", "Water", "Renewable Energy"],
+        resources: ["CSR Funding", "Equipment / Resources", "Infrastructure Deployment"],
+        previousProjects: ["Rural Drinking Water Station", "School Solar Rooftop Grid"],
+        status: "ACTIVE"
+      },
+      {
+        id: "ind-3",
+        name: "XYZ Technologies CSR",
+        orgType: "Technology & IT Enterprise",
+        location: "Bengaluru, Karnataka",
+        state: "Karnataka",
+        district: "Bengaluru",
+        expertise: ["IoT", "Software Systems", "Technical Mentorship", "AI/YOLO Sorting", "E-learning Hardware"],
+        technologyCapabilities: ["Cloud Systems", "Microcontrollers", "YOLO AI Models"],
+        csrFocusAreas: ["Education", "Technology", "Digital Literacy", "Environment"],
+        resources: ["Technical Mentorship", "Equipment / Resources", "Software Licenses", "Laptops"],
+        previousProjects: ["Mayurbhanj Offline Learning Tablet Deployment", "Smart Garbage Sensor Grid"],
+        status: "ACTIVE"
+      },
+      {
+        id: "ind-4",
+        name: "EcoSoil Agri-Tech CSR",
+        orgType: "Agri-Business Enterprise",
+        location: "Ludhiana, Punjab",
+        state: "Punjab",
+        district: "Sangrur",
+        expertise: ["Soil Bioremediation", "Organic Agriculture", "Water Management"],
+        technologyCapabilities: ["Soil Sensor Arrays", "Bio-fertilizer Formulations"],
+        csrFocusAreas: ["Agriculture", "Environment", "Rural Development", "Soil Health"],
+        resources: ["CSR Funding", "Equipment / Resources", "Bio-fertilizers", "Agriculture Experts"],
+        previousProjects: ["Sangrur Soil Salinity Recovery Campaign"],
+        status: "ACTIVE"
+      },
+      {
+        id: "ind-suspended",
+        name: "Suspended Corp CSR",
+        orgType: "Corporation",
+        location: "Ranchi, Jharkhand",
+        state: "Jharkhand",
+        district: "Ranchi",
+        expertise: ["Water Engineering"],
+        technologyCapabilities: [],
+        csrFocusAreas: ["Water"],
+        resources: ["Other"],
+        previousProjects: [],
+        status: "SUSPENDED"
+      }
+    ];
+
+    if (typeof window === "undefined") return baseline;
+
+    const keys = Object.keys(localStorage);
+    const dynamic: any[] = [];
+    keys.forEach(k => {
+      if (k.startsWith("ind_profile_")) {
+        const id = k.replace("ind_profile_", "");
+        if (!["ind-1", "ind-2", "ind-3", "ind-4", "ind-5", "ind-suspended"].includes(id)) {
+          try {
+            const data = JSON.parse(localStorage.getItem(k) || "{}");
+            if (data && data.id) {
+              dynamic.push({
+                id: data.id,
+                name: data.name,
+                orgType: data.orgType || "Corporate CSR",
+                location: data.location || "",
+                state: data.state || "",
+                district: data.district || "",
+                expertise: data.expertise || [],
+                technologyCapabilities: data.availableResources || [],
+                csrFocusAreas: data.csrFocusAreas || [],
+                resources: data.availableResources || [],
+                previousProjects: [],
+                status: "ACTIVE"
+              });
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+    });
+
+    return [...baseline, ...dynamic];
+  },
+
   getIndustryRecommendationsForProject(projectId: string): IndustryMatchResult[] {
     const project = this.getEligibleProjectById(projectId);
     if (!project) return [];
 
     const problemAnalysis = universityMockService.getProblemAnalysis(project.originalProblem.id);
     const activeRequests = this.getSupportRequestsForProject(projectId);
+    const profiles = this.getAllIndustryProfilesForMatching();
 
-    return getIndustryRecommendationsForProject(project, problemAnalysis, activeRequests);
+    return getIndustryRecommendationsForProject(project, problemAnalysis, activeRequests, profiles);
   },
 
   getMatchForIndustryAndProject(projectId: string, industryId = "ind-1"): IndustryMatchResult | undefined {

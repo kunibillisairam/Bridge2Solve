@@ -72,7 +72,7 @@ export default function IndustryProjectDetailPage() {
   }, [projectId, industryId]);
 
   const loadProjectDetails = (indId: string) => {
-    const p = industryService.getEligibleProjectById(projectId);
+    const p = industryService.getEligibleProjectById(projectId, indId);
     if (p) {
       setProject(p);
       const reqs = industryService.getSupportRequestsForProject(projectId).filter((r) => r.industryId === indId);

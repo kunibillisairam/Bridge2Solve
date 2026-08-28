@@ -59,7 +59,7 @@ export default function IndustryDashboard() {
     const prof = industryService.getProfile(indId);
     setProfile(prof);
 
-    const eligible = industryService.getEligibleProjects();
+    const eligible = industryService.getEligibleProjects(indId);
     setProjects(eligible);
 
     const m = industryService.getIndustryDashboardMetrics(indId);
@@ -95,7 +95,7 @@ export default function IndustryDashboard() {
 
       {/* ACTION REQUIRED & INDUSTRY NOTIFICATIONS */}
       {(() => {
-        const indNotifs = notificationService.getNotificationsForUser("ind-1", "INDUSTRY");
+        const indNotifs = notificationService.getNotificationsForUser(industryId, "INDUSTRY");
         if (indNotifs.length === 0) return null;
 
         return (

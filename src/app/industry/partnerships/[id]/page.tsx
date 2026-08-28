@@ -71,7 +71,7 @@ export default function PartnershipDetailPage() {
     setIsUnauthorized(false);
     setPartnership(p);
     
-    const proj = industryService.getEligibleProjectById(p.projectId);
+    const proj = industryService.getEligibleProjectById(p.projectId, industryId);
     if (proj) setProject(proj);
 
     const prof = industryService.getProfile(p.industryId);

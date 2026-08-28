@@ -57,14 +57,16 @@ export default function UniversityLayout({
     return null; // Will redirect in useEffect
   }
 
+  const universityId = user?.profile?.universityDetails?.id || "univ-1";
+
   const teamFormationPendingCount = mounted
-    ? universityMockService.getProblems().filter(
-        (p) => p.status === "Interested" && !universityMockService.getAssignedTeamForProblem(p.id)
+    ? universityMockService.getRegisteredProblemsForUniversity(universityId).filter(
+        (r) => !r.team
       ).length
     : 0;
 
   const draftProposalsCount = mounted
-    ? universityMockService.getProposals("univ-1").filter((p) => p.status === "DRAFT").length
+    ? universityMockService.getProposals(universityId).filter((p) => p.status === "DRAFT").length
     : 0;
 
   const navItems = [
