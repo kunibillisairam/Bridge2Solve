@@ -59,17 +59,17 @@ export default function ProblemDetailsPage() {
   const [interestSuccess, setInterestSuccess] = useState(false);
 
   useEffect(() => {
-    if (id) {
-      loadProblemDetails(id);
+    if (id && universityId) {
+      loadProblemDetails(id, universityId);
     }
-  }, [id]);
+  }, [id, universityId]);
 
-  const loadProblemDetails = (problemId: string) => {
-    const probData = universityMockService.getProblemById(problemId);
+  const loadProblemDetails = (problemId: string, univId: string) => {
+    const probData = universityMockService.getProblemById(problemId, univId);
     if (probData) {
       setProblem(probData);
       
-      const interestData = universityMockService.getInterestForProblem(problemId, universityId);
+      const interestData = universityMockService.getInterestForProblem(problemId, univId);
       setInterest(interestData || null);
 
       const teamData = universityMockService.getAssignedTeamForProblem(problemId);
@@ -86,7 +86,7 @@ export default function ProblemDetailsPage() {
     const newInterest = universityMockService.expressInterest(problem.id, universityId, user?.profile?.universityName || undefined);
     
     setInterest(newInterest);
-    const updated = universityMockService.getProblemById(problem.id);
+    const updated = universityMockService.getProblemById(problem.id, universityId);
     if (updated) {
       setProblem(updated);
     }

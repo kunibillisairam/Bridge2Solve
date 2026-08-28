@@ -59,7 +59,7 @@ export default function TeamsPage() {
 
   useEffect(() => {
     if (assignProblemIdFromUrl) {
-      const prob = universityMockService.getProblemById(assignProblemIdFromUrl);
+      const prob = universityMockService.getProblemById(assignProblemIdFromUrl, universityId);
       if (prob) {
         setAssignModalProblem(prob);
       }

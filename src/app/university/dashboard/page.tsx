@@ -221,8 +221,8 @@ export default function DashboardPage() {
               <Card className="border-brandgray-border shadow-subtle bg-white">
                 <CardContent className="p-8 text-center space-y-4">
                   <div className="space-y-1">
-                    <p className="text-sm font-bold text-primary">No new community problems match your institution yet.</p>
-                    <p className="text-xs text-brandgray-muted">Once nearby citizen problems are validated, relevant challenges will appear here.</p>
+                    <p className="text-sm font-bold text-primary">No problems matched to your university yet.</p>
+                    <p className="text-xs text-brandgray-muted">Validated community problems relevant to your academic profile will appear here.</p>
                   </div>
                   <Link href="/university/problems">
                     <Button variant="outline" size="sm" className="font-bold text-xs">

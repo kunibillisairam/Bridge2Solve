@@ -1579,12 +1579,28 @@ export function getProjectHealth(project: ResolvedProject): "ON TRACK" | "AT RIS
 
 export const universityMockService = {
   // Problems API
-  getProblems(): CommunityProblem[] {
-    return getStoredData<CommunityProblem[]>("uni_problems", INITIAL_PROBLEMS);
+  getProblems(universityId = "univ-1"): CommunityProblem[] {
+    const allProblems = getStoredData<CommunityProblem[]>("uni_problems", INITIAL_PROBLEMS);
+    const seedUniversityIds = ["univ-1", "univ-2", "univ-3", "univ-4", "univ-5"];
+    const isNewUniversity = !seedUniversityIds.includes(universityId);
+
+    if (isNewUniversity) {
+      const seededProblemIds = ["prob-1", "prob-2", "prob-3", "prob-4", "prob-5", "prob-6", "prob-7", "prob-8", "prob-9", "prob-10", "prob-11", "prob-12", "prob-13", "prob-14", "prob-15"];
+      return allProblems.filter(p => !seededProblemIds.includes(p.id));
+    }
+    return allProblems;
   },
 
-  getProblemById(id: string): CommunityProblem | undefined {
-    return this.getProblems().find((p) => p.id === id);
+  getProblemById(id: string, universityId = "univ-1"): CommunityProblem | undefined {
+    const seedUniversityIds = ["univ-1", "univ-2", "univ-3", "univ-4", "univ-5"];
+    const isNewUniversity = !seedUniversityIds.includes(universityId);
+    const seededProblemIds = ["prob-1", "prob-2", "prob-3", "prob-4", "prob-5", "prob-6", "prob-7", "prob-8", "prob-9", "prob-10", "prob-11", "prob-12", "prob-13", "prob-14", "prob-15"];
+
+    if (isNewUniversity && seededProblemIds.includes(id)) {
+      return undefined;
+    }
+
+    return this.getProblems(universityId).find((p) => p.id === id);
   },
 
   addProblem(newProblem: Omit<CommunityProblem, "id" | "submissionDate" | "status" | "matchScore">): CommunityProblem {
@@ -1634,7 +1650,7 @@ export const universityMockService = {
     );
     const registeredProblemIds = new Set(interests.map((i) => i.problemId));
 
-    const allProblems = this.getProblems();
+    const allProblems = this.getProblems(universityId);
     const unregisteredProblems = allProblems.filter((p) => !registeredProblemIds.has(p.id));
 
     const seedUniversityIds = ["univ-1", "univ-2", "univ-3", "univ-4", "univ-5"];
@@ -1708,7 +1724,7 @@ export const universityMockService = {
     const interests = this.getInterests().filter(
       (i) => i.universityId === universityId && i.status !== "WITHDRAWN"
     );
-    const problems = this.getProblems();
+    const problems = this.getProblems(universityId);
     const teams = this.getTeams();
     const proposals = this.getAllProposalsForAdmin().filter((pr) => pr.universityId === universityId);
     const projects = this.getProjects();

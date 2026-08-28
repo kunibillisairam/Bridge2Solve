@@ -66,7 +66,7 @@ export default function ProblemsPage() {
   }, [user, activeTab]);
 
   const loadProblemsData = (univId: string) => {
-    const all = universityMockService.getProblems();
+    const all = universityMockService.getProblems(univId);
     const unregistered = universityMockService.getUnregisteredRecommendedProblems(univId);
     const registered = universityMockService.getRegisteredProblemsForUniversity(univId).map((r) => r.problem);
 
@@ -142,7 +142,7 @@ export default function ProblemsPage() {
               : "border-transparent text-brandgray-muted hover:text-brandgray-text"
           }`}
         >
-          All Problems ({universityMockService.getProblems().length})
+          All Problems ({universityMockService.getProblems(universityId).length})
         </button>
         <button
           onClick={() => setActiveTab("recommended")}
@@ -233,14 +233,14 @@ export default function ProblemsPage() {
         <div className="text-center py-12 bg-white rounded-lg border border-brandgray-border p-6 space-y-3 shadow-subtle max-w-2xl mx-auto">
           <p className="text-sm font-bold text-primary">
             {activeTab === "recommended" 
-              ? "No new community problems match your institution yet." 
+              ? "No problems matched to your university yet." 
               : activeTab === "my_problems" 
               ? "No problems registered yet." 
               : "No Problems Found"}
           </p>
           <p className="text-xs text-brandgray-muted leading-relaxed">
             {activeTab === "recommended"
-              ? "Once nearby citizen problems are validated, relevant challenges will appear here."
+              ? "Validated community problems relevant to your academic profile will appear here."
               : activeTab === "my_problems"
               ? "Express interest in a relevant community problem to start a project."
               : "No community problems match your active search combination."}
