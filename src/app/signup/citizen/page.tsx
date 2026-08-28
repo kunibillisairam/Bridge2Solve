@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { User, Mail, Lock, Phone, MapPin, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
+import { User, Mail, Lock, Phone, MapPin, AlertCircle, ArrowRight, ArrowLeft, Home } from 'lucide-react';
+import { INDIA_STATES_AND_DISTRICTS } from '@/lib/registries';
 
 export default function CitizenSignupPage() {
   const { signup } = useAuth();
@@ -12,11 +13,26 @@ export default function CitizenSignupPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [phone, setPhone] = useState('');
+  const [addressLine1, setAddressLine1] = useState('');
   const [state, setState] = useState('');
   const [district, setDistrict] = useState('');
+  const [pincode, setPincode] = useState('');
 
+  const [districtsList, setDistrictsList] = useState<string[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Load districts when state changes
+  useEffect(() => {
+    if (state) {
+      const list = INDIA_STATES_AND_DISTRICTS[state] || [];
+      setDistrictsList(list);
+      setDistrict(''); // Reset district when state changes
+    } else {
+      setDistrictsList([]);
+      setDistrict('');
+    }
+  }, [state]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +53,26 @@ export default function CitizenSignupPage() {
       return;
     }
 
+    // Phone format validation
+    const cleanPhone = phone.trim().replace(/[^0-9]/g, '');
+    if (cleanPhone.length !== 10) {
+      setError('Please enter a valid 10-digit Indian phone number.');
+      return;
+    }
+
+    // Pincode validation (optional for citizen)
+    if (pincode.trim() && !/^\d{6}$/.test(pincode.trim())) {
+      setError('Please enter a valid 6-digit Pincode.');
+      return;
+    }
+
+    // Invalid state/district check
+    const validDistricts = INDIA_STATES_AND_DISTRICTS[state] || [];
+    if (!validDistricts.includes(district)) {
+      setError('Invalid State and District combination selected.');
+      return;
+    }
+
     setLoading(true);
 
     const res = await signup({
@@ -45,9 +81,11 @@ export default function CitizenSignupPage() {
       email: email.trim(),
       password,
       confirmPassword,
-      phone: phone.trim(),
+      phone: cleanPhone,
       state: state.trim(),
       district: district.trim(),
+      addressLine1: addressLine1.trim() || undefined,
+      pincode: pincode.trim() || undefined,
     });
 
     if (!res.success) {
@@ -55,6 +93,8 @@ export default function CitizenSignupPage() {
       setLoading(false);
     }
   };
+
+  const statesList = Object.keys(INDIA_STATES_AND_DISTRICTS).sort();
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-4 py-12 bg-brandgray-light">
@@ -136,21 +176,40 @@ export default function CitizenSignupPage() {
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-bold text-brandgray-text uppercase mb-1">
+              Address / Locality
+            </label>
+            <div className="relative">
+              <Home className="absolute left-3 top-2.5 h-4 w-4 text-brandgray-muted" />
+              <input
+                type="text"
+                value={addressLine1}
+                onChange={(e) => setAddressLine1(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 text-sm border border-brandgray-border rounded focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                placeholder="e.g. Flat 101, Malleshwaram"
+              />
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-bold text-brandgray-text uppercase mb-1">
                 State *
               </label>
               <div className="relative">
-                <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-brandgray-muted" />
-                <input
-                  type="text"
+                <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-brandgray-muted pointer-events-none" />
+                <select
                   value={state}
                   onChange={(e) => setState(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 text-sm border border-brandgray-border rounded focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                  placeholder="e.g. Karnataka"
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-brandgray-border rounded bg-white focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none"
                   required
-                />
+                >
+                  <option value="">Select State</option>
+                  {statesList.map(st => (
+                    <option key={st} value={st}>{st}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -159,14 +218,35 @@ export default function CitizenSignupPage() {
                 District *
               </label>
               <div className="relative">
+                <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-brandgray-muted pointer-events-none" />
+                <select
+                  value={district}
+                  onChange={(e) => setDistrict(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-brandgray-border rounded bg-white focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary appearance-none"
+                  disabled={!state}
+                  required
+                >
+                  <option value="">Select District</option>
+                  {districtsList.map(dt => (
+                    <option key={dt} value={dt}>{dt}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-brandgray-text uppercase mb-1">
+                Pincode (optional)
+              </label>
+              <div className="relative">
                 <MapPin className="absolute left-3 top-2.5 h-4 w-4 text-brandgray-muted" />
                 <input
                   type="text"
-                  value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
+                  maxLength={6}
+                  value={pincode}
+                  onChange={(e) => setPincode(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 text-sm border border-brandgray-border rounded focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                  placeholder="e.g. Bengaluru Urban"
-                  required
+                  placeholder="e.g. 560001"
                 />
               </div>
             </div>

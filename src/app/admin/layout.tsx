@@ -14,7 +14,8 @@ import {
   X,
   ChevronRight,
   Sparkles,
-  Activity
+  Activity,
+  BarChart3
 } from "lucide-react";
 import { universityMockService } from "@/services/universityMockService";
 import { industryService } from "@/services/industryService";
@@ -38,6 +39,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const navItems = [
     { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+    { label: "Impact & Transparency", href: "/admin/impact", icon: BarChart3 },
     { label: "Problems Queue", href: "/admin/problems", icon: Layers, badge: pendingProblemsCount },
     { label: "Proposals Review", href: "/admin/proposals", icon: FileText, badge: pendingProposalsCount },
     { label: "Projects Control", href: "/admin/projects", icon: FolderKanban, badge: awaitingVerificationProjectsCount },

@@ -27,13 +27,27 @@ export interface SignupPayload {
   // Citizen
   state?: string;
   district?: string;
+  addressLine1?: string;
+  pincode?: string;
   // University
   universityName?: string;
-  department?: string;
-  designation?: string;
+  institutionType?: string;
+  accreditationId?: string;
   // Industry
   organizationName?: string;
   organizationType?: string;
+  companyCin?: string;
+  csrId?: string;
+  csrFocusAreas?: string;
+  geographicFocus?: string;
+  technicalExpertise?: string;
+  // Shared Address/Others
+  addressLine2?: string;
+  website?: string;
+  isManualUniversity?: boolean;
+  isManualCompany?: boolean;
+  designation?: string;
+  department?: string;
 }
 
 interface AuthContextValue {

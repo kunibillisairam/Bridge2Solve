@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { setSessionCookie, SessionUser } from '@/lib/auth-server';
+import { INDIA_STATES_AND_DISTRICTS } from '@/lib/registries';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -70,7 +71,7 @@ export async function POST(req: NextRequest) {
     let sessionUser: SessionUser;
 
     if (role === 'CITIZEN') {
-      const { name, phone, state, district } = body;
+      const { name, phone, state, district, addressLine1, pincode } = body;
 
       if (!name || typeof name !== 'string' || !name.trim()) {
         return NextResponse.json({ error: 'Full Name is required.' }, { status: 400 });
@@ -85,18 +86,37 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'District is required.' }, { status: 400 });
       }
 
+      // Phone format validation (10 digits)
+      const cleanPhone = phone.trim().replace(/[^0-9]/g, '');
+      if (cleanPhone.length !== 10) {
+        return NextResponse.json({ error: 'Please enter a valid 10-digit phone number.' }, { status: 400 });
+      }
+
+      // State and District combination validation
+      const validDistricts = INDIA_STATES_AND_DISTRICTS[state] || [];
+      if (!validDistricts.includes(district)) {
+        return NextResponse.json({ error: 'Invalid State and District combination.' }, { status: 400 });
+      }
+
+      // Pincode validation (optional)
+      if (pincode && !/^\d{6}$/.test(String(pincode).trim())) {
+        return NextResponse.json({ error: 'Please enter a valid 6-digit Pincode.' }, { status: 400 });
+      }
+
       const created = await prisma.user.create({
         data: {
           name: name.trim(),
           email: normalizedEmail,
           passwordHash,
           role: 'CITIZEN',
-          phone: phone.trim(),
+          phone: cleanPhone,
           status: 'ACTIVE',
           citizenProfile: {
             create: {
+              addressLine1: addressLine1 ? String(addressLine1).trim() : null,
               district: district.trim(),
               state: state.trim(),
+              pincode: pincode ? String(pincode).trim() : null,
             },
           },
         },
@@ -111,7 +131,10 @@ export async function POST(req: NextRequest) {
         orgDetails: null,
       };
     } else if (role === 'UNIVERSITY') {
-      const { universityName, name, department, designation } = body;
+      const { 
+        universityName, name, department, designation, phone, 
+        institutionType, addressLine1, addressLine2, state, district, pincode, website, accreditationId, isManualUniversity 
+      } = body;
 
       if (!universityName || typeof universityName !== 'string' || !universityName.trim()) {
         return NextResponse.json({ error: 'University Name is required.' }, { status: 400 });
@@ -125,6 +148,41 @@ export async function POST(req: NextRequest) {
       if (!designation || typeof designation !== 'string' || !designation.trim()) {
         return NextResponse.json({ error: 'Designation is required.' }, { status: 400 });
       }
+      if (!phone || typeof phone !== 'string' || !phone.trim()) {
+        return NextResponse.json({ error: 'Contact Phone is required.' }, { status: 400 });
+      }
+      if (!institutionType || typeof institutionType !== 'string' || !institutionType.trim()) {
+        return NextResponse.json({ error: 'Institution Type is required.' }, { status: 400 });
+      }
+      if (!addressLine1 || typeof addressLine1 !== 'string' || !addressLine1.trim()) {
+        return NextResponse.json({ error: 'Address Line 1 is required.' }, { status: 400 });
+      }
+      if (!state || typeof state !== 'string' || !state.trim()) {
+        return NextResponse.json({ error: 'State is required.' }, { status: 400 });
+      }
+      if (!district || typeof district !== 'string' || !district.trim()) {
+        return NextResponse.json({ error: 'District is required.' }, { status: 400 });
+      }
+      if (!pincode || typeof pincode !== 'string' || !pincode.trim()) {
+        return NextResponse.json({ error: 'Pincode is required.' }, { status: 400 });
+      }
+
+      // Phone format validation
+      const cleanPhone = phone.trim().replace(/[^0-9]/g, '');
+      if (cleanPhone.length !== 10) {
+        return NextResponse.json({ error: 'Please enter a valid 10-digit phone number.' }, { status: 400 });
+      }
+
+      // Pincode validation
+      if (!/^\d{6}$/.test(pincode.trim())) {
+        return NextResponse.json({ error: 'Please enter a valid 6-digit Pincode.' }, { status: 400 });
+      }
+
+      // State and District combination validation
+      const validDistricts = INDIA_STATES_AND_DISTRICTS[state] || [];
+      if (!validDistricts.includes(district)) {
+        return NextResponse.json({ error: 'Invalid State and District combination.' }, { status: 400 });
+      }
 
       // Upsert/find university entity
       let univ = await prisma.university.findFirst({
@@ -135,8 +193,31 @@ export async function POST(req: NextRequest) {
         univ = await prisma.university.create({
           data: {
             name: universityName.trim(),
-            verificationStatus: 'PENDING',
+            institutionType: institutionType.trim(),
+            addressLine1: addressLine1.trim(),
+            addressLine2: addressLine2 ? addressLine2.trim() : null,
+            state: state.trim(),
+            district: district.trim(),
+            pincode: pincode.trim(),
+            website: website ? website.trim() : null,
+            accreditationId: accreditationId ? accreditationId.trim() : null,
+            verificationStatus: isManualUniversity ? 'MANUAL_PENDING' : 'PENDING',
           },
+        });
+      } else {
+        // Update existing with address/additional fields if missing
+        await prisma.university.update({
+          where: { id: univ.id },
+          data: {
+            institutionType: univ.institutionType || institutionType.trim(),
+            addressLine1: univ.addressLine1 || addressLine1.trim(),
+            addressLine2: univ.addressLine2 || (addressLine2 ? addressLine2.trim() : null),
+            state: univ.state || state.trim(),
+            district: univ.district || district.trim(),
+            pincode: univ.pincode || pincode.trim(),
+            website: univ.website || (website ? website.trim() : null),
+            accreditationId: univ.accreditationId || (accreditationId ? accreditationId.trim() : null),
+          }
         });
       }
 
@@ -146,7 +227,7 @@ export async function POST(req: NextRequest) {
           email: normalizedEmail,
           passwordHash,
           role: 'UNIVERSITY',
-          phone: body.phone ? String(body.phone).trim() : null,
+          phone: cleanPhone,
           status: 'ACTIVE',
           orgName: universityName.trim(),
           orgDetails: department.trim(),
@@ -170,7 +251,10 @@ export async function POST(req: NextRequest) {
       };
     } else {
       // INDUSTRY
-      const { organizationName, name, organizationType, designation } = body;
+      const { 
+        organizationName, name, organizationType, designation, phone,
+        addressLine1, addressLine2, state, district, pincode, website, companyCin, csrId, csrFocusAreas, geographicFocus, technicalExpertise, isManualCompany 
+      } = body;
 
       if (!organizationName || typeof organizationName !== 'string' || !organizationName.trim()) {
         return NextResponse.json({ error: 'Organization Name is required.' }, { status: 400 });
@@ -184,6 +268,38 @@ export async function POST(req: NextRequest) {
       if (!designation || typeof designation !== 'string' || !designation.trim()) {
         return NextResponse.json({ error: 'Designation is required.' }, { status: 400 });
       }
+      if (!phone || typeof phone !== 'string' || !phone.trim()) {
+        return NextResponse.json({ error: 'Contact Phone is required.' }, { status: 400 });
+      }
+      if (!addressLine1 || typeof addressLine1 !== 'string' || !addressLine1.trim()) {
+        return NextResponse.json({ error: 'Address Line 1 is required.' }, { status: 400 });
+      }
+      if (!state || typeof state !== 'string' || !state.trim()) {
+        return NextResponse.json({ error: 'State is required.' }, { status: 400 });
+      }
+      if (!district || typeof district !== 'string' || !district.trim()) {
+        return NextResponse.json({ error: 'District is required.' }, { status: 400 });
+      }
+      if (!pincode || typeof pincode !== 'string' || !pincode.trim()) {
+        return NextResponse.json({ error: 'Pincode is required.' }, { status: 400 });
+      }
+
+      // Phone format validation
+      const cleanPhone = phone.trim().replace(/[^0-9]/g, '');
+      if (cleanPhone.length !== 10) {
+        return NextResponse.json({ error: 'Please enter a valid 10-digit phone number.' }, { status: 400 });
+      }
+
+      // Pincode validation
+      if (!/^\d{6}$/.test(pincode.trim())) {
+        return NextResponse.json({ error: 'Please enter a valid 6-digit Pincode.' }, { status: 400 });
+      }
+
+      // State and District combination validation
+      const validDistricts = INDIA_STATES_AND_DISTRICTS[state] || [];
+      if (!validDistricts.includes(district)) {
+        return NextResponse.json({ error: 'Invalid State and District combination.' }, { status: 400 });
+      }
 
       // Upsert/find industry entity
       let ind = await prisma.industry.findFirst({
@@ -195,8 +311,38 @@ export async function POST(req: NextRequest) {
           data: {
             name: organizationName.trim(),
             organizationType: organizationType.trim(),
-            verificationStatus: 'PENDING',
+            addressLine1: addressLine1.trim(),
+            addressLine2: addressLine2 ? addressLine2.trim() : null,
+            state: state.trim(),
+            district: district.trim(),
+            pincode: pincode.trim(),
+            companyCin: companyCin ? companyCin.trim() : null,
+            csrId: csrId ? csrId.trim() : null,
+            csrFocusAreas: csrFocusAreas ? csrFocusAreas.trim() : null,
+            geographicFocus: geographicFocus ? geographicFocus.trim() : null,
+            technicalExpertise: technicalExpertise ? technicalExpertise.trim() : null,
+            website: website ? website.trim() : null,
+            verificationStatus: isManualCompany ? 'MANUAL_PENDING' : 'PENDING',
           },
+        });
+      } else {
+        // Update existing with address/additional fields if missing
+        await prisma.industry.update({
+          where: { id: ind.id },
+          data: {
+            organizationType: ind.organizationType || organizationType.trim(),
+            addressLine1: ind.addressLine1 || addressLine1.trim(),
+            addressLine2: ind.addressLine2 || (addressLine2 ? addressLine2.trim() : null),
+            state: ind.state || state.trim(),
+            district: ind.district || district.trim(),
+            pincode: ind.pincode || pincode.trim(),
+            companyCin: ind.companyCin || (companyCin ? companyCin.trim() : null),
+            csrId: ind.csrId || (csrId ? csrId.trim() : null),
+            csrFocusAreas: ind.csrFocusAreas || (csrFocusAreas ? csrFocusAreas.trim() : null),
+            geographicFocus: ind.geographicFocus || (geographicFocus ? geographicFocus.trim() : null),
+            technicalExpertise: ind.technicalExpertise || (technicalExpertise ? technicalExpertise.trim() : null),
+            website: ind.website || (website ? website.trim() : null),
+          }
         });
       }
 
@@ -206,7 +352,7 @@ export async function POST(req: NextRequest) {
           email: normalizedEmail,
           passwordHash,
           role: 'INDUSTRY',
-          phone: body.phone ? String(body.phone).trim() : null,
+          phone: cleanPhone,
           status: 'ACTIVE',
           orgName: organizationName.trim(),
           orgDetails: designation.trim(),

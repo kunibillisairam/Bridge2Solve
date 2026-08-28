@@ -65,18 +65,28 @@ model User {
 }
 
 model CitizenProfile {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  district  String?
-  state     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addressLine1 String?
+  addressLine2 String?
+  district     String?
+  state        String?
+  pincode      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model University {
   id                 String              @id @default(uuid())
   name               String
+  institutionType    String?
+  addressLine1       String?
+  addressLine2       String?
+  state              String?
+  district           String?
+  pincode            String?
+  accreditationId    String?
   description        String?
   location           String?
   website            String?
@@ -102,6 +112,16 @@ model Industry {
   id                 String            @id @default(uuid())
   name               String
   organizationType   String?
+  addressLine1       String?
+  addressLine2       String?
+  state              String?
+  district           String?
+  pincode            String?
+  companyCin         String?
+  csrId              String?
+  csrFocusAreas      String?
+  geographicFocus    String?
+  technicalExpertise String?
   description        String?
   location           String?
   website            String?
