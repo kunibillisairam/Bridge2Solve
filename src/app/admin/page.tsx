@@ -52,6 +52,7 @@ export default function AdminControlCenterPage() {
   const [projects, setProjects] = useState<UniversityProject[]>([]);
   const [industryRequests, setIndustryRequests] = useState<IndustrySupportRequest[]>([]);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [totalUsersCount, setTotalUsersCount] = useState(0);
 
   // Validation Queue Tab state
   const [activeTab, setActiveTab] = useState<"all" | "pending" | "analyzed" | "duplicates" | "approved" | "rejected">("all");
@@ -66,6 +67,15 @@ export default function AdminControlCenterPage() {
     setProjects(universityMockService.getProjects());
     setIndustryRequests(industryService.getAllSupportRequests());
     setActivities(universityMockService.getActivities());
+
+    fetch("/api/admin/users")
+      .then(res => res.json())
+      .then(data => {
+        if (data.users) {
+          setTotalUsersCount(data.users.length);
+        }
+      })
+      .catch(err => console.error("Error loading users count", err));
   };
 
   // Resolve projects for monitoring
@@ -240,6 +250,32 @@ export default function AdminControlCenterPage() {
           ))}
         </div>
       </div>
+
+      {/* PLATFORM USERS REGISTRY QUICK CARD */}
+      <Card className="border-brandgray-border bg-white shadow-subtle p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="bg-primary/5 p-2.5 rounded-lg text-primary shrink-0">
+            <Users className="h-5 w-5" />
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-primary uppercase tracking-wider">Registered Users & Organizations</h4>
+            <p className="text-[11px] text-brandgray-muted mt-0.5">
+              Access the complete participant database including citizens, universities, corporate CSR partners, and administrators.
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 shrink-0 self-stretch sm:self-auto justify-between sm:justify-end">
+          <div className="text-right sm:text-right">
+            <span className="text-[10px] font-bold text-brandgray-muted uppercase block leading-none">Total Registered</span>
+            <span className="text-lg font-extrabold text-primary block mt-1">{totalUsersCount} Users</span>
+          </div>
+          <Link href="/admin/users">
+            <Button variant="primary" size="sm" className="font-bold text-xs px-4 h-8">
+              View All Users
+            </Button>
+          </Link>
+        </div>
+      </Card>
 
       {/* ACTION REQUIRED QUEUE (High Priority Section) */}
       <Card className="border-amber-300 bg-amber-50/40 shadow-subtle">

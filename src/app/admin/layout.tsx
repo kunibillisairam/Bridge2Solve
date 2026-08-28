@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Sparkles,
   Activity,
-  BarChart3
+  BarChart3,
+  Users
 } from "lucide-react";
 import { universityMockService } from "@/services/universityMockService";
 import { industryService } from "@/services/industryService";
@@ -44,6 +45,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { label: "Proposals Review", href: "/admin/proposals", icon: FileText, badge: pendingProposalsCount },
     { label: "Projects Control", href: "/admin/projects", icon: FolderKanban, badge: awaitingVerificationProjectsCount },
     { label: "Industry / CSR Support", href: "/admin/industry-support", icon: Building2, badge: pendingCSRCount },
+    { label: "Users Registry", href: "/admin/users", icon: Users },
     { label: "Audit Trail", href: "/admin/activity", icon: Activity },
   ];
 
