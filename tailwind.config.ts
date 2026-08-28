@@ -29,7 +29,8 @@ const config: Config = {
           border: "#E5E7EB",  // standard border gray
           text: "#1F2937",    // dark gray for readable body text
           muted: "#6B7280",   // muted text gray
-        }
+        },
+        white: "#FFFEFA",     // warm white card background
       },
       boxShadow: {
         subtle: "0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03)",

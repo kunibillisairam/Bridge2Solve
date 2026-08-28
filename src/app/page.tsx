@@ -31,7 +31,7 @@ export default function Home() {
   return (
     <div className="flex flex-col w-full min-h-[calc(100vh-4rem)]">
       {/* Hero Section */}
-      <section className="bg-white border-b border-brandgray-border py-16 md:py-24">
+      <section className="bg-brandgray-light border-b border-brandgray-border py-16 md:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
           {/* Subtle Tagline Badge */}
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase bg-primary-light text-primary border border-primary/10 mb-6">
@@ -99,9 +99,9 @@ export default function Home() {
       </section>
 
       {/* Info Notice Banner */}
-      <section className="bg-white border-t border-brandgray-border py-12">
+      <section className="bg-brandgray-light border-t border-brandgray-border py-12">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <div className="p-6 border border-brandgray-border rounded-md bg-brandgray-light/35 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="p-6 border border-brandgray-border rounded-md bg-white flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="space-y-1 text-center md:text-left">
               <span className="text-xs font-semibold uppercase tracking-wider text-success">
                 Technical Foundation Active
