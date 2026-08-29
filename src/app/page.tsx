@@ -50,7 +50,7 @@ export default function Home() {
 
           {/* Call-to-action */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/login" className="w-full sm:w-auto">
+            <Link href="/signup" className="w-full sm:w-auto">
               <Button variant="primary" size="lg" className="w-full">
                 Get Started
               </Button>
